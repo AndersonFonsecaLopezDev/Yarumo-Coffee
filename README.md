@@ -52,3 +52,5 @@ Configura estos GitHub Secrets:
 - `SUPABASE_DB_PASSWORD`
 
 En Vercel configura además `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY`. La service role key solo debe existir en Vercel/GitHub Secrets y nunca en el navegador.
+
+El workflow usa Node 24 y no activa la caché de npm porque el repositorio todavía no tiene `package-lock.json`. Para builds reproducibles, genera y versiona el lockfile; después se puede cambiar el workflow a `npm ci` y activar `cache: npm`.
