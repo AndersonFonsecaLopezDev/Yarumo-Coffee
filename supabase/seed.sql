@@ -1,6 +1,6 @@
 insert into public.cafe_tables (label) values ('1'), ('2'), ('3'), ('4') on conflict (label) do nothing;
 
-insert into public.menu_items (name, slug, description, price_cents, category, sort_order) values
+insert into public.menu_items (name, slug, description, price_cop, category, sort_order) values
 ('Yarumo latte','yarumo-latte','Espresso, leche vaporizada y miel.',12000,'Café',1),
 ('Espresso doble','espresso-doble','Corto, intenso y servido con calma.',8000,'Café',2),
 ('Filtrado V60','filtrado-v60','Una taza para descubrir matices.',10000,'Café',3),
