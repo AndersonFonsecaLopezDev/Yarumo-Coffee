@@ -452,7 +452,7 @@ export default function Staff() {
                 <option>Gaseosas</option>
                 <option>Cervezas</option>
                 <option>Antojitos Panaderos</option>
-                <option>Sánduches</option>
+                <option>Sándwiches</option>
                 <option>Tortas y Brownies</option>
                 <option>Hojaldrados</option>
                 <option>Pizzetas</option>

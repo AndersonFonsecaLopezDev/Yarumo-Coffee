@@ -63,10 +63,10 @@ insert into public.menu_items (name, slug, description, price_cop, category, sor
 ('Panchocolate', 'panchocolate', 'Pan suave artesanal relleno con trozos de chocolate.', 8000, 'Antojitos Panaderos', 48, true),
 ('Focaccia', 'focaccia', 'Pan focaccia aromatizado con aceite de oliva y finas hierbas.', 10000, 'Antojitos Panaderos', 49, true),
 
--- SÁNDUCHES
-('Sánduche Jamón y queso', 'sanduche-jamon-y-queso', 'Sánduche tostado con jamón y queso derretido.', 9000, 'Sánduches', 50, true),
-('Sánduche Huevo y tocineta', 'sanduche-huevo-y-tocineta', 'Sánduche con huevo y tocineta crujiente.', 12000, 'Sánduches', 51, true),
-('Sánduche Yarumo', 'sanduche-yarumo', 'Sánduche de la casa con jamón, queso, tocineta y huevo.', 13000, 'Sánduches', 52, true),
+-- SÁNDWICHES
+('Sándwich Jamón y queso', 'sandwich-jamon-y-queso', 'Sándwich tostado con jamón y queso derretido.', 9000, 'Sándwiches', 50, true),
+('Sándwich Huevo y tocineta', 'sandwich-huevo-y-tocineta', 'Sándwich con huevo y tocineta crujiente.', 12000, 'Sándwiches', 51, true),
+('Sándwich Yarumo', 'sandwich-yarumo', 'Sándwich de la casa con jamón, queso, tocineta y huevo.', 13000, 'Sándwiches', 52, true),
 
 -- TORTAS Y BROWNIES
 ('Torta de Almojábana', 'torta-de-almojabana', 'Porción de torta artesanal a base de almojábana.', 11000, 'Tortas y Brownies', 53, true),

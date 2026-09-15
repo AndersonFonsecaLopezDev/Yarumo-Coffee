@@ -20,6 +20,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   Gaseosas: '🥤',
   Cervezas: '🍺',
   'Antojitos Panaderos': '🥐',
+  Sándwiches: '🥪',
   Sánduches: '🥪',
   'Tortas y Brownies': '🍰',
   Hojaldrados: '🥟',

@@ -8,6 +8,7 @@ alter table if exists public.menu_items add constraint menu_items_category_check
     'Gaseosas',
     'Cervezas',
     'Antojitos Panaderos',
+    'Sándwiches',
     'Sánduches',
     'Tortas y Brownies',
     'Hojaldrados',

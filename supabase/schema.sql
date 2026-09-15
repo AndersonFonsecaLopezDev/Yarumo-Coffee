@@ -9,7 +9,7 @@ create table public.menu_items (
   slug text not null unique check (slug ~ '^[a-z0-9-]+$'),
   description text not null default '' check (char_length(description) <= 500),
   price_cop integer not null check (price_cop >= 0),
-  category text not null check (category in ('Bebidas Calientes', 'Bebidas Frías', 'Gaseosas', 'Cervezas', 'Antojitos Panaderos', 'Sánduches', 'Tortas y Brownies', 'Hojaldrados', 'Pizzetas', 'Café', 'Frío', 'Para comer', 'Otros')),
+  category text not null check (category in ('Bebidas Calientes', 'Bebidas Frías', 'Gaseosas', 'Cervezas', 'Antojitos Panaderos', 'Sándwiches', 'Sánduches', 'Tortas y Brownies', 'Hojaldrados', 'Pizzetas', 'Café', 'Frío', 'Para comer', 'Otros')),
   image_url text,
   available boolean not null default true,
   sort_order integer not null default 0,
