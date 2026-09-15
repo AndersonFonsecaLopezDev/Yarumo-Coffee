@@ -19,6 +19,7 @@ type MenuItem = {
   available: boolean
   sort_order: number
   image_url: string | null
+  gallery_urls: string[]
 }
 type MenuForm = {
   name: string
@@ -29,6 +30,7 @@ type MenuForm = {
   available: boolean
   sort_order: number
   image_url: string
+  gallery_urls: string
 }
 const blank: MenuForm = {
   name: '',
@@ -39,6 +41,7 @@ const blank: MenuForm = {
   available: true,
   sort_order: 0,
   image_url: '',
+  gallery_urls: '',
 }
 
 export default function Staff() {
@@ -85,7 +88,7 @@ export default function Staff() {
 
     const menu = await supabase
       .from('menu_items')
-      .select('id,name,slug,description,price_cop,category,available,sort_order,image_url')
+      .select('id,name,slug,description,price_cop,category,available,sort_order,image_url,gallery_urls')
       .order('sort_order')
       .order('name')
     setItems((menu.data || []) as MenuItem[])
@@ -179,7 +182,7 @@ export default function Staff() {
 
   function edit(item: MenuItem) {
     setEditing(item)
-    setForm({ ...item, image_url: item.image_url || '' })
+    setForm({ ...item, image_url: item.image_url || '', gallery_urls: (item.gallery_urls || []).join('\n') })
   }
 
   function newItem() {
@@ -212,6 +215,7 @@ export default function Staff() {
       available: form.available,
       sort_order: Number(form.sort_order) || 0,
       image_url: imageUrl,
+      gallery_urls: form.gallery_urls.split(/[\n,]/).map((url) => url.trim()).filter(Boolean),
     }
     const result = editing
       ? await supabase.from('menu_items').update(payload).eq('id', editing.id)
@@ -503,6 +507,12 @@ export default function Staff() {
                 value={form.image_url || ''}
                 onChange={(e) => setForm({ ...form, image_url: e.target.value })}
                 placeholder="URL pública de la foto (Supabase Storage)"
+              />
+              <textarea
+                value={form.gallery_urls}
+                onChange={(e) => setForm({ ...form, gallery_urls: e.target.value })}
+                placeholder="Fotos adicionales: una URL por línea"
+                maxLength={4000}
               />
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
                 <option>Bebidas Calientes</option>

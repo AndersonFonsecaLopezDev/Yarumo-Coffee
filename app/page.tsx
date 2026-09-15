@@ -11,6 +11,7 @@ type MenuItem = {
   category: string
   sort_order: number
   image_url: string | null
+  gallery_urls: string[]
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -39,11 +40,13 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('Todos')
+  const [galleryItem, setGalleryItem] = useState<MenuItem | null>(null)
+  const [galleryIndex, setGalleryIndex] = useState(0)
 
   useEffect(() => {
     supabase
       .from('menu_items')
-      .select('id,name,description,price_cop,category,sort_order,image_url')
+      .select('id,name,description,price_cop,category,sort_order,image_url,gallery_urls')
       .eq('available', true)
       .order('sort_order')
       .order('name')
@@ -206,9 +209,17 @@ export default function Home() {
           <div className="menu">
             {filtered.length ? (
               filtered.map((item) => (
-                <article className="item" key={item.id}>
+                  <article className="item" key={item.id}>
                   {item.image_url ? (
-                    <div className="item-image-wrap">
+                    <button
+                      className="item-image-wrap"
+                      type="button"
+                      onClick={() => {
+                        setGalleryItem(item)
+                        setGalleryIndex(0)
+                      }}
+                      aria-label={`Ver fotos de ${item.name}`}
+                    >
                       <img
                         className="item-image"
                         src={item.image_url}
@@ -218,7 +229,9 @@ export default function Home() {
                           e.currentTarget.style.display = 'none'
                         }}
                       />
-                    </div>
+                      {(item.gallery_urls?.length || 0) > 0 && <span className="gallery-count">+{item.gallery_urls.length} fotos</span>}
+                      <span className="image-expand" aria-hidden="true">↗</span>
+                    </button>
                   ) : null}
                   <div className="item-copy">
                     <div className="item-header">
@@ -234,6 +247,18 @@ export default function Home() {
                           maximumFractionDigits: 0,
                         }).format(item.price_cop)}
                       </small>
+                      {(item.image_url || item.gallery_urls?.length) && (
+                        <button
+                          className="gallery-link"
+                          type="button"
+                          onClick={() => {
+                            setGalleryItem(item)
+                            setGalleryIndex(0)
+                          }}
+                        >
+                          Ver fotos →
+                        </button>
+                      )}
                     </div>
                   </div>
                 </article>
@@ -295,6 +320,31 @@ export default function Home() {
           <span className="notice-close">×</span>
         </button>
       )}
+      {galleryItem && (() => {
+        const images = [galleryItem.image_url, ...(galleryItem.gallery_urls || [])].filter(Boolean) as string[]
+        const currentImage = images[galleryIndex] || images[0]
+        return (
+          <div className="gallery-modal" role="dialog" aria-modal="true" aria-label={`Galería de ${galleryItem.name}`} onClick={() => setGalleryItem(null)}>
+            <div className="gallery-dialog" onClick={(event) => event.stopPropagation()}>
+              <button className="gallery-close" type="button" onClick={() => setGalleryItem(null)} aria-label="Cerrar galería">×</button>
+              <div className="gallery-main-image">
+                <img src={currentImage} alt={`${galleryItem.name}, foto ${galleryIndex + 1}`} />
+                {images.length > 1 && <>
+                  <button className="gallery-arrow gallery-prev" type="button" onClick={() => setGalleryIndex((galleryIndex - 1 + images.length) % images.length)} aria-label="Foto anterior">←</button>
+                  <button className="gallery-arrow gallery-next" type="button" onClick={() => setGalleryIndex((galleryIndex + 1) % images.length)} aria-label="Foto siguiente">→</button>
+                </>}
+              </div>
+              <div className="gallery-details">
+                <span className="eyebrow">{galleryItem.category}</span>
+                <h2>{galleryItem.name}</h2>
+                {galleryItem.description && <p>{galleryItem.description}</p>}
+                <strong>{new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(galleryItem.price_cop)}</strong>
+                {images.length > 1 && <div className="gallery-dots">{images.map((image, index) => <button key={image} type="button" className={index === galleryIndex ? 'active' : ''} onClick={() => setGalleryIndex(index)} aria-label={`Ver foto ${index + 1}`} />)}</div>}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </>
   )
 }
