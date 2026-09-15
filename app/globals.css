@@ -34,6 +34,13 @@ a {
   text-decoration: none;
 }
 
+button {
+  font-family: inherit;
+  color: inherit;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Header */
 .header {
   height: 80px;
@@ -217,6 +224,9 @@ h1 em, h2 em {
 .service-actions button {
   border: 1.5px solid var(--ink);
   background: transparent;
+  color: var(--ink);
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
   border-radius: 999px;
   padding: 13px 20px;
   font-weight: 800;
