@@ -1,10 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import QRCode from 'qrcode'
 import { createClient } from '@/lib/supabase/client'
 import UserAdmin from '@/components/UserAdmin'
 
 type Request = { id: string; type: 'waiter' | 'bill'; status: string; created_at: string; table: { label: string } | null }
+type CafeTable = { id: string; label: string; public_token: string; active: boolean }
 type MenuItem = {
   id: string
   name: string
@@ -46,12 +48,20 @@ export default function Staff() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [isGoogleLoggingIn, setIsGoogleLoggingIn] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('error') === 'oauth_error') {
+      return 'Error en la autenticación con Google. Intenta nuevamente.'
+    }
+    return ''
+  })
   const [requests, setRequests] = useState<Request[]>([])
   const [items, setItems] = useState<MenuItem[]>([])
-  const [tab, setTab] = useState<'requests' | 'menu' | 'users'>('requests')
+  const [tab, setTab] = useState<'requests' | 'menu' | 'qr' | 'users'>('requests')
   const [editing, setEditing] = useState<MenuItem | null>(null)
   const [form, setForm] = useState<MenuForm>(blank)
+  const [tables, setTables] = useState<CafeTable[]>([])
+  const [qrCodes, setQrCodes] = useState<Record<string, string>>({})
+  const [qrLoading, setQrLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
@@ -77,14 +87,26 @@ export default function Staff() {
       .order('sort_order')
       .order('name')
     setItems((menu.data || []) as MenuItem[])
-  }, [supabase])
 
-  useEffect(() => {
-    const errorParam = new URLSearchParams(window.location.search).get('error')
-    if (errorParam === 'oauth_error') {
-      setError('Error en la autenticación con Google. Intenta nuevamente.')
-    }
-  }, [])
+    const cafeTables = await supabase.from('cafe_tables').select('id,label,public_token,active').order('label')
+    const loadedTables = (cafeTables.data || []) as CafeTable[]
+    setTables(loadedTables)
+    setQrLoading(true)
+    const generated = await Promise.all(
+      loadedTables.map(async (cafeTable) => {
+        const url = `${window.location.origin}/?mesa=${encodeURIComponent(cafeTable.public_token)}`
+        const dataUrl = await QRCode.toDataURL(url, {
+          width: 720,
+          margin: 3,
+          errorCorrectionLevel: 'M',
+          color: { dark: '#18362f', light: '#fffaf2' },
+        })
+        return [cafeTable.id, dataUrl] as const
+      }),
+    )
+    setQrCodes(Object.fromEntries(generated))
+    setQrLoading(false)
+  }, [supabase])
 
   useEffect(() => {
     let active = true
@@ -190,6 +212,21 @@ export default function Staff() {
     const { error: delError } = await supabase.from('menu_items').delete().eq('id', item.id)
     if (delError) setError('No se pudo eliminar. Puede haber referencias activas.')
     else await load()
+  }
+
+  function downloadQr(cafeTable: CafeTable) {
+    const dataUrl = qrCodes[cafeTable.id]
+    if (!dataUrl) return
+    const link = document.createElement('a')
+    link.href = dataUrl
+    link.download = `yarumo-coffee-mesa-${cafeTable.label}.png`
+    link.click()
+  }
+
+  function downloadAllQrs() {
+    tables.filter((cafeTable) => cafeTable.active && qrCodes[cafeTable.id]).forEach((cafeTable, index) => {
+      window.setTimeout(() => downloadQr(cafeTable), index * 180)
+    })
   }
 
   if (!user) {
@@ -339,6 +376,9 @@ export default function Staff() {
             <button className={tab === 'menu' ? 'active' : ''} onClick={() => setTab('menu')}>
               Menú ({items.length})
             </button>
+            <button className={tab === 'qr' ? 'active' : ''} onClick={() => setTab('qr')}>
+              QR por mesa
+            </button>
             <button className={tab === 'users' ? 'active' : ''} onClick={() => setTab('users')}>
               Usuarios
             </button>
@@ -485,6 +525,37 @@ export default function Staff() {
               </div>
             </form>
           </div>
+        </section>
+      ) : tab === 'qr' ? (
+        <section className="qr-admin">
+          <div className="qr-admin-head">
+            <div>
+              <span className="eyebrow">Experiencia en mesa</span>
+              <h2>Descarga tus QR.</h2>
+              <p>Cada código abre la carta y conecta las solicitudes con su mesa.</p>
+            </div>
+            <button className="button" onClick={downloadAllQrs} disabled={qrLoading || !tables.some((cafeTable) => cafeTable.active)}>
+              {qrLoading ? 'Generando…' : 'Descargar todos'}
+            </button>
+          </div>
+          <div className="qr-grid">
+            {tables.filter((cafeTable) => cafeTable.active).map((cafeTable) => (
+              <article className="qr-card" key={cafeTable.id}>
+                <div className="qr-image-wrap">
+                  {qrCodes[cafeTable.id] ? <img src={qrCodes[cafeTable.id]} alt={`Código QR de la mesa ${cafeTable.label}`} /> : <span>Generando QR…</span>}
+                </div>
+                <div className="qr-card-info">
+                  <span className="eyebrow">Código activo</span>
+                  <h3>Mesa {cafeTable.label}</h3>
+                  <p>Escanea para abrir la carta y pedir atención.</p>
+                  <button className="button" onClick={() => downloadQr(cafeTable)} disabled={!qrCodes[cafeTable.id]}>
+                    Descargar PNG ↓
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+          {!tables.some((cafeTable) => cafeTable.active) && <div className="request">No hay mesas activas configuradas.</div>}
         </section>
       ) : (
         <UserAdmin />
