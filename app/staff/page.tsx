@@ -5,6 +5,8 @@ import QRCode from 'qrcode'
 import { createClient } from '@/lib/supabase/client'
 import UserAdmin from '@/components/UserAdmin'
 
+const PUBLIC_MENU_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://yarumo-coffee.vercel.app'
+
 type Request = { id: string; type: 'waiter' | 'bill'; status: string; created_at: string; table: { label: string } | null }
 type CafeTable = { id: string; label: string; public_token: string; active: boolean }
 type MenuItem = {
@@ -94,7 +96,7 @@ export default function Staff() {
     setQrLoading(true)
     const generated = await Promise.all(
       loadedTables.map(async (cafeTable) => {
-        const url = `${window.location.origin}/?mesa=${encodeURIComponent(cafeTable.public_token)}`
+        const url = `${PUBLIC_MENU_URL.replace(/\/$/, '')}/?mesa=${encodeURIComponent(cafeTable.public_token)}`
         const dataUrl = await QRCode.toDataURL(url, {
           width: 720,
           margin: 3,
@@ -145,13 +147,29 @@ export default function Staff() {
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/staff`,
+        redirectTo: `${PUBLIC_MENU_URL.replace(/\/$/, '')}/auth/callback?next=/staff`,
       },
     })
     if (oauthError) {
       setIsGoogleLoggingIn(false)
       setError('No se pudo iniciar sesión con Google. Asegúrate de que el proveedor Google esté activo en Supabase.')
     }
+  }
+
+  async function logout() {
+    setError('')
+    const { error: signOutError } = await supabase.auth.signOut()
+    if (signOutError) {
+      setError('No se pudo cerrar la sesión. Intenta nuevamente.')
+      return
+    }
+    setUser(null)
+    setRole('')
+    setTab('requests')
+    setRequests([])
+    setItems([])
+    setTables([])
+    setQrCodes({})
   }
 
   async function complete(id: string) {
@@ -363,7 +381,7 @@ export default function Staff() {
             Panel <em>Yarumo.</em>
           </h1>
         </div>
-        <button className="button" onClick={() => supabase.auth.signOut()}>
+        <button className="button" onClick={logout}>
           Cerrar sesión
         </button>
       </div>
