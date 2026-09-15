@@ -217,8 +217,10 @@ h1 em, h2 em {
 
 .service-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   flex-shrink: 0;
+  justify-content: flex-end;
 }
 
 .service-actions button {
@@ -259,6 +261,14 @@ h1 em, h2 em {
 .service-actions button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.service-hint {
+  flex-basis: 100%;
+  text-align: right;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
 }
 
 /* Content & Catalog */
@@ -830,5 +840,29 @@ h1 em, h2 em {
     justify-content: space-between;
     padding: 12px 18px;
     bottom: 16px;
+  }
+}
+
+/* Skeleton loading state (app/loading.tsx, and menu section while filters hydrate) */
+.skeleton-block {
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(24, 54, 47, 0.06) 25%, rgba(24, 54, 47, 0.12) 37%, rgba(24, 54, 47, 0.06) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+.skeleton-item {
+  border-radius: 18px;
+  height: 260px;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block {
+    animation: none;
   }
 }

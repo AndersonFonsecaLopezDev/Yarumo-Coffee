@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
 import QRCode from 'qrcode'
 import { createClient } from '@/lib/supabase/client'
 import UserAdmin from '@/components/UserAdmin'
@@ -64,6 +65,9 @@ export default function Staff() {
   const [tab, setTab] = useState<'requests' | 'menu' | 'qr' | 'users'>('requests')
   const [editing, setEditing] = useState<MenuItem | null>(null)
   const [form, setForm] = useState<MenuForm>(blank)
+  const [menuQuery, setMenuQuery] = useState('')
+  const [menuCategory, setMenuCategory] = useState('Todas')
+  const [menuStatus, setMenuStatus] = useState('Todos')
   const [tables, setTables] = useState<CafeTable[]>([])
   const [qrCodes, setQrCodes] = useState<Record<string, string>>({})
   const [qrLoading, setQrLoading] = useState(false)
@@ -196,6 +200,15 @@ export default function Staff() {
     setGalleryFiles([])
   }
 
+  const menuCategories = Array.from(new Set(items.map((item) => item.category))).sort((a, b) => a.localeCompare(b, 'es'))
+  const filteredAdminItems = items.filter((item) => {
+    const normalizedQuery = menuQuery.trim().toLowerCase()
+    const matchesQuery = !normalizedQuery || `${item.name} ${item.description}`.toLowerCase().includes(normalizedQuery)
+    const matchesCategory = menuCategory === 'Todas' || item.category === menuCategory
+    const matchesStatus = menuStatus === 'Todos' || (menuStatus === 'Visibles' ? item.available : !item.available)
+    return matchesQuery && matchesCategory && matchesStatus
+  })
+
   async function saveItem(e: React.FormEvent) {
     e.preventDefault()
     if (!form.name.trim() || form.price_cop < 0) {
@@ -288,7 +301,7 @@ export default function Staff() {
         <section className="login-card">
           <div className="login-brand">
             <div className="login-logo-wrap">
-              <img src="/yarumo-logo.png" alt="Yarumo Coffee" width="96" height="96" />
+              <Image src="/yarumo-logo.webp" alt="Yarumo Coffee" width={96} height={96} />
             </div>
             <span className="eyebrow">Yarumo Coffee · Armenia</span>
             <h1>
@@ -488,9 +501,31 @@ export default function Staff() {
               + Nuevo producto
             </button>
           </div>
+          <div className="menu-admin-filters">
+            <label className="menu-search-field">
+              <span>Buscar producto</span>
+              <input value={menuQuery} onChange={(e) => setMenuQuery(e.target.value)} placeholder="Nombre o descripción" />
+            </label>
+            <label>
+              <span>Categoría</span>
+              <select value={menuCategory} onChange={(e) => setMenuCategory(e.target.value)}>
+                <option>Todas</option>
+                {menuCategories.map((category) => <option key={category}>{category}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>Estado</span>
+              <select value={menuStatus} onChange={(e) => setMenuStatus(e.target.value)}>
+                <option>Todos</option>
+                <option>Visibles</option>
+                <option>Ocultos</option>
+              </select>
+            </label>
+            {(menuQuery || menuCategory !== 'Todas' || menuStatus !== 'Todos') && <button className="clear-menu-filters" type="button" onClick={() => { setMenuQuery(''); setMenuCategory('Todas'); setMenuStatus('Todos') }}>Limpiar filtros</button>}
+          </div>
           <div className="menu-admin-grid">
             <div className="admin-list">
-              {items.map((item) => (
+              {filteredAdminItems.map((item) => (
                 <article className={`admin-item ${!item.available ? 'unavailable' : ''}`} key={item.id}>
                   <div>
                     <strong>{item.name}</strong>
@@ -503,8 +538,9 @@ export default function Staff() {
                     <button onClick={() => edit(item)}>Editar</button>
                     <button onClick={() => removeItem(item)}>Eliminar</button>
                   </div>
-                </article>
+                  </article>
               ))}
+              {!filteredAdminItems.length && <div className="request menu-empty">No hay productos que coincidan con los filtros.</div>}
             </div>
             <form className="menu-form" onSubmit={saveItem}>
               <h3>{editing ? 'Editar producto' : 'Nuevo producto'}</h3>
@@ -574,7 +610,14 @@ export default function Staff() {
             {tables.filter((cafeTable) => cafeTable.active).map((cafeTable) => (
               <article className="qr-card" key={cafeTable.id}>
                 <div className="qr-image-wrap">
-                  {qrCodes[cafeTable.id] ? <img src={qrCodes[cafeTable.id]} alt={`Código QR de la mesa ${cafeTable.label}`} /> : <span>Generando QR…</span>}
+                  {qrCodes[cafeTable.id] ? (
+                    // Generated `data:` URL QR code, not a remote/static asset — next/image
+                    // offers no optimization benefit here, so plain <img> is intentional.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={qrCodes[cafeTable.id]} alt={`Código QR de la mesa ${cafeTable.label}`} />
+                  ) : (
+                    <span>Generando QR…</span>
+                  )}
                 </div>
                 <div className="qr-card-info">
                   <span className="eyebrow">Código activo</span>
