@@ -67,6 +67,8 @@ export default function Staff() {
   const [tables, setTables] = useState<CafeTable[]>([])
   const [qrCodes, setQrCodes] = useState<Record<string, string>>({})
   const [qrLoading, setQrLoading] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [galleryFiles, setGalleryFiles] = useState<File[]>([])
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
@@ -183,11 +185,15 @@ export default function Staff() {
   function edit(item: MenuItem) {
     setEditing(item)
     setForm({ ...item, image_url: item.image_url || '', gallery_urls: (item.gallery_urls || []).join('\n') })
+    setImageFile(null)
+    setGalleryFiles([])
   }
 
   function newItem() {
     setEditing(null)
     setForm(blank)
+    setImageFile(null)
+    setGalleryFiles([])
   }
 
   async function saveItem(e: React.FormEvent) {
@@ -198,7 +204,32 @@ export default function Staff() {
     }
     setSaving(true)
     setError('')
-    const imageUrl = form.image_url.trim() || null
+    let imageUrl = form.image_url.trim() || null
+    let galleryUrls = form.gallery_urls.split(/[\n,]/).map((url) => url.trim()).filter(Boolean)
+    if (imageFile || galleryFiles.length) {
+      const filesToUpload = imageFile ? [imageFile, ...galleryFiles] : galleryFiles
+      const uploadedUrls: string[] = []
+      for (const file of filesToUpload) {
+        if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
+          setSaving(false)
+          setError('Las imágenes deben ser JPG, PNG o WebP y pesar máximo 5 MB.')
+          return
+        }
+        const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+        const path = `${crypto.randomUUID()}.${extension}`
+        const upload = await supabase.storage.from('menu-images').upload(path, file, { cacheControl: '31536000', contentType: file.type, upsert: false })
+        if (upload.error) {
+          setSaving(false)
+          setError('No se pudo cargar la imagen. Verifica el bucket menu-images en Supabase.')
+          return
+        }
+        uploadedUrls.push(supabase.storage.from('menu-images').getPublicUrl(path).data.publicUrl)
+      }
+      if (imageFile) {
+        imageUrl = uploadedUrls.shift() || imageUrl
+      }
+      galleryUrls = [...galleryUrls, ...uploadedUrls]
+    }
     const payload = {
       name: form.name.trim(),
       slug:
@@ -215,7 +246,7 @@ export default function Staff() {
       available: form.available,
       sort_order: Number(form.sort_order) || 0,
       image_url: imageUrl,
-      gallery_urls: form.gallery_urls.split(/[\n,]/).map((url) => url.trim()).filter(Boolean),
+      gallery_urls: galleryUrls,
     }
     const result = editing
       ? await supabase.from('menu_items').update(payload).eq('id', editing.id)
@@ -477,44 +508,22 @@ export default function Staff() {
             </div>
             <form className="menu-form" onSubmit={saveItem}>
               <h3>{editing ? 'Editar producto' : 'Nuevo producto'}</h3>
-              <input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Nombre"
-                required
-              />
-              <input
-                value={form.slug}
-                onChange={(e) => setForm({ ...form, slug: e.target.value })}
-                placeholder="slug-opcional"
-              />
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Descripción"
-                maxLength={500}
-              />
-              <input
-                type="number"
-                min="0"
-                value={form.price_cop}
-                onChange={(e) => setForm({ ...form, price_cop: Number(e.target.value) })}
-                placeholder="Precio en pesos colombianos"
-                required
-              />
-              <input
-                type="url"
-                value={form.image_url || ''}
-                onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                placeholder="URL pública de la foto (Supabase Storage)"
-              />
-              <textarea
-                value={form.gallery_urls}
-                onChange={(e) => setForm({ ...form, gallery_urls: e.target.value })}
-                placeholder="Fotos adicionales: una URL por línea"
-                maxLength={4000}
-              />
-              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+              <label htmlFor="menu-name">Nombre del producto</label>
+              <input id="menu-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ej. Cappuccino" required />
+              <label htmlFor="menu-slug">Slug web <span>(opcional)</span></label>
+              <input id="menu-slug" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="cappuccino" />
+              <label htmlFor="menu-description">Descripción</label>
+              <textarea id="menu-description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Describe brevemente el producto" maxLength={500} />
+              <label htmlFor="menu-price">Precio en pesos colombianos</label>
+              <input id="menu-price" type="number" min="0" value={form.price_cop} onChange={(e) => setForm({ ...form, price_cop: Number(e.target.value) })} placeholder="8000" required />
+              <label htmlFor="menu-main-image">Foto principal</label>
+              <input id="menu-main-image" type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setImageFile(e.target.files?.[0] || null)} />
+              <small className="field-help">JPG, PNG o WebP. Máximo 5 MB.{form.image_url && !imageFile ? ' La foto actual se conservará.' : ''}</small>
+              <label htmlFor="menu-gallery-images">Fotos adicionales</label>
+              <input id="menu-gallery-images" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => setGalleryFiles(Array.from(e.target.files || []))} />
+              <small className="field-help">Puedes seleccionar varias fotos a la vez.{form.gallery_urls && !galleryFiles.length ? ' Las fotos actuales se conservarán.' : ''}</small>
+              <label htmlFor="menu-category">Categoría</label>
+              <select id="menu-category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
                 <option>Bebidas Calientes</option>
                 <option>Bebidas Frías</option>
                 <option>Gaseosas</option>
@@ -526,13 +535,8 @@ export default function Staff() {
                 <option>Pizzetas</option>
                 <option>Otros</option>
               </select>
-              <input
-                type="number"
-                min="0"
-                value={form.sort_order}
-                onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })}
-                placeholder="Orden"
-              />
+              <label htmlFor="menu-order">Orden de aparición</label>
+              <input id="menu-order" type="number" min="0" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })} placeholder="0" />
               <label>
                 <input
                   type="checkbox"

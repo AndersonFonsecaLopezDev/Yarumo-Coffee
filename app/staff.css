@@ -542,9 +542,13 @@
 .menu-form { display: grid; gap: 10px; padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); box-shadow: 0 12px 30px rgba(24, 54, 47, .06); }
 .menu-form h3 { margin: 0 0 8px; font-size: 25px; }
 .menu-form input, .menu-form textarea, .menu-form select { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 12px 13px; background: var(--paper-warm); color: var(--ink); font: 13px inherit; outline: none; }
+.menu-form input[type='file'] { padding: 9px; background: #fff; font-size: 12px; cursor: pointer; }
 .menu-form textarea { min-height: 92px; resize: vertical; }
 .menu-form input:focus, .menu-form textarea:focus, .menu-form select:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(239, 128, 91, .14); }
-.menu-form label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.menu-form label { display: block; margin-top: 5px; color: var(--ink); font-size: 11px; font-weight: 800; letter-spacing: .03em; }
+.menu-form label span { color: var(--muted); font-weight: 400; }
+.menu-form .field-help { display: block; margin: -5px 0 2px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.menu-form label:has(input[type='checkbox']) { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 400; }
 .menu-form label input { width: auto; accent-color: var(--ink); }
 .menu-form > div:last-child { display: flex; gap: 8px; margin-top: 7px; }
 .menu-form .button:disabled { opacity: .55; cursor: wait; }

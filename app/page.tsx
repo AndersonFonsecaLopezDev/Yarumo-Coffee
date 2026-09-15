@@ -247,7 +247,7 @@ export default function Home() {
                           maximumFractionDigits: 0,
                         }).format(item.price_cop)}
                       </small>
-                      {(item.image_url || item.gallery_urls?.length) && (
+                      {(Boolean(item.image_url) || (item.gallery_urls?.length ?? 0) > 0) && (
                         <button
                           className="gallery-link"
                           type="button"
