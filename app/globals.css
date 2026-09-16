@@ -9,12 +9,16 @@
   --line: rgba(24, 54, 47, 0.12);
   --muted: #60736d;
 
-  /* Superficie y texto "de página": el header, las tarjetas y el modal de
-     galería usan estas variables (no --cream/--ink/--paper directamente) para
-     poder invertirse en modo oscuro sin tocar las franjas decorativas
-     (hero, visit-strip, notice, footer) que siempre usan --ink como fondo
-     oscuro fijo, sea cual sea el tema del sistema. */
-:root,
+  --surface: var(--cream);
+  --surface-card: var(--paper);
+  --surface-card-warm: var(--paper-warm);
+  --text: var(--ink);
+  --text-muted: var(--muted);
+  --border: var(--line);
+  --skeleton-base: rgba(24, 54, 47, 0.06);
+  --skeleton-highlight: rgba(24, 54, 47, 0.12);
+}
+
 :root[data-theme="light"] {
   --surface: var(--cream);
   --surface-card: var(--paper);

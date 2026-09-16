@@ -131,6 +131,12 @@ export default function Staff() {
     }
     void init()
 
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (active && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED')) {
+        void load()
+      }
+    })
+
     const channel = supabase
       .channel('staff-requests')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'service_requests' }, () => {
@@ -140,6 +146,7 @@ export default function Staff() {
 
     return () => {
       active = false
+      subscription.unsubscribe()
       void supabase.removeChannel(channel)
     }
   }, [load, supabase])

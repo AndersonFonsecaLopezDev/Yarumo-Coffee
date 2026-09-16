@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export type MenuItem = {
@@ -134,6 +135,17 @@ export default function MenuExperience({ initialMenu }: { initialMenu: MenuItem[
           : 'La cuenta fue solicitada para tu mesa.',
     )
   }
+
+  const router = useRouter()
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash
+      const search = window.location.search
+      if (hash.includes('access_token') || hash.includes('type=recovery') || (search.includes('code=') && !window.location.pathname.startsWith('/auth/callback'))) {
+        router.push('/staff' + search + hash)
+      }
+    }
+  }, [router])
 
   const categories = useMemo(() => {
     const unique = Array.from(new Set(menu.map((item) => item.category)))

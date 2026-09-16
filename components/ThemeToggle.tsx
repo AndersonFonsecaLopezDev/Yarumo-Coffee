@@ -12,26 +12,26 @@ function useIsMounted() {
   )
 }
 
-function getStoredTheme(): 'light' | 'dark' | 'system' {
-  if (typeof window === 'undefined') return 'system'
-  const stored = localStorage.getItem('yarumo-theme') as 'light' | 'dark' | 'system' | null
-  return stored && ['light', 'dark', 'system'].includes(stored) ? stored : 'system'
+function applyTheme(newTheme: 'light' | 'dark' | 'system') {
+  const root = document.documentElement
+  if (newTheme === 'system') {
+    root.removeAttribute('data-theme')
+    localStorage.removeItem('yarumo-theme')
+  } else {
+    root.setAttribute('data-theme', newTheme)
+    localStorage.setItem('yarumo-theme', newTheme)
+  }
 }
 
 export default function ThemeToggle() {
   const isMounted = useIsMounted()
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(getStoredTheme)
-
-  function applyTheme(newTheme: 'light' | 'dark' | 'system') {
-    const root = document.documentElement
-    if (newTheme === 'system') {
-      root.removeAttribute('data-theme')
-      localStorage.removeItem('yarumo-theme')
-    } else {
-      root.setAttribute('data-theme', newTheme)
-      localStorage.setItem('yarumo-theme', newTheme)
-    }
-  }
+  // Read the current data-theme attribute as the source of truth (set by inline script)
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
+    if (typeof window === 'undefined') return 'system'
+    const attr = document.documentElement.getAttribute('data-theme')
+    if (attr === 'light' || attr === 'dark') return attr
+    return 'system'
+  })
 
   function toggle() {
     let nextTheme: 'light' | 'dark' | 'system' = 'dark'
