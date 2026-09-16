@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 
@@ -53,6 +53,36 @@ export default function MenuExperience({ initialMenu }: { initialMenu: MenuItem[
   const [category, setCategory] = useState('Todos')
   const [galleryItem, setGalleryItem] = useState<MenuItem | null>(null)
   const [galleryIndex, setGalleryIndex] = useState(0)
+  const galleryCloseRef = useRef<HTMLButtonElement>(null)
+  const galleryPreviousFocusRef = useRef<HTMLElement | null>(null)
+
+  // Accesibilidad por teclado del modal de galería: Escape cierra, las flechas
+  // navegan entre fotos, y el foco se mueve al botón de cerrar al abrir y
+  // vuelve al elemento que lo abrió al cerrar (focus trap básico).
+  useEffect(() => {
+    if (!galleryItem) return
+
+    galleryPreviousFocusRef.current = document.activeElement as HTMLElement | null
+    galleryCloseRef.current?.focus()
+
+    const images = [galleryItem.image_url, ...(galleryItem.gallery_urls || [])].filter(Boolean) as string[]
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setGalleryItem(null)
+      } else if (event.key === 'ArrowLeft' && images.length > 1) {
+        setGalleryIndex((current) => (current - 1 + images.length) % images.length)
+      } else if (event.key === 'ArrowRight' && images.length > 1) {
+        setGalleryIndex((current) => (current + 1) % images.length)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      galleryPreviousFocusRef.current?.focus()
+    }
+  }, [galleryItem])
 
   // Mesa (?mesa=) token detection stays client-side: it depends on the URL the
   // customer actually opened (from the printed QR) and on a live RPC call.
@@ -300,7 +330,7 @@ export default function MenuExperience({ initialMenu }: { initialMenu: MenuItem[
         return (
           <div className="gallery-modal" role="dialog" aria-modal="true" aria-label={`Galería de ${galleryItem.name}`} onClick={() => setGalleryItem(null)}>
             <div className="gallery-dialog" onClick={(event) => event.stopPropagation()}>
-              <button className="gallery-close" type="button" onClick={() => setGalleryItem(null)} aria-label="Cerrar galería">×</button>
+              <button ref={galleryCloseRef} className="gallery-close" type="button" onClick={() => setGalleryItem(null)} aria-label="Cerrar galería">×</button>
               <div className="gallery-main-image">
                 <Image src={currentImage} alt={`${galleryItem.name}, foto ${galleryIndex + 1}`} fill sizes="(max-width: 700px) 100vw, 60vw" />
                 {images.length > 1 && <>

@@ -1,6 +1,26 @@
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import MenuExperience, { type MenuItem } from '@/components/MenuExperience'
+import { SITE_URL } from '@/lib/site-url'
+
+const cafeJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'CafeOrCoffeeShop',
+  name: 'Yarumo Coffee',
+  image: `${SITE_URL}/yarumo-cover-cafe-og.webp`,
+  url: SITE_URL,
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: 'Carrera 19 # 21 Norte-01 Local 1',
+    addressLocality: 'Armenia',
+    addressRegion: 'Quindío',
+    addressCountry: 'CO',
+  },
+  sameAs: [
+    'https://www.instagram.com/yarumocafearmenia/',
+    'https://maps.app.goo.gl/yr8DTNsgNKm6NQb6A?g_st=iw',
+  ],
+}
 
 // Server Component: the menu is fetched and rendered on the server so the HTML
 // that reaches the phone already has the carta in it, instead of shipping an
@@ -21,6 +41,10 @@ export default async function Home() {
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(cafeJsonLd) }}
+      />
       <header className="header">
         <a className="brand" href="#inicio">
           <Image src="/yarumo-logo.webp" alt="Yarumo Coffee" width={44} height={44} priority />

@@ -4,3 +4,7 @@ out
 .env*
 !.env.example
 *.log
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

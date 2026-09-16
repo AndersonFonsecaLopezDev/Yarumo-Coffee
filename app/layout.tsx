@@ -2,8 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import './staff.css'
 import './visual.css'
-
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://yarumo-coffee.vercel.app'
+import { SITE_URL } from '@/lib/site-url'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -19,7 +18,7 @@ export const metadata: Metadata = {
     description: 'Menú digital y atención en mesa de Yarumo Coffee Armenia. Pide la cuenta o llama al mesero desde tu celular.',
     url: SITE_URL,
     siteName: 'Yarumo Coffee',
-    images: [{ url: '/yarumo-cover-cafe.webp', width: 739, height: 1600, alt: 'Café de Yarumo Coffee servido en mesa' }],
+    images: [{ url: '/yarumo-cover-cafe-og.webp', width: 1200, height: 630, alt: 'Café de Yarumo Coffee servido en mesa' }],
     locale: 'es_CO',
     type: 'website',
   },
@@ -27,7 +26,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Yarumo Coffee · Atención en mesa',
     description: 'Menú digital y atención en mesa de Yarumo Coffee Armenia.',
-    images: ['/yarumo-cover-cafe.webp'],
+    images: ['/yarumo-cover-cafe-og.webp'],
   },
 }
 

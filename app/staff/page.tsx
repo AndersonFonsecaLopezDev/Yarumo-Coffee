@@ -5,8 +5,7 @@ import Image from 'next/image'
 import QRCode from 'qrcode'
 import { createClient } from '@/lib/supabase/client'
 import UserAdmin from '@/components/UserAdmin'
-
-const PUBLIC_MENU_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://yarumo-coffee.vercel.app'
+import { SITE_URL as PUBLIC_MENU_URL } from '@/lib/site-url'
 
 type Request = { id: string; type: 'waiter' | 'bill'; status: string; created_at: string; table: { label: string } | null }
 type CafeTable = { id: string; label: string; public_token: string; active: boolean }

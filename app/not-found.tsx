@@ -1,9 +1,7 @@
-'use client'
-
 import Image from 'next/image'
 import Link from 'next/link'
 
-export default function Error({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function NotFound() {
   return (
     <>
       <header className="header">
@@ -18,10 +16,12 @@ export default function Error({ reset }: { error: Error & { digest?: string }; r
 
       <main className="content">
         <div className="empty-state">
-          <div className="empty-state-icon">☕</div>
-          <h3>Algo salió mal</h3>
-          <p>No pudimos cargar Yarumo en este momento. Intenta de nuevo en unos segundos.</p>
-          <button onClick={reset}>Intentar de nuevo</button>
+          <div className="empty-state-icon">🌿</div>
+          <h3>No encontramos esta página</h3>
+          <p>El enlace que seguiste no existe o se movió. Vuelve al menú para seguir explorando.</p>
+          <Link href="/">
+            <button>Volver al menú</button>
+          </Link>
         </div>
       </main>
     </>
