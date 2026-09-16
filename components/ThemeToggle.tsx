@@ -1,21 +1,26 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
+
+const emptySubscribe = () => () => {}
+
+function useIsMounted() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  )
+}
+
+function getStoredTheme(): 'light' | 'dark' | 'system' {
+  if (typeof window === 'undefined') return 'system'
+  const stored = localStorage.getItem('yarumo-theme') as 'light' | 'dark' | 'system' | null
+  return stored && ['light', 'dark', 'system'].includes(stored) ? stored : 'system'
+}
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system')
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-    const stored = localStorage.getItem('yarumo-theme') as 'light' | 'dark' | 'system' | null
-    if (stored && ['light', 'dark', 'system'].includes(stored)) {
-      setTheme(stored)
-      applyTheme(stored)
-    } else {
-      setTheme('system')
-    }
-  }, [])
+  const isMounted = useIsMounted()
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(getStoredTheme)
 
   function applyTheme(newTheme: 'light' | 'dark' | 'system') {
     const root = document.documentElement
@@ -37,7 +42,7 @@ export default function ThemeToggle() {
     applyTheme(nextTheme)
   }
 
-  if (!mounted) return null
+  if (!isMounted) return null
 
   return (
     <button
