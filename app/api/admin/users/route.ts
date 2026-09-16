@@ -27,9 +27,13 @@ export async function GET() {
   try {
     const auth = await authorize()
     if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
+    // Use admin client for both queries:
+    // - listUsers() requires admin auth
+    // - staff_profiles RLS only allows each user to read their own row,
+    //   so we must use the service-role client to fetch ALL profiles.
     const [{ data: authUsers, error: usersError }, { data: profiles, error: profilesError }] = await Promise.all([
       auth.admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-      auth.supabase.from('staff_profiles').select('user_id,display_name,role,created_at'),
+      auth.admin.from('staff_profiles').select('user_id,display_name,role,created_at'),
     ])
     if (usersError || profilesError) return NextResponse.json({ error: usersError?.message || profilesError?.message }, { status: 500 })
     const profileMap = new Map((profiles || []).map(profile => [profile.user_id, { ...profile, role: (profile.role || '').toLowerCase() }]))

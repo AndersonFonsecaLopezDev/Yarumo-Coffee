@@ -164,11 +164,15 @@ export default function Staff() {
   async function loginWithGoogle() {
     setError('')
     setIsGoogleLoggingIn(true)
-    const origin = typeof window !== 'undefined' ? window.location.origin : PUBLIC_MENU_URL.replace(/\/$/, '')
+    // Always use the canonical production URL as redirectTo base.
+    // Using window.location.origin would break when accessing from a
+    // Vercel preview URL (e.g. yarumo-coffee-xxx.vercel.app), because
+    // Supabase would redirect back to that preview domain instead of production.
+    const canonicalOrigin = PUBLIC_MENU_URL.replace(/\/$/, '')
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${origin}/auth/callback?next=/staff`,
+        redirectTo: `${canonicalOrigin}/auth/callback?next=/staff`,
       },
     })
     if (oauthError) {
