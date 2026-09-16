@@ -54,7 +54,7 @@ export default function UserAdmin() {
       email: user.email || '',
       password: '',
       displayName: user.profile?.display_name || '',
-      role: user.profile?.role || 'staff',
+      role: (user.profile?.role || 'staff').toLowerCase(),
     })
   }
 

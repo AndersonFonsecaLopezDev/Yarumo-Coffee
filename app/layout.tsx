@@ -30,6 +30,22 @@ export const metadata: Metadata = {
   },
 }
 
+const themeScript = `(function() {
+  try {
+    var stored = localStorage.getItem('yarumo-theme');
+    if (stored && (stored === 'light' || stored === 'dark')) {
+      document.documentElement.setAttribute('data-theme', stored);
+    }
+  } catch (e) {}
+})();`
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="es"><body>{children}</body></html>
+  return (
+    <html lang="es" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body>{children}</body>
+    </html>
+  )
 }

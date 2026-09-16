@@ -163,8 +163,8 @@ export default function MenuExperience({ initialMenu }: { initialMenu: MenuItem[
         <div className="hero-content">
           <span className="eyebrow">Café de origen · Armenia</span>
           <h1>
-            Más que café,<br />
-            <em>momentos.</em>
+            Donde cada taza<br />
+            <em>cuenta una historia.</em>
           </h1>
           <p>Abre tu carta, pide la cuenta o llama al mesero sin levantarte de la mesa.</p>
           <a className="hero-link" href="#menu">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import QRCode from 'qrcode'
 import { createClient } from '@/lib/supabase/client'
@@ -9,6 +9,7 @@ import { SITE_URL as PUBLIC_MENU_URL } from '@/lib/site-url'
 
 type Request = { id: string; type: 'waiter' | 'bill'; status: string; created_at: string; table: { label: string } | null }
 type CafeTable = { id: string; label: string; public_token: string; active: boolean }
+type RecommendationItem = { id: string; name: string; rating: number; comment: string; table_number: string | null; created_at: string }
 type MenuItem = {
   id: string
   name: string
@@ -61,7 +62,8 @@ export default function Staff() {
   })
   const [requests, setRequests] = useState<Request[]>([])
   const [items, setItems] = useState<MenuItem[]>([])
-  const [tab, setTab] = useState<'requests' | 'menu' | 'qr' | 'users'>('requests')
+  const [recommendations, setRecommendations] = useState<RecommendationItem[]>([])
+  const [tab, setTab] = useState<'requests' | 'menu' | 'qr' | 'users' | 'recommendations'>('requests')
   const [editing, setEditing] = useState<MenuItem | null>(null)
   const [form, setForm] = useState<MenuForm>(blank)
   const [menuQuery, setMenuQuery] = useState('')
@@ -116,6 +118,9 @@ export default function Staff() {
     )
     setQrCodes(Object.fromEntries(generated))
     setQrLoading(false)
+
+    const recs = await supabase.from('recommendations').select('id,name,rating,comment,table_number,created_at').order('created_at', { ascending: false })
+    setRecommendations((recs.data || []) as RecommendationItem[])
   }, [supabase])
 
   useEffect(() => {
@@ -152,10 +157,11 @@ export default function Staff() {
   async function loginWithGoogle() {
     setError('')
     setIsGoogleLoggingIn(true)
+    const origin = typeof window !== 'undefined' ? window.location.origin : PUBLIC_MENU_URL.replace(/\/$/, '')
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${PUBLIC_MENU_URL.replace(/\/$/, '')}/auth/callback?next=/staff`,
+        redirectTo: `${origin}/auth/callback?next=/staff`,
       },
     })
     if (oauthError) {
@@ -185,11 +191,26 @@ export default function Staff() {
     await load()
   }
 
+  async function removeRecommendation(id: string) {
+    if (!confirm('¿Eliminar esta recomendación?')) return
+    await supabase.from('recommendations').delete().eq('id', id)
+    await load()
+  }
+
+  const menuFormRef = useRef<HTMLFormElement>(null)
+
+  function scrollToMenuForm() {
+    setTimeout(() => {
+      menuFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 60)
+  }
+
   function edit(item: MenuItem) {
     setEditing(item)
     setForm({ ...item, image_url: item.image_url || '', gallery_urls: (item.gallery_urls || []).join('\n') })
     setImageFile(null)
     setGalleryFiles([])
+    scrollToMenuForm()
   }
 
   function newItem() {
@@ -197,6 +218,7 @@ export default function Staff() {
     setForm(blank)
     setImageFile(null)
     setGalleryFiles([])
+    scrollToMenuForm()
   }
 
   const menuCategories = Array.from(new Set(items.map((item) => item.category))).sort((a, b) => a.localeCompare(b, 'es'))
@@ -447,6 +469,9 @@ export default function Staff() {
             <button className={tab === 'users' ? 'active' : ''} onClick={() => setTab('users')}>
               Usuarios
             </button>
+            <button className={tab === 'recommendations' ? 'active' : ''} onClick={() => setTab('recommendations')}>
+              Recomendaciones ({recommendations.length})
+            </button>
           </>
         )}
       </nav>
@@ -541,7 +566,7 @@ export default function Staff() {
               ))}
               {!filteredAdminItems.length && <div className="request menu-empty">No hay productos que coincidan con los filtros.</div>}
             </div>
-            <form className="menu-form" onSubmit={saveItem}>
+            <form ref={menuFormRef} className={`menu-form ${editing ? 'is-editing' : ''}`} onSubmit={saveItem}>
               <h3>{editing ? 'Editar producto' : 'Nuevo producto'}</h3>
               <label htmlFor="menu-name">Nombre del producto</label>
               <input id="menu-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ej. Cappuccino" required />
@@ -630,6 +655,30 @@ export default function Staff() {
             ))}
           </div>
           {!tables.some((cafeTable) => cafeTable.active) && <div className="request">No hay mesas activas configuradas.</div>}
+        </section>
+      ) : tab === 'recommendations' ? (
+        <section className="menu-admin">
+          <div className="menu-admin-head">
+            <div>
+              <span className="eyebrow">Opiniones</span>
+              <h2>Recomendaciones de clientes.</h2>
+            </div>
+          </div>
+          <div className="admin-list">
+            {recommendations.map((rec) => (
+              <article className="admin-item" key={rec.id}>
+                <div>
+                  <strong>{rec.name} {rec.table_number ? `(Mesa ${rec.table_number})` : ''} · {'★'.repeat(rec.rating)}</strong>
+                  <p style={{ margin: '6px 0', fontSize: '13px', fontStyle: 'italic' }}>“{rec.comment}”</p>
+                  <small>{new Date(rec.created_at).toLocaleString('es-CO')}</small>
+                </div>
+                <div>
+                  <button onClick={() => removeRecommendation(rec.id)}>Eliminar</button>
+                </div>
+              </article>
+            ))}
+            {!recommendations.length && <div className="request menu-empty">No hay recomendaciones registradas.</div>}
+          </div>
         </section>
       ) : (
         <UserAdmin />

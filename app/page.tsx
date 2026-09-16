@@ -1,6 +1,8 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import MenuExperience, { type MenuItem } from '@/components/MenuExperience'
+import ThemeToggle from '@/components/ThemeToggle'
 import { SITE_URL } from '@/lib/site-url'
 
 const cafeJsonLd = {
@@ -55,11 +57,15 @@ export default async function Home() {
         </a>
         <nav className="nav-links">
           <a href="#menu">Carta</a>
+          <Link href="/recomendaciones">Opiniones</Link>
           <a href="#visitanos">Visítanos</a>
         </nav>
-        <a className="instagram-link" href="https://www.instagram.com/yarumocafearmenia/" target="_blank" rel="noreferrer">
-          Instagram ↗
-        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <ThemeToggle />
+          <a className="instagram-link" href="https://www.instagram.com/yarumocafearmenia/" target="_blank" rel="noreferrer">
+            Instagram ↗
+          </a>
+        </div>
       </header>
 
       <main id="inicio">
@@ -85,8 +91,10 @@ export default async function Home() {
         </section>
 
         <footer className="footer">
-          <span>Yarumo Coffee · Hecho para quedarse un rato.</span>
+          <span>Yarumo Coffee · Donde cada taza cuenta una historia.</span>
           <span>
+            <Link href="/recomendaciones">Dejar recomendación</Link>{' '}
+            ·{' '}
             <a href="https://www.google.com/search?q=Yarumo+Coffee+Armenia" target="_blank" rel="noreferrer">
               Reseñas de Google ↗
             </a>{' '}
