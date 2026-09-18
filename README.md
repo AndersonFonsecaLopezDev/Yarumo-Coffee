@@ -34,11 +34,11 @@ Los usuarios `owner` y `manager` pueden crear, editar roles, cambiar contraseña
 
 - Activar MFA para las cuentas del equipo.
 - Confirmar el dominio final y HTTPS en el proveedor de despliegue (hoy el dominio canónico es `https://yarumo-coffee.vercel.app`; ver más abajo).
-- Configurar monitorización de errores (Sentry o similar) y copias de seguridad periódicas de Supabase — ver "Monitoreo y analítica" más abajo, sigue sin implementarse.
+- Copias de seguridad periódicas de Supabase.
 - Revisar periódicamente las dependencias del proyecto (`npm audit`, Dependabot o similar).
 - No subir `.env.local` ni ninguna service role key al repositorio.
 
-Ya resuelto en rondas anteriores (se deja fuera de esta lista a propósito): políticas RLS revisadas y con `enable row level security` reforzado por migración, `package-lock.json` versionado con CI usando `npm ci`, y límites de tamaño/tipo MIME para la subida de imágenes aplicados tanto en el cliente como en el bucket de Supabase Storage.
+Ya resuelto en rondas anteriores (se deja fuera de esta lista a propósito): monitoreo de errores con Sentry y analítica con Vercel Analytics integrados en la aplicación (configurar `SENTRY_DSN` y `NEXT_PUBLIC_SENTRY_DSN` en Vercel), políticas RLS revisadas y con `enable row level security` reforzado por migración, `package-lock.json` versionado con CI usando `npm ci`, y límites de tamaño/tipo MIME para la subida de imágenes aplicados tanto en el cliente como en el bucket de Supabase Storage.
 
 ## Dominio canónico y `lib/site-url.ts`
 
@@ -57,12 +57,12 @@ Si en el futuro se usa un dominio propio, hay que actualizar **ambos** valores: 
 
 `app/globals.css` y `app/visual.css` respetan `prefers-color-scheme: dark` del sistema (sin toggle manual) a través de variables semánticas (`--surface`, `--surface-card`, `--text`, `--text-muted`, `--border`) que se redefinen en modo oscuro. Las franjas decorativas de marca (hero, tira de visita, notificaciones, footer, categoría activa) siguen siempre con el verde oscuro de marca, en ambos temas, por diseño. El panel `/staff` no está cubierto por este cambio.
 
-## Monitoreo y analítica (pendiente)
+## Monitoreo y analítica (Implementado)
 
-No se implementó en esta ronda por no contar con las cuentas correspondientes. Queda documentado el cómo activarlo cuando se disponga de ellas:
+La monitorización en producción y la analítica están completamente integradas:
 
-- **Sentry** (o similar) para captura de errores en producción: crear un proyecto Next.js en Sentry, instalar `@sentry/nextjs`, correr `npx @sentry/wizard@latest -i nextjs` y agregar `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` a las variables de entorno de Vercel. Una vez instalado, conviene envolver `app/error.tsx` con `Sentry.captureException` en un `useEffect`.
-- **Vercel Analytics** (o Plausible) para saber cuántas personas escanean el QR y qué categorías del menú se ven más: en Vercel, activa "Analytics" desde el dashboard del proyecto e instala `@vercel/analytics`, agregando `<Analytics />` en `app/layout.tsx`. Si se prefiere Plausible, basta con añadir su script (respetando la CSP de `next.config.ts`, que hoy solo permite scripts propios y de los CDNs ya declarados).
+- **Sentry**: Integrado mediante `@sentry/nextjs` con captura de excepciones en `app/error.tsx` y configuración en `sentry.client.config.ts`, `sentry.server.config.ts` y `sentry.edge.config.ts`. Si no hay DSN configurado, opera con fallback silencioso sin romper la ejecución local. En el panel de Vercel, agregar las variables de entorno `SENTRY_DSN` y `NEXT_PUBLIC_SENTRY_DSN` (así como `SENTRY_ORG` y `SENTRY_PROJECT` si se habilitan source maps en build).
+- **Vercel Analytics**: Integrado en `app/layout.tsx` mediante `@vercel/analytics/next` y admitido en la Content Security Policy (CSP) en `next.config.ts`. Para activarlo en producción, simplemente habilita "Analytics" en el dashboard del proyecto en Vercel.
 
 ## Nuevas características y migraciones recientes
 

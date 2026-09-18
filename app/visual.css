@@ -42,7 +42,28 @@
   color: var(--cream);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.hero-caption-logo-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.hero-caption-logo {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid var(--lime);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  background: var(--ink);
+  transition: transform 0.3s ease;
+}
+
+.hero-photo:hover .hero-caption-logo {
+  transform: scale(1.06);
 }
 
 .hero-photo-caption span {
@@ -85,7 +106,11 @@
     bottom: 18px;
     left: 16px;
     right: 16px;
-    gap: 4px;
+    gap: 6px;
+  }
+  .hero-caption-logo {
+    width: 54px;
+    height: 54px;
   }
   .hero-photo-caption strong {
     font-size: 20px;

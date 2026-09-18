@@ -372,11 +372,16 @@ export default function MenuExperience({
             style={{ objectFit: 'cover' }}
           />
           <div className="hero-photo-caption">
-            <span>{table ? `Mesa ${table.label}` : 'Yarumo Coffee'}</span>
-            <strong>
-              Hecho para<br />
-              <em>quedarse un rato.</em>
-            </strong>
+            <div className="hero-caption-logo-wrap">
+              <Image
+                src="/yarumo-logo.webp"
+                alt="Yarumo Coffee"
+                width={72}
+                height={72}
+                className="hero-caption-logo"
+              />
+            </div>
+            <span>{table ? `Mesa ${table.label}` : 'Yarumo Coffee · Café de Origen'}</span>
           </div>
         </div>
       </section>

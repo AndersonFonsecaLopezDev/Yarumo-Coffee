@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import Image from 'next/image'
 import QRCode from 'qrcode'
 import { createClient } from '@/lib/supabase/client'
@@ -8,6 +8,14 @@ import UserAdmin from '@/components/UserAdmin'
 import StaffAlerts, { type StaffAlert } from '@/components/StaffAlerts'
 import ThemeToggle from '@/components/ThemeToggle'
 import { SITE_URL as PUBLIC_MENU_URL } from '@/lib/site-url'
+
+function subscribeClock(callback: () => void) {
+  const timer = setInterval(callback, 30000)
+  return () => clearInterval(timer)
+}
+const getClockSnapshot = () => Date.now()
+const getClockServerSnapshot = () => 0
+
 
 type Request = {
   id: string
@@ -272,6 +280,7 @@ export default function Staff() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [galleryFiles, setGalleryFiles] = useState<File[]>([])
   const [saving, setSaving] = useState(false)
+  const currentTime = useSyncExternalStore(subscribeClock, getClockSnapshot, getClockServerSnapshot)
 
   // Solicitar permisos de notificación en navegador
   useEffect(() => {
@@ -1738,7 +1747,7 @@ export default function Staff() {
           <div className="menu-admin-grid">
             <div className="admin-list">
               {promotions.map((promo) => {
-                const now = Date.now()
+                const now = currentTime
                 const startTime = new Date(promo.starts_at).getTime()
                 const endTime = promo.ends_at ? new Date(promo.ends_at).getTime() : null
                 const isScheduled = startTime > now
