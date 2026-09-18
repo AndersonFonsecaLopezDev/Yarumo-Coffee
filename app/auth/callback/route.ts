@@ -22,7 +22,7 @@ function isEmailAuthorizedForStaff(email?: string | null): boolean {
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
-  const origin = requestUrl.origin || SITE_URL
+  const origin = SITE_URL
   const code = requestUrl.searchParams.get('code')
   const requestedNext = requestUrl.searchParams.get('next') ?? '/staff'
   const next = requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : '/staff'
