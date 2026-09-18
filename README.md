@@ -26,9 +26,11 @@ El catálogo público lee `menu_items.image_url` y muestra la imagen automática
 
 Los usuarios con rol `owner` o `manager` pueden crear, editar, activar/desactivar y eliminar productos desde `/staff`. Los precios se introducen directamente en pesos colombianos. Los usuarios con rol `staff` solo ven y atienden solicitudes. Esta autorización se aplica en la interfaz y, principalmente, en las políticas RLS de Supabase.
 
-## CRUD de usuarios
+## CRUD de usuarios y control de acceso
 
-Los usuarios `owner` y `manager` pueden crear, editar roles, cambiar contraseña y eliminar usuarios desde la pestaña `Usuarios` del panel. La gestión usa rutas server-side y la `SUPABASE_SERVICE_ROLE_KEY`; la clave nunca se envía al cliente. El endpoint también impide que un administrador se elimine a sí mismo.
+Los usuarios `owner` y `manager` pueden crear, editar roles, cambiar contraseña y eliminar usuarios desde la pestaña `Usuarios` del panel. La gestión usa rutas server-side y la `SUPABASE_SERVICE_ROLE_KEY`; la clave nunca se envía al cliente. El endpoint protege a los `owner` impidiendo que administradores con rol `manager` modifiquen o eliminen sus cuentas, así como evitando la autoeliminación accidental.
+
+Para el inicio de sesión vía Google OAuth en `/staff`, la autoprovisión de perfiles `staff` está protegida por lista blanca: solo las cuentas cuyo correo coincida con los dominios o correos permitidos en la variable de entorno `STAFF_ALLOWED_EMAIL_DOMAIN` (ej. `yarumocoffee.com` o lista separada por comas) obtienen acceso. Si un correo no autorizado intenta ingresar, la sesión se cierra automáticamente y se redirige con error.
 
 ## Seguridad pendiente de configuración
 

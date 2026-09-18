@@ -227,11 +227,14 @@ export default function Staff() {
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [isGoogleLoggingIn, setIsGoogleLoggingIn] = useState(false)
   const [error, setError] = useState(() => {
-    if (
-      typeof window !== 'undefined' &&
-      new URLSearchParams(window.location.search).get('error') === 'oauth_error'
-    ) {
-      return 'Error en la autenticación con Google. Intenta nuevamente.'
+    if (typeof window !== 'undefined') {
+      const errParam = new URLSearchParams(window.location.search).get('error')
+      if (errParam === 'oauth_error') {
+        return 'Error en la autenticación con Google. Intenta nuevamente.'
+      }
+      if (errParam === 'not_authorized') {
+        return 'Tu cuenta de correo no está autorizada para acceder al panel de staff. Contacta al administrador.'
+      }
     }
     return ''
   })

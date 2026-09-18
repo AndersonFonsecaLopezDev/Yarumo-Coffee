@@ -3,6 +3,23 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { SITE_URL } from '@/lib/site-url'
 
+function isEmailAuthorizedForStaff(email?: string | null): boolean {
+  if (!email) return false
+  const allowed = process.env.STAFF_ALLOWED_EMAIL_DOMAIN || process.env.STAFF_ALLOWED_EMAILS || ''
+  const rules = allowed.split(',').map(r => r.trim().toLowerCase()).filter(Boolean)
+  if (!rules.length) {
+    return false
+  }
+  const cleanEmail = email.trim().toLowerCase()
+  return rules.some(rule => {
+    if (rule.includes('@')) {
+      return cleanEmail === rule
+    }
+    const cleanDomain = rule.startsWith('@') ? rule.slice(1) : rule
+    return cleanEmail.endsWith(`@${cleanDomain}`)
+  })
+}
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const origin = requestUrl.origin || SITE_URL
@@ -24,6 +41,11 @@ export async function GET(request: Request) {
           .maybeSingle()
 
         if (!profile) {
+          if (!isEmailAuthorizedForStaff(user.email)) {
+            await supabase.auth.signOut()
+            return NextResponse.redirect(new URL('/staff?error=not_authorized', origin))
+          }
+
           const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Usuario Staff'
           try {
             const admin = createAdminClient()
