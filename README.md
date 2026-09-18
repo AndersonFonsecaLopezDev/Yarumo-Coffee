@@ -40,7 +40,14 @@ Para el inicio de sesión vía Google OAuth en `/staff`, la autoprovisión de pe
 - Revisar periódicamente las dependencias del proyecto (`npm audit`, Dependabot o similar).
 - No subir `.env.local` ni ninguna service role key al repositorio.
 
-Ya resuelto en rondas anteriores (se deja fuera de esta lista a propósito): monitoreo de errores con Sentry y analítica con Vercel Analytics integrados en la aplicación (configurar `SENTRY_DSN` y `NEXT_PUBLIC_SENTRY_DSN` en Vercel), políticas RLS revisadas y con `enable row level security` reforzado por migración, `package-lock.json` versionado con CI usando `npm ci`, y límites de tamaño/tipo MIME para la subida de imágenes aplicados tanto en el cliente como en el bucket de Supabase Storage.
+Ya resuelto y auditado (se deja fuera de esta lista a propósito):
+- Protección jerárquica de roles: un usuario `manager` no puede modificar, degradar ni eliminar cuentas con rol `owner` (`app/api/admin/users/route.ts`).
+- Control de acceso y autoprovisión en OAuth: solo correos autorizados por `STAFF_ALLOWED_EMAIL_DOMAIN` pueden obtener perfil en `/staff` vía Google Auth.
+- Redirección canónica estricta en el callback de autenticación hacia `SITE_URL` (`app/auth/callback/route.ts`).
+- Hardening de RLS: eliminación de inserción pública directa en `order_request_items` (migración `202609180003_harden_order_request_items_rls.sql`), canalizando pedidos exclusivamente a través de la RPC `submit_order_request`.
+- Protección anti-spam en reseñas (`/api/recommendations`): rate-limit de 2 solicitudes por minuto por IP/mesa y control temporal de envíos duplicados por mesa.
+- Monitoreo de errores con Sentry y analítica con Vercel Analytics integrados en la aplicación.
+- Límites de tamaño/tipo MIME para subida de imágenes en cliente y bucket de Storage.
 
 ## Dominio canónico y `lib/site-url.ts`
 
