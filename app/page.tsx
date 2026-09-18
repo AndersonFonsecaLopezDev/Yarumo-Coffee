@@ -50,7 +50,7 @@ async function getInitialData(): Promise<{
       .order('sort_order'),
     supabase
       .from('promotions')
-      .select('id,title,description,badge_text,image_url,linked_menu_item_id,sort_order')
+      .select('id,title,description,badge_text,image_url,linked_menu_item_id,sort_order,starts_at,ends_at')
       .eq('active', true)
       .order('sort_order'),
   ])

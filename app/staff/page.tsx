@@ -131,11 +131,21 @@ const blankCategoryForm: CategoryForm = {
   active: true,
 }
 
+function toLocalDatetimeInput(isoStr?: string | null): string {
+  if (!isoStr) return ''
+  const date = new Date(isoStr)
+  if (isNaN(date.getTime())) return ''
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 type PromotionForm = {
   title: string
   description: string
   badge_text: string
   linked_menu_item_id: string
+  starts_at: string
+  ends_at: string
   active: boolean
   sort_order: number
 }
@@ -145,6 +155,8 @@ const blankPromotionForm: PromotionForm = {
   description: '',
   badge_text: 'PROMO DEL DÍA',
   linked_menu_item_id: '',
+  starts_at: toLocalDatetimeInput(new Date().toISOString()),
+  ends_at: '',
   active: true,
   sort_order: 0,
 }
@@ -906,6 +918,8 @@ export default function Staff() {
       description: promo.description || '',
       badge_text: promo.badge_text || 'PROMO DEL DÍA',
       linked_menu_item_id: promo.linked_menu_item_id || '',
+      starts_at: toLocalDatetimeInput(promo.starts_at),
+      ends_at: toLocalDatetimeInput(promo.ends_at),
       active: promo.active,
       sort_order: promo.sort_order,
     })
@@ -913,7 +927,10 @@ export default function Staff() {
 
   function newPromo() {
     setEditingPromotion(null)
-    setPromotionForm(blankPromotionForm)
+    setPromotionForm({
+      ...blankPromotionForm,
+      starts_at: toLocalDatetimeInput(new Date().toISOString()),
+    })
   }
 
   async function savePromotion(e: React.FormEvent) {
@@ -930,6 +947,8 @@ export default function Staff() {
       description: promotionForm.description.trim(),
       badge_text: promotionForm.badge_text.trim() || null,
       linked_menu_item_id: promotionForm.linked_menu_item_id || null,
+      starts_at: promotionForm.starts_at ? new Date(promotionForm.starts_at).toISOString() : new Date().toISOString(),
+      ends_at: promotionForm.ends_at ? new Date(promotionForm.ends_at).toISOString() : null,
       active: promotionForm.active,
       sort_order: Number(promotionForm.sort_order) || 0,
     }
@@ -1302,11 +1321,10 @@ export default function Staff() {
                                 })}
                               </small>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
                               <button
                                 type="button"
-                                className="button"
-                                style={{ padding: '6px 12px', fontSize: '11px' }}
+                                className="btn-service-resolve"
                                 onClick={() => completeRequest(r.id)}
                               >
                                 Marcar atendida ✓
@@ -1364,37 +1382,41 @@ export default function Staff() {
                                 </p>
                               )}
 
-                              <div className="order-card-footer" style={{ padding: '6px 0 0' }}>
+                              <div className="order-card-footer">
                                 <div className="order-total">{formatCop(orderSum)}</div>
                                 <div className="order-actions">
                                   {ord.status === 'pending' && (
                                     <button
                                       type="button"
-                                      className="action-primary"
+                                      className="btn-order-action btn-order-receive"
                                       onClick={() => updateOrderStatus(ord.id, 'acknowledged')}
                                     >
-                                      Recibir
+                                      📥 Recibir
                                     </button>
                                   )}
                                   {ord.status === 'acknowledged' && (
                                     <button
                                       type="button"
-                                      className="action-primary"
+                                      className="btn-order-action btn-order-prepare"
                                       onClick={() => updateOrderStatus(ord.id, 'preparing')}
                                     >
-                                      En preparación
+                                      ☕ En preparación
                                     </button>
                                   )}
                                   {ord.status === 'preparing' && (
                                     <button
                                       type="button"
-                                      className="action-primary"
+                                      className="btn-order-action btn-order-deliver"
                                       onClick={() => updateOrderStatus(ord.id, 'delivered')}
                                     >
-                                      Entregado ✓
+                                      ✓ Entregado
                                     </button>
                                   )}
-                                  <button type="button" onClick={() => updateOrderStatus(ord.id, 'cancelled')}>
+                                  <button
+                                    type="button"
+                                    className="btn-order-action btn-order-cancel"
+                                    onClick={() => updateOrderStatus(ord.id, 'cancelled')}
+                                  >
                                     Cancelar
                                   </button>
                                 </div>
@@ -1715,31 +1737,77 @@ export default function Staff() {
           </div>
           <div className="menu-admin-grid">
             <div className="admin-list">
-              {promotions.map((promo) => (
-                <article className={`admin-item ${!promo.active ? 'unavailable' : ''}`} key={promo.id}>
-                  <div>
-                    <strong>
-                      {promo.badge_text ? `[${promo.badge_text}] ` : ''}
-                      {promo.title}
-                    </strong>
-                    {promo.description && (
-                      <p style={{ margin: '4px 0', fontSize: '13px', color: 'var(--text-muted)' }}>
-                        {promo.description}
-                      </p>
-                    )}
-                    <small>
-                      {promo.linked_menu_item_id
-                        ? `Vinculada a: ${items.find((i) => i.id === promo.linked_menu_item_id)?.name || 'Producto'}`
-                        : 'Sin producto vinculado'}{' '}
-                      · {promo.active ? 'Activa' : 'Inactiva'}
-                    </small>
-                  </div>
-                  <div>
-                    <button onClick={() => editPromo(promo)}>Editar</button>
-                    <button onClick={() => removePromotion(promo)}>Eliminar</button>
-                  </div>
-                </article>
-              ))}
+              {promotions.map((promo) => {
+                const now = Date.now()
+                const startTime = new Date(promo.starts_at).getTime()
+                const endTime = promo.ends_at ? new Date(promo.ends_at).getTime() : null
+                const isScheduled = startTime > now
+                const isExpired = endTime !== null && endTime < now
+                const statusText = !promo.active
+                  ? 'Inactiva'
+                  : isExpired
+                    ? 'Expirada'
+                    : isScheduled
+                      ? 'Programada'
+                      : 'Activa'
+
+                return (
+                  <article className={`admin-item ${!promo.active || isExpired ? 'unavailable' : ''}`} key={promo.id}>
+                    <div>
+                      <strong>
+                        {promo.badge_text ? `[${promo.badge_text}] ` : ''}
+                        {promo.title}
+                        <span
+                          className="sort-order-badge"
+                          style={{
+                            background:
+                              statusText === 'Activa'
+                                ? 'var(--lime)'
+                                : statusText === 'Programada'
+                                  ? '#90caf9'
+                                  : '#e0e0e0',
+                            color: 'var(--ink)',
+                            fontWeight: 800,
+                          }}
+                        >
+                          {statusText}
+                        </span>
+                      </strong>
+                      {promo.description && (
+                        <p style={{ margin: '4px 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+                          {promo.description}
+                        </p>
+                      )}
+                      <small style={{ display: 'block', color: 'var(--text-muted)' }}>
+                        {promo.linked_menu_item_id
+                          ? `Vinculada a: ${items.find((i) => i.id === promo.linked_menu_item_id)?.name || 'Producto'}`
+                          : 'Sin producto vinculado'}
+                      </small>
+                      <small style={{ display: 'block', marginTop: '2px', color: 'var(--orange)', fontWeight: 600 }}>
+                        📅 Vigencia:{' '}
+                        {new Date(promo.starts_at).toLocaleDateString('es-CO', {
+                          day: 'numeric',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                        {promo.ends_at
+                          ? ` hasta ${new Date(promo.ends_at).toLocaleDateString('es-CO', {
+                              day: 'numeric',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}`
+                          : ' (Sin expiración)'}
+                      </small>
+                    </div>
+                    <div>
+                      <button onClick={() => editPromo(promo)}>Editar</button>
+                      <button onClick={() => removePromotion(promo)}>Eliminar</button>
+                    </div>
+                  </article>
+                )
+              })}
               {!promotions.length && (
                 <div className="request menu-empty">No hay promociones configuradas.</div>
               )}
@@ -1770,7 +1838,34 @@ export default function Staff() {
                 placeholder="Válido de 3pm a 6pm de lunes a viernes."
                 maxLength={500}
               />
-              <label htmlFor="promo-product">Producto vinculado (opcional)</label>
+
+              {/* Rango de Fechas (Inicio y Fin) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+                <div>
+                  <label htmlFor="promo-starts">Fecha y hora de inicio</label>
+                  <input
+                    id="promo-starts"
+                    type="datetime-local"
+                    value={promotionForm.starts_at}
+                    onChange={(e) => setPromotionForm({ ...promotionForm, starts_at: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="promo-ends">Fecha y hora de fin <span>(opcional)</span></label>
+                  <input
+                    id="promo-ends"
+                    type="datetime-local"
+                    value={promotionForm.ends_at}
+                    onChange={(e) => setPromotionForm({ ...promotionForm, ends_at: e.target.value })}
+                  />
+                </div>
+              </div>
+              <small className="field-help" style={{ marginTop: '-4px' }}>
+                La promoción solo será visible en la carta dentro del rango de vigencia.
+              </small>
+
+              <label htmlFor="promo-product">Producto vinculado <span>(opcional)</span></label>
               <select
                 id="promo-product"
                 value={promotionForm.linked_menu_item_id}

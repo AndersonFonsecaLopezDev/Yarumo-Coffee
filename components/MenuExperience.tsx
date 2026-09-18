@@ -31,6 +31,8 @@ export type Promotion = {
   badge_text: string | null
   image_url: string | null
   linked_menu_item_id: string | null
+  starts_at?: string
+  ends_at?: string | null
   sort_order: number
 }
 
@@ -517,6 +519,11 @@ export default function MenuExperience({
                   <div className="promotion-content">
                     <h3>{promo.title}</h3>
                     {promo.description && <p>{promo.description}</p>}
+                    {promo.ends_at && (
+                      <small style={{ display: 'block', marginTop: '6px', fontSize: '11px', color: 'var(--orange)', fontWeight: 700 }}>
+                        ⏳ Vigente hasta: {new Date(promo.ends_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+                      </small>
+                    )}
                     {promo.linked_menu_item_id && (
                       <span className="promotion-action">Ver producto en la carta →</span>
                     )}
