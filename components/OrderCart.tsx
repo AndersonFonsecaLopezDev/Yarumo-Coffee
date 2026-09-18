@@ -33,6 +33,8 @@ type OrderCartProps = {
   cart: CartItem[]
   table: { id: string; label: string } | null
   mesaToken: string | null
+  tableOrders?: TableOrder[]
+  onOrdersRefresh?: () => void
   onUpdateQuantity: (itemId: string, delta: number) => void
   onUpdateItemNotes: (itemId: string, notes: string) => void
   onRemoveItem: (itemId: string) => void
@@ -51,7 +53,7 @@ function formatCop(value: number) {
 function getStatusLabel(status: TableOrder['status']) {
   switch (status) {
     case 'pending':
-      return { text: '⏳ Enviado al equipo', className: 'status-pending' }
+      return { text: '⏳ Enviado a barra', className: 'status-pending' }
     case 'acknowledged':
       return { text: '👀 Recibido', className: 'status-acknowledged' }
     case 'preparing':
@@ -69,6 +71,8 @@ export default function OrderCart({
   cart,
   table,
   mesaToken,
+  tableOrders: propTableOrders,
+  onOrdersRefresh,
   onUpdateQuantity,
   onUpdateItemNotes,
   onRemoveItem,
@@ -79,28 +83,32 @@ export default function OrderCart({
   const [orderNotes, setOrderNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const [tableOrders, setTableOrders] = useState<TableOrder[]>([])
+  const [internalOrders, setInternalOrders] = useState<TableOrder[]>([])
 
+  const effectiveOrders = propTableOrders ?? internalOrders
   const totalItems = cart.reduce((acc, curr) => acc + curr.quantity, 0)
   const totalPrice = cart.reduce((acc, curr) => acc + curr.item.price_cop * curr.quantity, 0)
 
-  // Cargar historial real de pedidos de la mesa
+  // Cargar historial si no se provee por props
   const fetchOrdersForTable = useCallback(async (tableId: string, token: string) => {
+    if (propTableOrders && onOrdersRefresh) {
+      onOrdersRefresh()
+      return
+    }
     const supabase = createClient()
     const { data } = await supabase.rpc('get_table_orders', {
       p_table_id: tableId,
       p_table_token: token,
     })
     if (data) {
-      setTableOrders(data as TableOrder[])
+      setInternalOrders(data as TableOrder[])
     }
-  }, [])
+  }, [propTableOrders, onOrdersRefresh])
 
   useEffect(() => {
     let active = true
-    if (!table || !mesaToken) return
+    if (!table || !mesaToken || propTableOrders) return
 
-    // Async call inside resolved promise or tick to satisfy React compiler
     void Promise.resolve().then(() => {
       if (active) {
         void fetchOrdersForTable(table.id, mesaToken)
@@ -128,10 +136,10 @@ export default function OrderCart({
       active = false
       void supabase.removeChannel(channel)
     }
-  }, [table, mesaToken, fetchOrdersForTable])
+  }, [table, mesaToken, propTableOrders, fetchOrdersForTable])
 
   // Total acumulado de todos los pedidos no cancelados de la mesa
-  const accumulatedTotalCop = tableOrders
+  const accumulatedTotalCop = effectiveOrders
     .filter((o) => o.status !== 'cancelled')
     .reduce((acc, o) => {
       const orderSum = (o.items || []).reduce(
@@ -195,9 +203,8 @@ export default function OrderCart({
     }
   }
 
-  // El botón flotante es visible si hay items en carrito o si hay pedidos realizados para la mesa
-  if (!totalItems && tableOrders.length === 0) {
-
+  // El botón flotante solo es visible si hay items en carrito o si hay pedidos realizados para la mesa
+  if (!totalItems && effectiveOrders.length === 0) {
     return null
   }
 
@@ -219,7 +226,7 @@ export default function OrderCart({
             {table ? `Mesa ${table.label}` : 'Tu Pedido'}
           </span>
           <strong className="cart-btn-price">
-            {totalItems > 0 ? formatCop(totalPrice) : `${tableOrders.length} comanda(s)`}
+            {totalItems > 0 ? formatCop(totalPrice) : `${effectiveOrders.length} comanda(s)`}
           </strong>
         </div>
         <span className="cart-btn-arrow" aria-hidden="true">→</span>
@@ -260,7 +267,7 @@ export default function OrderCart({
               {cart.length === 0 ? (
                 <div className="cart-empty-message">
                   <span className="cart-empty-icon">☕</span>
-                  <p>No tienes productos por enviar en el carrito.</p>
+                  <p>No tienes nuevos productos por enviar en el carrito.</p>
                 </div>
               ) : (
                 <div className="cart-items-list">
@@ -333,7 +340,7 @@ export default function OrderCart({
               )}
 
               {/* Historial Real de Pedidos de la Mesa */}
-              {tableOrders.length > 0 && (
+              {effectiveOrders.length > 0 && (
                 <div className="cart-session-history">
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                     <h3>Todo lo que has pedido</h3>
@@ -342,7 +349,7 @@ export default function OrderCart({
                     </small>
                   </div>
                   <div className="session-orders-list">
-                    {tableOrders.map((ord, idx) => {
+                    {effectiveOrders.map((ord, idx) => {
                       const statusInfo = getStatusLabel(ord.status)
                       const orderSum = (ord.items || []).reduce(
                         (sum, it) => sum + it.price_cop_snapshot * it.quantity,
@@ -352,7 +359,7 @@ export default function OrderCart({
                         <div className="session-order-badge" key={ord.id || idx}>
                           <div className="session-order-header">
                             <span>
-                              Comanda #{tableOrders.length - idx}{' '}
+                              Comanda #{effectiveOrders.length - idx}{' '}
                               {ord.source === 'staff' && <small style={{ color: 'var(--text-muted)' }}>(Mesero)</small>}
                             </span>
                             <span className={`order-status-pill ${statusInfo.className}`}>
@@ -393,7 +400,7 @@ export default function OrderCart({
                   onClick={handleSendOrder}
                   disabled={submitting || !table}
                 >
-                  {submitting ? 'Enviando comanda…' : table ? `Enviar pedido a Mesa ${table.label}` : 'Escanea el QR de tu mesa'}
+                  {submitting ? 'Enviando comanda…' : table ? `Enviar comanda a Mesa ${table.label}` : 'Escanea el QR de tu mesa'}
                 </button>
               </div>
             )}

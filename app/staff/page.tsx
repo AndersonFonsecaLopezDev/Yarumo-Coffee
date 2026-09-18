@@ -6,6 +6,7 @@ import QRCode from 'qrcode'
 import { createClient } from '@/lib/supabase/client'
 import UserAdmin from '@/components/UserAdmin'
 import StaffAlerts, { type StaffAlert } from '@/components/StaffAlerts'
+import ThemeToggle from '@/components/ThemeToggle'
 import { SITE_URL as PUBLIC_MENU_URL } from '@/lib/site-url'
 
 type Request = {
@@ -1100,41 +1101,73 @@ export default function Staff() {
       {/* Alertas Toasts Flotantes */}
       <StaffAlerts alerts={alerts} onDismiss={dismissAlert} onAlertClick={handleAlertClick} />
 
+      {/* Header moderno del staff */}
       <div className="staff-head">
-        <div>
-          <span className="eyebrow">Operación en mesa</span>
-          <h1>
-            Panel <em>Yarumo.</em>
-          </h1>
+        <div className="staff-brand-col">
+          <div className="staff-brand-identity">
+            <Image
+              src="/yarumo-logo.webp"
+              alt="Logo Yarumo Coffee"
+              width={48}
+              height={48}
+              className="staff-logo-img"
+            />
+            <div>
+              <div className="staff-role-badge">
+                <span className="role-dot" />
+                <span>
+                  {role === 'owner' ? 'Propietario' : role === 'manager' ? 'Administrador' : 'Mesero / Barra'}
+                </span>
+              </div>
+              <h1>
+                Panel <em>Yarumo.</em>
+              </h1>
+            </div>
+          </div>
         </div>
-        <button className="button" onClick={logout}>
-          Cerrar sesión
-        </button>
+
+        <div className="staff-header-actions">
+          <ThemeToggle />
+          <div className="staff-user-chip">
+            <small>Conectado:</small>
+            <strong>{user}</strong>
+          </div>
+          <button className="button-logout" onClick={logout} title="Cerrar sesión">
+            <span>Cerrar sesión</span>
+          </button>
+        </div>
       </div>
 
       <nav className="staff-tabs">
         <button className={tab === 'activity' ? 'active' : ''} onClick={() => setTab('activity')}>
-          Mesas ({groupedTableActivity.length})
+          <span className="tab-icon">🪑</span>
+          <span>Mesas ({groupedTableActivity.length})</span>
         </button>
         {canManage && (
           <>
             <button className={tab === 'menu' ? 'active' : ''} onClick={() => setTab('menu')}>
-              Menú ({items.length})
+              <span className="tab-icon">📋</span>
+              <span>Menú ({items.length})</span>
             </button>
             <button className={tab === 'categories' ? 'active' : ''} onClick={() => setTab('categories')}>
-              Categorías ({categories.length})
+              <span className="tab-icon">🏷️</span>
+              <span>Categorías ({categories.length})</span>
             </button>
             <button className={tab === 'promotions' ? 'active' : ''} onClick={() => setTab('promotions')}>
-              Promociones ({promotions.length})
+              <span className="tab-icon">🔥</span>
+              <span>Promociones ({promotions.length})</span>
             </button>
             <button className={tab === 'qr' ? 'active' : ''} onClick={() => setTab('qr')}>
-              QR por mesa
+              <span className="tab-icon">📱</span>
+              <span>QR por mesa</span>
             </button>
             <button className={tab === 'users' ? 'active' : ''} onClick={() => setTab('users')}>
-              Usuarios
+              <span className="tab-icon">👥</span>
+              <span>Usuarios</span>
             </button>
             <button className={tab === 'recommendations' ? 'active' : ''} onClick={() => setTab('recommendations')}>
-              Reseñas ({recommendations.length}) {pendingReviewsCount > 0 && `(🔔 ${pendingReviewsCount})`}
+              <span className="tab-icon">⭐</span>
+              <span>Reseñas ({recommendations.length}) {pendingReviewsCount > 0 && `(🔔 ${pendingReviewsCount})`}</span>
             </button>
           </>
         )}
@@ -1147,16 +1180,34 @@ export default function Staff() {
         <>
           <div className="stats">
             <div className="stat">
-              <span>Mesas con actividad</span>
+              <div className="stat-header">
+                <span className="stat-icon-wrap">🪑</span>
+                <span>Mesas con actividad</span>
+              </div>
               <strong>{groupedTableActivity.length}</strong>
+              <small className="stat-subtext">
+                {tables.filter((t) => t.active).length} mesas habilitadas en total
+              </small>
             </div>
             <div className="stat">
-              <span>Comandas activas</span>
+              <div className="stat-header">
+                <span className="stat-icon-wrap">☕</span>
+                <span>Comandas activas</span>
+              </div>
               <strong>{orders.length}</strong>
+              <small className="stat-subtext">
+                {orders.filter((o) => o.status === 'preparing').length} en preparación
+              </small>
             </div>
             <div className="stat">
-              <span>Solicitudes de atención</span>
+              <div className="stat-header">
+                <span className="stat-icon-wrap">🛎️</span>
+                <span>Solicitudes de atención</span>
+              </div>
               <strong>{requests.length}</strong>
+              <small className="stat-subtext">
+                {requests.filter((r) => r.type === 'waiter').length} mesero · {requests.filter((r) => r.type === 'bill').length} cuenta
+              </small>
             </div>
           </div>
 
@@ -1191,13 +1242,14 @@ export default function Staff() {
             <div style={{ marginLeft: 'auto' }}>
               <button
                 type="button"
-                className="button"
+                className="btn-manual-order-primary"
                 onClick={() => {
                   const firstActive = tables.find((t) => t.active) || tables[0]
                   if (firstActive) openManualOrder(firstActive)
                 }}
               >
-                + Tomar pedido manual
+                <span>+</span>
+                <span>Tomar pedido manual</span>
               </button>
             </div>
           </div>
@@ -1438,12 +1490,83 @@ export default function Staff() {
               <textarea id="menu-description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Describe brevemente el producto" maxLength={500} />
               <label htmlFor="menu-price">Precio en pesos colombianos</label>
               <input id="menu-price" type="number" min="0" value={form.price_cop} onChange={(e) => setForm({ ...form, price_cop: Number(e.target.value) })} placeholder="8000" required />
-              <label htmlFor="menu-main-image">Foto principal</label>
-              <input id="menu-main-image" type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setImageFile(e.target.files?.[0] || null)} />
-              <small className="field-help">JPG, PNG o WebP. Máximo 5 MB.{form.image_url && !imageFile ? ' La foto actual se conservará.' : ''}</small>
-              <label htmlFor="menu-gallery-images">Fotos adicionales</label>
-              <input id="menu-gallery-images" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => setGalleryFiles(Array.from(e.target.files || []))} />
-              <small className="field-help">Puedes seleccionar varias fotos a la vez.{form.gallery_urls && !galleryFiles.length ? ' Las fotos actuales se conservarán.' : ''}</small>
+              {/* Foto Principal con Preview y Upload Zone (Requisito 4) */}
+              <label htmlFor="menu-main-image">Foto principal del producto</label>
+              {(form.image_url || imageFile) && (
+                <div className="staff-image-preview-card">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imageFile ? URL.createObjectURL(imageFile) : form.image_url}
+                    alt="Previsualización de foto principal"
+                    className="staff-preview-thumbnail"
+                  />
+                  <div className="staff-preview-info">
+                    <span className="staff-preview-tag">
+                      {imageFile ? 'Nueva foto seleccionada' : 'Foto actual guardada'}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-remove-preview"
+                      onClick={() => {
+                        setImageFile(null)
+                        setForm({ ...form, image_url: '' })
+                      }}
+                    >
+                      ✕ Quitar foto
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="staff-file-drop-zone">
+                <input
+                  id="menu-main-image"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                />
+                <div className="drop-zone-placeholder">
+                  <span>📷 {imageFile ? 'Cambiar foto seleccionada' : form.image_url ? 'Reemplazar foto actual' : 'Seleccionar foto principal'}</span>
+                  <small>JPG, PNG o WebP · Máximo 5 MB</small>
+                </div>
+              </div>
+
+              {/* Fotos Adicionales / Galería con Preview y Upload Zone (Requisito 4) */}
+              <label htmlFor="menu-gallery-images">Fotos adicionales para la galería</label>
+              {(galleryFiles.length > 0 || form.gallery_urls) && (
+                <div className="staff-gallery-previews">
+                  {form.gallery_urls
+                    .split(/[\n,]/)
+                    .map((url) => url.trim())
+                    .filter(Boolean)
+                    .map((url, idx) => (
+                      <div key={`existing-${idx}`} className="gallery-thumb-item">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={`Galería guardada ${idx + 1}`} />
+                        <span className="gallery-thumb-badge">Guardada</span>
+                      </div>
+                    ))}
+                  {galleryFiles.map((f, idx) => (
+                    <div key={`new-${idx}`} className="gallery-thumb-item new-item">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={URL.createObjectURL(f)} alt={`Nueva ${idx + 1}`} />
+                      <span className="gallery-thumb-badge new-badge">Nueva</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="staff-file-drop-zone">
+                <input
+                  id="menu-gallery-images"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={(e) => setGalleryFiles(Array.from(e.target.files || []))}
+                />
+                <div className="drop-zone-placeholder">
+                  <span>🖼️ {galleryFiles.length > 0 ? `${galleryFiles.length} foto(s) seleccionadas` : 'Agregar más fotos a la galería'}</span>
+                  <small>Puedes seleccionar múltiples imágenes</small>
+                </div>
+              </div>
               <label htmlFor="menu-category">Categoría</label>
               <select id="menu-category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
                 {categories.length > 0 ? (
@@ -1780,12 +1903,12 @@ export default function Staff() {
         <UserAdmin />
       )}
 
-      {/* MODAL TOMA MANUAL DE PEDIDOS (Requisito 11) */}
+      {/* MODAL TOMA MANUAL DE PEDIDOS (Requisitos 7 y 8) */}
       {manualOrderTable && (
         <div className="manual-order-overlay" onClick={() => setManualOrderTable(null)}>
           <div className="manual-order-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="manual-order-head">
-              <div>
+              <div className="manual-order-title-group">
                 <span className="eyebrow">Comanda manual</span>
                 <h2>Tomar pedido · Mesa {manualOrderTable.label}</h2>
               </div>
@@ -1800,32 +1923,41 @@ export default function Staff() {
             </div>
 
             <div className="manual-order-body">
+              {/* Selector de Mesa para elegir o cambiar mesa (Requisito 7) */}
+              <div className="manual-table-selector-card">
+                <label htmlFor="manual-table-select">
+                  <span>Mesa receptora:</span>
+                </label>
+                <select
+                  id="manual-table-select"
+                  value={manualOrderTable.id}
+                  onChange={(e) => {
+                    const chosen = tables.find((t) => t.id === e.target.value)
+                    if (chosen) setManualOrderTable(chosen)
+                  }}
+                  className="manual-table-select"
+                >
+                  {tables.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      Mesa {t.label} {!t.active ? '(Inactiva)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Buscador y filtro de categoría */}
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div className="manual-search-filter-row">
                 <input
                   type="text"
-                  placeholder="Buscar producto..."
+                  placeholder="Buscar producto en la carta..."
                   value={manualQuery}
                   onChange={(e) => setManualQuery(e.target.value)}
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border)',
-                    background: 'var(--surface)',
-                    color: 'var(--text)',
-                  }}
+                  className="manual-search-input"
                 />
                 <select
                   value={manualCategory}
                   onChange={(e) => setManualCategory(e.target.value)}
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border)',
-                    background: 'var(--surface)',
-                    color: 'var(--text)',
-                  }}
+                  className="manual-category-select"
                 >
                   <option>Todas</option>
                   {menuCategoryNames.map((c) => (
@@ -1845,16 +1977,15 @@ export default function Staff() {
                   )
                   .map((it) => (
                     <div className="manual-product-row" key={it.id}>
-                      <div>
+                      <div className="manual-product-info">
                         <strong>{it.name}</strong>
-                        <small style={{ display: 'block', color: 'var(--text-muted)' }}>
+                        <small>
                           {formatCop(it.price_cop)} · {it.category}
                         </small>
                       </div>
                       <button
                         type="button"
-                        className="button"
-                        style={{ padding: '6px 12px', fontSize: '11px' }}
+                        className="btn-manual-add"
                         onClick={() => addManualProduct(it)}
                       >
                         + Agregar
@@ -1866,15 +1997,15 @@ export default function Staff() {
               {/* Ítems agregados a la comanda */}
               {manualCart.length > 0 && (
                 <div className="manual-order-cart-items">
-                  <span style={{ fontSize: '12px', fontWeight: 800, textTransform: 'uppercase' }}>
-                    Productos en la comanda ({manualCart.reduce((sum, ci) => sum + ci.quantity, 0)}):
-                  </span>
+                  <div className="manual-cart-header">
+                    <span>Productos en la comanda ({manualCart.reduce((sum, ci) => sum + ci.quantity, 0)}):</span>
+                  </div>
                   {manualCart.map(({ item, quantity, notes }) => (
-                    <div key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div key={item.id} className="manual-cart-item-box">
+                      <div className="manual-cart-item-row">
                         <div>
                           <strong>{item.name}</strong>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                          <span className="manual-item-subtotal">
                             {formatCop(item.price_cop * quantity)}
                           </span>
                         </div>
@@ -1890,37 +2021,22 @@ export default function Staff() {
                       </div>
                       <input
                         type="text"
-                        placeholder="Nota (ej. sin azúcar)"
+                        placeholder="Nota o especificación (ej. sin azúcar, leche deslactosada)"
                         value={notes}
                         onChange={(e) => updateManualItemNotes(item.id, e.target.value)}
-                        style={{
-                          fontSize: '11px',
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          border: '1px solid var(--border)',
-                          background: 'var(--surface)',
-                          color: 'var(--text)',
-                        }}
+                        className="manual-item-note-input"
                       />
                     </div>
                   ))}
-                  <div style={{ marginTop: '8px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 700 }}>Nota general:</label>
+                  <div className="manual-notes-group">
+                    <label htmlFor="manual-general-notes">Nota general para barra/cocina:</label>
                     <input
+                      id="manual-general-notes"
                       type="text"
-                      placeholder="Instrucciones para barra o cocina..."
+                      placeholder="Instrucciones para el servicio..."
                       value={manualNotes}
                       onChange={(e) => setManualNotes(e.target.value)}
-                      style={{
-                        width: '100%',
-                        fontSize: '12px',
-                        padding: '6px 8px',
-                        marginTop: '4px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border)',
-                        background: 'var(--surface)',
-                        color: 'var(--text)',
-                      }}
+                      className="manual-general-notes-input"
                     />
                   </div>
                 </div>
@@ -1928,9 +2044,9 @@ export default function Staff() {
             </div>
 
             <div className="manual-order-footer">
-              <div>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Total comanda:</span>
-                <strong style={{ display: 'block', fontSize: '18px', color: 'var(--orange)' }}>
+              <div className="manual-order-total-info">
+                <span>Total comanda (Mesa {manualOrderTable.label}):</span>
+                <strong>
                   {formatCop(
                     manualCart.reduce((sum, ci) => sum + ci.item.price_cop * ci.quantity, 0),
                   )}
@@ -1938,12 +2054,11 @@ export default function Staff() {
               </div>
               <button
                 type="button"
-                className="button"
-                style={{ background: 'var(--orange)', color: '#fff' }}
+                className="btn-manual-submit"
                 disabled={manualSubmitting || !manualCart.length}
                 onClick={submitManualOrder}
               >
-                {manualSubmitting ? 'Registrando…' : 'Crear comanda'}
+                {manualSubmitting ? 'Registrando…' : `Crear comanda · Mesa ${manualOrderTable.label}`}
               </button>
             </div>
           </div>

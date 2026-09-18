@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import OrderCart, { type CartItem } from './OrderCart'
+import OrderCart, { type CartItem, type TableOrder } from './OrderCart'
 
 export type MenuItem = {
   id: string
@@ -42,6 +42,23 @@ function formatCop(value: number) {
   }).format(value)
 }
 
+function getOrderStep(status: TableOrder['status']) {
+  switch (status) {
+    case 'pending':
+      return { step: 1, label: 'Enviado a barra', icon: '⏳', desc: 'Tu comanda está en fila' }
+    case 'acknowledged':
+      return { step: 2, label: 'Recibido', icon: '👀', desc: 'El equipo confirmó tu pedido' }
+    case 'preparing':
+      return { step: 3, label: 'En preparación', icon: '☕', desc: 'Estamos preparando tus productos' }
+    case 'delivered':
+      return { step: 4, label: 'Entregado en mesa', icon: '✓', desc: '¡Buen provecho!' }
+    case 'cancelled':
+      return { step: 0, label: 'Comanda cancelada', icon: '✕', desc: 'Consulta con el mesero' }
+    default:
+      return { step: 1, label: status, icon: '☕', desc: '' }
+  }
+}
+
 type MenuExperienceProps = {
   initialMenu: MenuItem[]
   initialCategories?: MenuCategory[]
@@ -67,6 +84,8 @@ export default function MenuExperience({
   const [galleryItem, setGalleryItem] = useState<MenuItem | null>(null)
   const [galleryIndex, setGalleryIndex] = useState(0)
   const [cart, setCart] = useState<CartItem[]>([])
+  const [tableOrders, setTableOrders] = useState<TableOrder[]>([])
+  const [showOrderTrackerDetail, setShowOrderTrackerDetail] = useState(false)
 
   const galleryCloseRef = useRef<HTMLButtonElement>(null)
   const galleryPreviousFocusRef = useRef<HTMLElement | null>(null)
@@ -123,6 +142,70 @@ export default function MenuExperience({
     }
   }, [supabase])
 
+  // Cargar pedidos en tiempo real de la mesa
+  const fetchTableOrders = useCallback(async (tableId: string, token: string) => {
+    const { data } = await supabase.rpc('get_table_orders', {
+      p_table_id: tableId,
+      p_table_token: token,
+    })
+    if (data) {
+      setTableOrders(data as TableOrder[])
+    }
+  }, [supabase])
+
+  useEffect(() => {
+    let active = true
+    if (!table || !mesaToken) return
+
+    void Promise.resolve().then(() => {
+      if (active) void fetchTableOrders(table.id, mesaToken)
+    })
+
+    const channel = supabase
+      .channel(`customer-table-orders-${table.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'order_requests',
+          filter: `table_id=eq.${table.id}`,
+        },
+        () => {
+          if (active) void fetchTableOrders(table.id, mesaToken)
+        },
+      )
+      .subscribe()
+
+    return () => {
+      active = false
+      void supabase.removeChannel(channel)
+    }
+  }, [table, mesaToken, fetchTableOrders, supabase])
+
+  // Total acumulado de consumo de la mesa (no cancelados)
+  const accumulatedTotalCop = useMemo(() => {
+    return tableOrders
+      .filter((o) => o.status !== 'cancelled')
+      .reduce((acc, o) => {
+        const orderSum = (o.items || []).reduce(
+          (sum, it) => sum + (it.price_cop_snapshot || 0) * (it.quantity || 1),
+          0,
+        )
+        return acc + orderSum
+      }, 0)
+  }, [tableOrders])
+
+  // Pedido activo más reciente (en progreso o entregado reciente)
+  const latestOrder = useMemo(() => {
+    if (!tableOrders.length) return null
+    // Priorizar comandas no entregadas/no canceladas
+    const inFlight = tableOrders.find(
+      (o) => o.status === 'pending' || o.status === 'acknowledged' || o.status === 'preparing',
+    )
+    return inFlight || tableOrders[0]
+  }, [tableOrders])
+
   async function request(type: 'waiter' | 'bill') {
     if (!table) {
       setNotice('Escanea el QR asignado a tu mesa para solicitar atención.')
@@ -135,13 +218,14 @@ export default function MenuExperience({
       type,
     })
     setLoading(false)
-    setNotice(
-      error
-        ? 'No pudimos enviar la solicitud. Intenta de nuevo.'
-        : type === 'waiter'
-          ? 'El mesero recibió tu solicitud.'
-          : 'La cuenta fue solicitada para tu mesa.',
-    )
+    if (error) {
+      setNotice('No pudimos enviar la solicitud. Intenta de nuevo.')
+    } else if (type === 'waiter') {
+      setNotice('🛎️ El mesero recibió tu llamado y viene en camino.')
+    } else {
+      const totalMsg = accumulatedTotalCop > 0 ? ` (Total acumulado: ${formatCop(accumulatedTotalCop)})` : ''
+      setNotice(`🧾 La cuenta fue solicitada para tu mesa${totalMsg}.`)
+    }
   }
 
   const router = useRouter()
@@ -166,7 +250,6 @@ export default function MenuExperience({
       categoriesList.forEach((c) => {
         pills.push({ name: c.name, icon: c.icon || '✨' })
       })
-      // Asegurar que si hay categorías en menu que no están en categoriesList, aparezcan al final
       const existingNames = new Set(pills.map((p) => p.name))
       menu.forEach((m) => {
         if (!existingNames.has(m.category)) {
@@ -177,7 +260,6 @@ export default function MenuExperience({
       return pills
     }
 
-    // Fallback: derivado del menú si no se cargaron categorías dinámicas
     const unique = Array.from(new Set(menu.map((item) => item.category)))
     return [
       { name: 'Todos', icon: '☕' },
@@ -204,7 +286,7 @@ export default function MenuExperience({
       }
       return [...prev, { item, quantity: 1, notes: '' }]
     })
-    setNotice(`Agregaste "${item.name}" al pedido.`)
+    setNotice(`Agregaste "${item.name}" a tu comanda.`)
   }
 
   function updateCartQuantity(itemId: string, delta: number) {
@@ -237,6 +319,9 @@ export default function MenuExperience({
 
   function handleOrderSuccess() {
     setNotice('¡Tu pedido fue enviado al equipo de Yarumo! Lo estamos preparando.')
+    if (table && mesaToken) {
+      void fetchTableOrders(table.id, mesaToken)
+    }
   }
 
   function handlePromoClick(promo: Promotion) {
@@ -251,14 +336,18 @@ export default function MenuExperience({
   }
 
   const serviceDisabled = loading || !mesaToken || (tableChecked && !table)
+  const isInsideTable = Boolean(table && mesaToken)
   const serviceHint = !mesaToken
-    ? 'Escanea el QR de tu mesa para usar esta opción'
+    ? 'Escanea el QR de tu mesa para pedir o llamar al mesero'
     : tableChecked && !table
       ? 'Este QR no está activo. Pide ayuda al equipo.'
       : ''
 
+  const latestStepInfo = latestOrder ? getOrderStep(latestOrder.status) : null
+
   return (
     <>
+      {/* HERO SECTION */}
       <section className="hero">
         <div className="hero-content">
           <span className="eyebrow">Café de origen · Armenia</span>
@@ -271,14 +360,14 @@ export default function MenuExperience({
             Explorar la carta <span>↓</span>
           </a>
         </div>
-        <div className="hero-photo hero-logo-showcase">
+        <div className="hero-photo">
           <Image
-            className="hero-logo-img"
-            src="/yarumo-logo.png"
-            alt="Logo de Yarumo Coffee"
+            src="/yarumo-cover-cafe.webp"
+            alt="Café de Yarumo Coffee servido en mesa"
             fill
             sizes="(max-width: 700px) 100vw, 340px"
             priority
+            style={{ objectFit: 'cover' }}
           />
           <div className="hero-photo-caption">
             <span>{table ? `Mesa ${table.label}` : 'Yarumo Coffee'}</span>
@@ -290,56 +379,156 @@ export default function MenuExperience({
         </div>
       </section>
 
-      {/* Promociones del día (si hay activas) */}
-      {promotions.length > 0 && (
-        <section className="promotions-section" aria-label="Promociones especiales">
-          <div className="promotions-carousel">
-            {promotions.map((promo) => (
-              <div
-                className="promotion-card"
-                key={promo.id}
-                onClick={() => handlePromoClick(promo)}
-                role={promo.linked_menu_item_id ? 'button' : undefined}
-                tabIndex={promo.linked_menu_item_id ? 0 : undefined}
-                title={promo.linked_menu_item_id ? 'Toca para ver el producto en la carta' : undefined}
-              >
-                <div className="promotion-badge">
-                  {promo.badge_text || 'PROMO DEL DÍA'}
-                </div>
-                <div className="promotion-content">
-                  <h3>{promo.title}</h3>
-                  {promo.description && <p>{promo.description}</p>}
-                  {promo.linked_menu_item_id && (
-                    <span className="promotion-action">Ver producto en la carta →</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
+      {/* SERVICE IN-TABLE ACTIONS */}
       <section className="service">
         <div className="service-card">
           <div>
             <span className="eyebrow">{table ? `Mesa ${table.label}` : 'Servicio en mesa'}</span>
             <h2>Todo desde tu celular.</h2>
-            <p>Arma tu comanda, pide la cuenta o llama al mesero sin esperas.</p>
+            <p>
+              {table
+                ? 'Arma tu comanda, sigue el estado de tu pedido o pide la cuenta.'
+                : 'Escanea el QR de tu mesa para pedir directo a cocina y llamar al mesero.'}
+            </p>
           </div>
           <div className="service-actions">
-            <button className="primary" onClick={() => request('waiter')} disabled={serviceDisabled} title={serviceHint || undefined}>
+            <button
+              className="primary"
+              onClick={() => request('waiter')}
+              disabled={serviceDisabled}
+              title={serviceHint || undefined}
+            >
               <span>🛎️</span>
               <span>{loading ? 'Enviando…' : 'Llamar al mesero'}</span>
             </button>
-            <button onClick={() => request('bill')} disabled={serviceDisabled} title={serviceHint || undefined}>
+            <button
+              onClick={() => request('bill')}
+              disabled={serviceDisabled}
+              title={serviceHint || undefined}
+              className="bill-request-btn"
+            >
               <span>🧾</span>
-              <span>Pedir la cuenta</span>
+              <span>
+                {accumulatedTotalCop > 0
+                  ? `Pedir la cuenta (${formatCop(accumulatedTotalCop)})`
+                  : 'Pedir la cuenta'}
+              </span>
             </button>
             {serviceHint && <p className="service-hint">{serviceHint}</p>}
           </div>
         </div>
       </section>
 
+      {/* LIVE ORDER STATUS TRACKER FOR CUSTOMER (Requisito 6) */}
+      {isInsideTable && latestOrder && latestStepInfo && latestOrder.status !== 'cancelled' && (
+        <section className="customer-order-tracker-wrap" aria-label="Estado de tu pedido">
+          <div className={`customer-order-tracker-card status-${latestOrder.status}`}>
+            <div className="tracker-top">
+              <div className="tracker-title-wrap">
+                <span className="tracker-live-dot" />
+                <div>
+                  <span className="tracker-eyebrow">Estado de tu comanda #{latestOrder.id.slice(0, 5).toUpperCase()}</span>
+                  <h3>{latestStepInfo.icon} {latestStepInfo.label}</h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="tracker-toggle-btn"
+                onClick={() => setShowOrderTrackerDetail(!showOrderTrackerDetail)}
+              >
+                {showOrderTrackerDetail ? 'Ocultar detalles ▲' : 'Ver productos ▼'}
+              </button>
+            </div>
+
+            {/* Visual Stepper */}
+            <div className="tracker-stepper">
+              <div className={`step-node ${latestStepInfo.step >= 1 ? 'completed' : ''} ${latestStepInfo.step === 1 ? 'active' : ''}`}>
+                <div className="step-circle">1</div>
+                <span>Enviado</span>
+              </div>
+              <div className={`step-line ${latestStepInfo.step >= 2 ? 'completed' : ''}`} />
+              <div className={`step-node ${latestStepInfo.step >= 2 ? 'completed' : ''} ${latestStepInfo.step === 2 ? 'active' : ''}`}>
+                <div className="step-circle">2</div>
+                <span>Recibido</span>
+              </div>
+              <div className={`step-line ${latestStepInfo.step >= 3 ? 'completed' : ''}`} />
+              <div className={`step-node ${latestStepInfo.step >= 3 ? 'completed' : ''} ${latestStepInfo.step === 3 ? 'active' : ''}`}>
+                <div className="step-circle">3</div>
+                <span>En barra</span>
+              </div>
+              <div className={`step-line ${latestStepInfo.step >= 4 ? 'completed' : ''}`} />
+              <div className={`step-node ${latestStepInfo.step >= 4 ? 'completed' : ''} ${latestStepInfo.step === 4 ? 'active' : ''}`}>
+                <div className="step-circle">4</div>
+                <span>Entregado</span>
+              </div>
+            </div>
+
+            <p className="tracker-desc-text">{latestStepInfo.desc}</p>
+
+            {/* Expandable item details */}
+            {showOrderTrackerDetail && (
+              <div className="tracker-items-detail">
+                <div className="tracker-items-list">
+                  {(latestOrder.items || []).map((it) => (
+                    <div key={it.id} className="tracker-item-row">
+                      <span><strong>{it.quantity}x</strong> {it.name_snapshot}</span>
+                      <small>{formatCop((it.price_cop_snapshot || 0) * (it.quantity || 1))}</small>
+                    </div>
+                  ))}
+                </div>
+                {latestOrder.notes && (
+                  <p className="tracker-order-notes">
+                    <strong>Nota:</strong> {latestOrder.notes}
+                  </p>
+                )}
+                {accumulatedTotalCop > 0 && (
+                  <div className="tracker-total-bar">
+                    <span>Total acumulado mesa:</span>
+                    <strong>{formatCop(accumulatedTotalCop)}</strong>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* PROMOTION SECTION: Placed gracefully before the menu with clean max-width (Requisito 5) */}
+      {promotions.length > 0 && (
+        <section className="promotions-section" aria-label="Promociones especiales">
+          <div className="promotions-container">
+            <div className="promotions-header">
+              <span className="eyebrow">Destacados</span>
+              <h2>Promociones de hoy.</h2>
+            </div>
+            <div className="promotions-grid">
+              {promotions.map((promo) => (
+                <div
+                  className="promotion-card"
+                  key={promo.id}
+                  onClick={() => handlePromoClick(promo)}
+                  role={promo.linked_menu_item_id ? 'button' : undefined}
+                  tabIndex={promo.linked_menu_item_id ? 0 : undefined}
+                  title={promo.linked_menu_item_id ? 'Toca para ver el producto en la carta' : undefined}
+                >
+                  <div className="promotion-badge">
+                    {promo.badge_text || 'PROMO DEL DÍA'}
+                  </div>
+                  <div className="promotion-content">
+                    <h3>{promo.title}</h3>
+                    {promo.description && <p>{promo.description}</p>}
+                    {promo.linked_menu_item_id && (
+                      <span className="promotion-action">Ver producto en la carta →</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* MENU SECTION */}
       <section className="content" id="menu">
         <div className="section-top">
           <div>
@@ -420,19 +609,35 @@ export default function MenuExperience({
                   {item.description && <p>{item.description}</p>}
                   <div className="item-footer">
                     <small className="item-price">{formatCop(item.price_cop)}</small>
-                    <button
-                      className="add-to-cart-btn"
-                      type="button"
-                      onClick={() => addToCart(item)}
-                      disabled={serviceDisabled}
-                      title={serviceHint || 'Agregar al pedido'}
-                      aria-label={`Agregar ${item.name} al pedido`}
-                    >
-                      <span>+</span>
-                      <span>Pedir</span>
-                    </button>
+                    
+                    {/* Botón Pedir: SOLO si está dentro de una mesa escaneada (Requisito 2) */}
+                    {isInsideTable ? (
+                      <button
+                        className="add-to-cart-btn"
+                        type="button"
+                        onClick={() => addToCart(item)}
+                        disabled={serviceDisabled}
+                        title={serviceHint || 'Agregar a tu pedido'}
+                        aria-label={`Agregar ${item.name} al pedido`}
+                      >
+                        <span>+</span>
+                        <span>Pedir</span>
+                      </button>
+                    ) : (
+                      (Boolean(item.image_url) || (item.gallery_urls?.length ?? 0) > 0) && (
+                        <button
+                          className="gallery-link"
+                          type="button"
+                          onClick={() => {
+                            setGalleryItem(item)
+                            setGalleryIndex(0)
+                          }}
+                        >
+                          Ver fotos →
+                        </button>
+                      )
+                    )}
                   </div>
-
                 </div>
               </article>
             ))
@@ -454,17 +659,23 @@ export default function MenuExperience({
         </div>
       </section>
 
-      {/* Carrito de Pedidos Flotante */}
-      <OrderCart
-        cart={cart}
-        table={table}
-        mesaToken={mesaToken}
-        onUpdateQuantity={updateCartQuantity}
-        onUpdateItemNotes={updateCartItemNotes}
-        onRemoveItem={removeCartItem}
-        onClearCart={clearCart}
-        onOrderSuccess={handleOrderSuccess}
-      />
+      {/* Carrito de Pedidos Flotante (Solo activo si está en mesa) */}
+      {isInsideTable && (
+        <OrderCart
+          cart={cart}
+          table={table}
+          mesaToken={mesaToken}
+          tableOrders={tableOrders}
+          onOrdersRefresh={() => {
+            if (table && mesaToken) void fetchTableOrders(table.id, mesaToken)
+          }}
+          onUpdateQuantity={updateCartQuantity}
+          onUpdateItemNotes={updateCartItemNotes}
+          onRemoveItem={removeCartItem}
+          onClearCart={clearCart}
+          onOrderSuccess={handleOrderSuccess}
+        />
+      )}
 
       {notice && (
         <button className="notice" onClick={() => setNotice('')}>
