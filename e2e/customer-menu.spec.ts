@@ -20,4 +20,24 @@ test.describe('Cliente en mesa', () => {
 
     await expect(page.getByText('La cuenta fue solicitada para tu mesa.')).toBeVisible()
   })
+
+  test('agrega un producto al pedido y abre el carrito flotante', async ({ page }) => {
+    await page.goto(`/?mesa=${tableToken}`)
+
+    await expect(page.locator('.item').first()).toBeVisible()
+
+    // Agregar el primer producto al carrito
+    await page.locator('.add-to-cart-btn').first().click()
+
+    // El botón flotante de pedido debe aparecer
+    const cartButton = page.locator('.floating-cart-btn')
+    await expect(cartButton).toBeVisible()
+
+    // Abrir el resumen del pedido
+    await cartButton.click()
+
+    // El diálogo modal del pedido debe estar visible con el botón de envío
+    await expect(page.getByRole('heading', { name: 'Tu Pedido' })).toBeVisible()
+    await expect(page.locator('.cart-submit-order-btn')).toBeVisible()
+  })
 })

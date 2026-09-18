@@ -1,9 +1,13 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import MenuExperience, { type MenuItem } from '@/components/MenuExperience'
+import MenuExperience, {
+  type MenuItem,
+  type MenuCategory,
+  type Promotion,
+} from '@/components/MenuExperience'
 import ThemeToggle from '@/components/ThemeToggle'
-import { SITE_URL } from '@/lib/site-url'
+import { SITE_URL, GOOGLE_REVIEWS_URL } from '@/lib/site-url'
 
 const cafeJsonLd = {
   '@context': 'https://schema.org',
@@ -24,22 +28,42 @@ const cafeJsonLd = {
   ],
 }
 
-// Server Component: the menu is fetched and rendered on the server so the HTML
-// that reaches the phone already has the carta in it, instead of shipping an
-// empty shell and waiting for a client-side useEffect to fetch it.
-async function getInitialMenu(): Promise<MenuItem[]> {
+// Server Component: the menu, categories, and active promotions are fetched and rendered on the server
+async function getInitialData(): Promise<{
+  menu: MenuItem[]
+  categories: MenuCategory[]
+  promotions: Promotion[]
+}> {
   const supabase = await createClient()
-  const { data } = await supabase
-    .from('menu_items')
-    .select('id,name,description,price_cop,category,sort_order,image_url,gallery_urls')
-    .eq('available', true)
-    .order('sort_order')
-    .order('name')
-  return (data || []) as MenuItem[]
+
+  const [menuRes, catRes, promoRes] = await Promise.all([
+    supabase
+      .from('menu_items')
+      .select('id,name,description,price_cop,category,sort_order,image_url,gallery_urls')
+      .eq('available', true)
+      .order('sort_order')
+      .order('name'),
+    supabase
+      .from('menu_categories')
+      .select('id,name,icon,sort_order')
+      .eq('active', true)
+      .order('sort_order'),
+    supabase
+      .from('promotions')
+      .select('id,title,description,badge_text,image_url,linked_menu_item_id,sort_order')
+      .eq('active', true)
+      .order('sort_order'),
+  ])
+
+  return {
+    menu: (menuRes.data || []) as MenuItem[],
+    categories: (catRes.data || []) as MenuCategory[],
+    promotions: (promoRes.data || []) as Promotion[],
+  }
 }
 
 export default async function Home() {
-  const initialMenu = await getInitialMenu()
+  const { menu, categories, promotions } = await getInitialData()
 
   return (
     <>
@@ -69,7 +93,11 @@ export default async function Home() {
       </header>
 
       <main id="inicio">
-        <MenuExperience initialMenu={initialMenu} />
+        <MenuExperience
+          initialMenu={menu}
+          initialCategories={categories}
+          initialPromotions={promotions}
+        />
 
         <section className="visit-strip" id="visitanos">
           <div>
@@ -95,7 +123,7 @@ export default async function Home() {
           <span>
             <Link href="/recomendaciones">Dejar recomendación</Link>{' '}
             ·{' '}
-            <a href="https://www.google.com/search?q=Yarumo+Coffee+Armenia" target="_blank" rel="noreferrer">
+            <a href={GOOGLE_REVIEWS_URL} target="_blank" rel="noreferrer">
               Reseñas de Google ↗
             </a>{' '}
             ·{' '}
@@ -108,3 +136,4 @@ export default async function Home() {
     </>
   )
 }
+

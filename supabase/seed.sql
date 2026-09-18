@@ -94,10 +94,27 @@ insert into public.menu_items (name, slug, description, price_cop, category, sor
 ('Pizzeta Ranchera', 'pizzeta-ranchera', 'Ranchera, chorizo, maicitos, y queso doblecrema.', 19500, 'Pizzetas', 71, true),
 ('Pizzeta Napolitana', 'pizzeta-napolitana', 'Tomate fresco, albahaca, queso mozzarella, orégano y salsa de tomate.', 17500, 'Pizzetas', 72, true)
 
-on conflict (slug) do update set
-  name = excluded.name,
-  description = excluded.description,
-  price_cop = excluded.price_cop,
-  category = excluded.category,
+-- Categorías de menú
+insert into public.menu_categories (name, icon, sort_order, active) values
+  ('Bebidas Calientes', '♨️', 1, true),
+  ('Bebidas Frías', '🧊', 2, true),
+  ('Gaseosas', '🥤', 3, true),
+  ('Cervezas', '🍺', 4, true),
+  ('Antojitos Panaderos', '🥐', 5, true),
+  ('Sándwiches', '🥪', 6, true),
+  ('Tortas y Brownies', '🍰', 7, true),
+  ('Hojaldrados', '🥟', 8, true),
+  ('Pizzetas', '🍕', 9, true),
+  ('Otros', '✨', 10, true)
+on conflict (name) do update set
+  icon = excluded.icon,
   sort_order = excluded.sort_order,
-  available = excluded.available;
+  active = excluded.active;
+
+-- Actualizar category_id en menu_items
+update public.menu_items m
+set category_id = c.id
+from public.menu_categories c
+where m.category = c.name
+  and m.category_id is null;
+

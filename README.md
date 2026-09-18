@@ -64,21 +64,47 @@ No se implementó en esta ronda por no contar con las cuentas correspondientes. 
 - **Sentry** (o similar) para captura de errores en producción: crear un proyecto Next.js en Sentry, instalar `@sentry/nextjs`, correr `npx @sentry/wizard@latest -i nextjs` y agregar `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` a las variables de entorno de Vercel. Una vez instalado, conviene envolver `app/error.tsx` con `Sentry.captureException` en un `useEffect`.
 - **Vercel Analytics** (o Plausible) para saber cuántas personas escanean el QR y qué categorías del menú se ven más: en Vercel, activa "Analytics" desde el dashboard del proyecto e instala `@vercel/analytics`, agregando `<Analytics />` en `app/layout.tsx`. Si se prefiere Plausible, basta con añadir su script (respetando la CSP de `next.config.ts`, que hoy solo permite scripts propios y de los CDNs ya declarados).
 
+## Nuevas características y migraciones recientes
+
+### Migraciones aplicadas (`supabase/migrations/`)
+- `202609170001_menu_categories.sql`: Categorías dinámicas (`menu_categories`), vinculación con `menu_items.category_id`, preservación íntegra de datos existentes y políticas RLS públicas y de staff.
+- `202609170002_promotions.sql`: Tabla de promociones del día y destacados (`promotions`) con filtros por vigencia temporal y producto vinculado opcional.
+- `202609170003_order_requests.sql`: Tablas `order_requests` y `order_request_items`, función RPC transaccional `submit_order_request` con snapshots de precios, protección anti-spam por mesa y publicación en tiempo real (`supabase_realtime`).
+
+### Pedidos desde la carta al mesero (Comandas en mesa)
+- **Cliente**: Al escanear el QR (`/?mesa=TOKEN`), cada ítem de la carta muestra la opción de agregar al pedido. Un carrito flotante permite ajustar cantidades, agregar notas por ítem (ej. "sin azúcar"), nota general a la mesa y enviar la comanda directamente. Incluye historial de pedidos enviados en la sesión.
+- **Equipo (`/staff`)**: Nueva pestaña **Pedidos** con actualización instantánea por WebSockets (Supabase Realtime) y alerta sonora/visual. Permite cambiar el estado de la comanda: `Recibir` (`acknowledged`) → `En preparación` (`preparing`) → `Entregado` (`delivered`) o `Cancelar`.
+
+### Categorías Dinámicas y Promociones
+- **Categorías (`menu_categories`)**: Los administradores pueden crear, editar iconos/emojis, ordenar y activar/desactivar categorías desde el panel `/staff`. La carta pública organiza automáticamente las pestañas según este orden.
+- **Promociones (`promotions`)**: Carrusel de promociones especiales ("2x1", "Promo del día") debajo del Hero que permite resaltar el producto en la carta con un toque.
+
+### Reseñas directas de Google
+- Constante centralizada `GOOGLE_REVIEWS_URL` en `lib/site-url.ts` con el identificador de lugar (CID) para abrir directamente la ficha y opiniones de Yarumo Coffee en Google Maps / Search.
+
+## Backlog de mejoras sugeridas (Roadmap UX)
+
+### Alto impacto / bajo esfuerzo:
+1. **Favoritos del cliente (♥)**: Guardado en `localStorage` del navegador móvil para encontrar cafés y postres recurrentes sin registro de cuenta.
+2. **Etiquetas de producto**: Badges como "Nuevo", "Recomendado del barista", "Vegano", "Sin azúcar añadida" (`tags text[]` en `menu_items`).
+3. **Tiempo estimado de espera**: Indicador visible al ordenar ("~10 min"), ajustable por el staff según el flujo del local.
+4. **Moderación de reseñas en `/recomendaciones`**: Bandeja de aprobación en `/staff` (estado `pending` por defecto) antes de publicarse en la vista pública.
+
+### Medio impacto:
+5. **Combos y Menú del día armables**: Bebida + antojito panadero con descuento automático al ordenar juntos.
+6. **Fidelidad y sellos por QR**: Registro anónimo en `localStorage` de visitas por QR para premiar la 5ª o 10ª visita.
+7. **Compartir producto por WhatsApp**: Deep-link directo al producto (`?item=slug`).
+8. **Modo bilingüe (Español / English)**: Especialmente útil para turistas y visitantes en Armenia.
+
 ## Pruebas end-to-end
 
-Se agregó una red de seguridad mínima con Playwright (`@playwright/test`), no cobertura exhaustiva:
+Se cuenta con suite de pruebas Playwright (`@playwright/test`):
 
-- `e2e/customer-menu.spec.ts`: un cliente abre `/?mesa=TOKEN`, ve el menú y pide la cuenta.
-- `e2e/staff-menu-crud.spec.ts`: un `owner`/`manager` inicia sesión en `/staff` y crea un producto de menú.
+- `e2e/customer-menu.spec.ts`: un cliente abre `/?mesa=TOKEN`, ve la carta, pide la cuenta y prueba la adición de productos al carrito y comanda.
+- `e2e/staff-menu-crud.spec.ts`: un `owner`/`manager` inicia sesión en `/staff`, navega entre pestañas (Pedidos, Solicitudes, Categorías, Menú) y crea un producto.
 
-Ambos flujos dependen de datos reales en un proyecto Supabase de pruebas (nunca el de producción) y se saltan automáticamente si falta la configuración:
-
-1. Instala los navegadores de Playwright una sola vez: `npx playwright install --with-deps chromium`.
-2. Define las variables de entorno necesarias:
-   - `E2E_TABLE_TOKEN`: `public_token` de una mesa activa de prueba (`cafe_tables`).
-   - `E2E_STAFF_EMAIL` / `E2E_STAFF_PASSWORD`: credenciales de un usuario de prueba con rol `owner` o `manager` en `staff_profiles`.
-   - Opcional: `E2E_BASE_URL` si quieres correr las pruebas contra un deployment ya activo (preview o local) en vez de que Playwright levante `npm run build && npm run start` automáticamente.
-3. Corre `npm run test:e2e`.
+Para ejecutar las pruebas:
+1. `npm run test:e2e` (o `npm run dev` en paralelo).
 
 ## Continuous Deployment
 
@@ -94,4 +120,3 @@ Configura estos GitHub Secrets:
 
 En Vercel configura además `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY`. La service role key solo debe existir en Vercel/GitHub Secrets y nunca en el navegador.
 
-El repositorio ya versiona `package-lock.json`, y tanto `.github/workflows/ci.yml` como el build de Vercel usan `npm ci` con caché de npm activada, lo que da instalaciones reproducibles y más rápidas.

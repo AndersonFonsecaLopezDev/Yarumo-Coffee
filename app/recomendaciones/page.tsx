@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import ThemeToggle from '@/components/ThemeToggle'
+import { GOOGLE_REVIEWS_URL } from '@/lib/site-url'
 
 type Recommendation = {
   id: string
@@ -234,7 +235,7 @@ export default function RecomendacionesPage() {
         <footer className="footer">
           <span>Yarumo Coffee · Donde cada taza cuenta una historia.</span>
           <span>
-            <a href="https://www.google.com/search?q=Yarumo+Coffee+Armenia" target="_blank" rel="noreferrer">
+            <a href={GOOGLE_REVIEWS_URL} target="_blank" rel="noreferrer">
               Reseñas de Google ↗
             </a>{' '}
             ·{' '}
@@ -243,6 +244,7 @@ export default function RecomendacionesPage() {
             </a>
           </span>
         </footer>
+
       </main>
     </>
   )

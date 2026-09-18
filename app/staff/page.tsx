@@ -7,9 +7,71 @@ import { createClient } from '@/lib/supabase/client'
 import UserAdmin from '@/components/UserAdmin'
 import { SITE_URL as PUBLIC_MENU_URL } from '@/lib/site-url'
 
-type Request = { id: string; type: 'waiter' | 'bill'; status: string; created_at: string; table: { label: string } | null }
-type CafeTable = { id: string; label: string; public_token: string; active: boolean }
-type RecommendationItem = { id: string; name: string; rating: number; comment: string; table_number: string | null; created_at: string }
+type Request = {
+  id: string
+  type: 'waiter' | 'bill'
+  status: string
+  created_at: string
+  table: { label: string } | null
+}
+
+type OrderRequestItem = {
+  id: string
+  name_snapshot: string
+  price_cop_snapshot: number
+  quantity: number
+  item_notes: string
+}
+
+type OrderRequest = {
+  id: string
+  status: 'pending' | 'acknowledged' | 'preparing' | 'delivered' | 'cancelled'
+  notes: string
+  created_at: string
+  acknowledged_at: string | null
+  delivered_at: string | null
+  table: { label: string } | null
+  items: OrderRequestItem[]
+}
+
+type MenuCategory = {
+  id: string
+  name: string
+  icon: string
+  sort_order: number
+  active: boolean
+  created_at?: string
+}
+
+type Promotion = {
+  id: string
+  title: string
+  description: string
+  badge_text: string | null
+  image_url: string | null
+  linked_menu_item_id: string | null
+  starts_at: string
+  ends_at: string | null
+  active: boolean
+  sort_order: number
+}
+
+type CafeTable = {
+  id: string
+  label: string
+  public_token: string
+  active: boolean
+}
+
+type RecommendationItem = {
+  id: string
+  name: string
+  rating: number
+  comment: string
+  table_number: string | null
+  created_at: string
+}
+
 type MenuItem = {
   id: string
   name: string
@@ -17,23 +79,27 @@ type MenuItem = {
   description: string
   price_cop: number
   category: string
+  category_id?: string | null
   available: boolean
   sort_order: number
   image_url: string | null
   gallery_urls: string[]
 }
+
 type MenuForm = {
   name: string
   slug: string
   description: string
   price_cop: number
   category: string
+  category_id?: string
   available: boolean
   sort_order: number
   image_url: string
   gallery_urls: string
 }
-const blank: MenuForm = {
+
+const blankMenuForm: MenuForm = {
   name: '',
   slug: '',
   description: '',
@@ -43,6 +109,69 @@ const blank: MenuForm = {
   sort_order: 0,
   image_url: '',
   gallery_urls: '',
+}
+
+type CategoryForm = {
+  name: string
+  icon: string
+  sort_order: number
+  active: boolean
+}
+
+const blankCategoryForm: CategoryForm = {
+  name: '',
+  icon: '☕',
+  sort_order: 0,
+  active: true,
+}
+
+type PromotionForm = {
+  title: string
+  description: string
+  badge_text: string
+  linked_menu_item_id: string
+  active: boolean
+  sort_order: number
+}
+
+const blankPromotionForm: PromotionForm = {
+  title: '',
+  description: '',
+  badge_text: 'PROMO DEL DÍA',
+  linked_menu_item_id: '',
+  active: true,
+  sort_order: 0,
+}
+
+function formatCop(value: number) {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+function playNotificationChime() {
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    if (!AudioCtx) return
+    const ctx = new AudioCtx()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime) // D5
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15) // A5
+    gain.gain.setValueAtTime(0.12, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.4)
+  } catch {
+    // Ignorar si el navegador bloquea audio sin interacción previa
+  }
 }
 
 export default function Staff() {
@@ -55,23 +184,45 @@ export default function Staff() {
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [isGoogleLoggingIn, setIsGoogleLoggingIn] = useState(false)
   const [error, setError] = useState(() => {
-    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('error') === 'oauth_error') {
+    if (
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('error') === 'oauth_error'
+    ) {
       return 'Error en la autenticación con Google. Intenta nuevamente.'
     }
     return ''
   })
+
+  // Listas de datos
   const [requests, setRequests] = useState<Request[]>([])
+  const [orders, setOrders] = useState<OrderRequest[]>([])
   const [items, setItems] = useState<MenuItem[]>([])
+  const [categories, setCategories] = useState<MenuCategory[]>([])
+  const [promotions, setPromotions] = useState<Promotion[]>([])
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([])
-  const [tab, setTab] = useState<'requests' | 'menu' | 'qr' | 'users' | 'recommendations'>('requests')
-  const [editing, setEditing] = useState<MenuItem | null>(null)
-  const [form, setForm] = useState<MenuForm>(blank)
-  const [menuQuery, setMenuQuery] = useState('')
-  const [menuCategory, setMenuCategory] = useState('Todas')
-  const [menuStatus, setMenuStatus] = useState('Todos')
   const [tables, setTables] = useState<CafeTable[]>([])
   const [qrCodes, setQrCodes] = useState<Record<string, string>>({})
   const [qrLoading, setQrLoading] = useState(false)
+
+  // Tabs
+  const [tab, setTab] = useState<
+    'orders' | 'requests' | 'menu' | 'categories' | 'promotions' | 'qr' | 'users' | 'recommendations'
+  >('orders')
+
+  // Formularios
+  const [editing, setEditing] = useState<MenuItem | null>(null)
+  const [form, setForm] = useState<MenuForm>(blankMenuForm)
+  const [editingCategory, setEditingCategory] = useState<MenuCategory | null>(null)
+  const [categoryForm, setCategoryForm] = useState<CategoryForm>(blankCategoryForm)
+  const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null)
+  const [promotionForm, setPromotionForm] = useState<PromotionForm>(blankPromotionForm)
+
+  // Filtros de menú
+  const [menuQuery, setMenuQuery] = useState('')
+  const [menuCategory, setMenuCategory] = useState('Todas')
+  const [menuStatus, setMenuStatus] = useState('Todos')
+
+  // Archivos de imagen
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [galleryFiles, setGalleryFiles] = useState<File[]>([])
   const [saving, setSaving] = useState(false)
@@ -83,9 +234,14 @@ export default function Staff() {
     setUser(currentUser?.email || null)
     if (!currentUser) return
 
-    const profile = await supabase.from('staff_profiles').select('role').eq('user_id', currentUser.id).maybeSingle()
+    const profile = await supabase
+      .from('staff_profiles')
+      .select('role')
+      .eq('user_id', currentUser.id)
+      .maybeSingle()
     setRole(profile.data?.role || 'staff')
 
+    // 1. Solicitudes de servicio (mesero / cuenta)
     const rq = await supabase
       .from('service_requests')
       .select('id,type,status,created_at,table:cafe_tables(label)')
@@ -93,13 +249,54 @@ export default function Staff() {
       .order('created_at', { ascending: false })
     setRequests((rq.data || []) as unknown as Request[])
 
+    // 2. Pedidos a la mesa (comandas)
+    const ords = await supabase
+      .from('order_requests')
+      .select(`
+        id,
+        status,
+        notes,
+        created_at,
+        acknowledged_at,
+        delivered_at,
+        table:cafe_tables(label),
+        items:order_request_items(
+          id,
+          name_snapshot,
+          price_cop_snapshot,
+          quantity,
+          item_notes
+        )
+      `)
+      .in('status', ['pending', 'acknowledged', 'preparing'])
+      .order('created_at', { ascending: false })
+    setOrders((ords.data || []) as unknown as OrderRequest[])
+
+    // 3. Categorías dinámicas
+    const cats = await supabase
+      .from('menu_categories')
+      .select('id,name,icon,sort_order,active,created_at')
+      .order('sort_order')
+      .order('name')
+    setCategories((cats.data || []) as MenuCategory[])
+
+    // 4. Promociones
+    const promos = await supabase
+      .from('promotions')
+      .select('id,title,description,badge_text,image_url,linked_menu_item_id,starts_at,ends_at,active,sort_order')
+      .order('sort_order')
+      .order('created_at', { ascending: false })
+    setPromotions((promos.data || []) as Promotion[])
+
+    // 5. Menú
     const menu = await supabase
       .from('menu_items')
-      .select('id,name,slug,description,price_cop,category,available,sort_order,image_url,gallery_urls')
+      .select('id,name,slug,description,price_cop,category,category_id,available,sort_order,image_url,gallery_urls')
       .order('sort_order')
       .order('name')
     setItems((menu.data || []) as MenuItem[])
 
+    // 6. Mesas y QR
     const cafeTables = await supabase.from('cafe_tables').select('id,label,public_token,active').order('label')
     const loadedTables = (cafeTables.data || []) as CafeTable[]
     setTables(loadedTables)
@@ -119,7 +316,11 @@ export default function Staff() {
     setQrCodes(Object.fromEntries(generated))
     setQrLoading(false)
 
-    const recs = await supabase.from('recommendations').select('id,name,rating,comment,table_number,created_at').order('created_at', { ascending: false })
+    // 7. Recomendaciones
+    const recs = await supabase
+      .from('recommendations')
+      .select('id,name,rating,comment,table_number,created_at')
+      .order('created_at', { ascending: false })
     setRecommendations((recs.data || []) as RecommendationItem[])
   }, [supabase])
 
@@ -131,23 +332,41 @@ export default function Staff() {
     }
     void init()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
       if (active && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED')) {
         void load()
       }
     })
 
-    const channel = supabase
-      .channel('staff-requests')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'service_requests' }, () => {
-        if (active) void load()
+    // Realtime para solicitudes de servicio
+    const serviceChannel = supabase
+      .channel('staff-service-requests')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'service_requests' }, (payload) => {
+        if (active) {
+          if (payload.eventType === 'INSERT') playNotificationChime()
+          void load()
+        }
+      })
+      .subscribe()
+
+    // Realtime para pedidos
+    const orderChannel = supabase
+      .channel('staff-order-requests')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_requests' }, (payload) => {
+        if (active) {
+          if (payload.eventType === 'INSERT') playNotificationChime()
+          void load()
+        }
       })
       .subscribe()
 
     return () => {
       active = false
       subscription.unsubscribe()
-      void supabase.removeChannel(channel)
+      void supabase.removeChannel(serviceChannel)
+      void supabase.removeChannel(orderChannel)
     }
   }, [load, supabase])
 
@@ -164,10 +383,6 @@ export default function Staff() {
   async function loginWithGoogle() {
     setError('')
     setIsGoogleLoggingIn(true)
-    // Always use the canonical production URL as redirectTo base.
-    // Using window.location.origin would break when accessing from a
-    // Vercel preview URL (e.g. yarumo-coffee-xxx.vercel.app), because
-    // Supabase would redirect back to that preview domain instead of production.
     const canonicalOrigin = PUBLIC_MENU_URL.replace(/\/$/, '')
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -190,35 +405,62 @@ export default function Staff() {
     }
     setUser(null)
     setRole('')
-    setTab('requests')
+    setTab('orders')
     setRequests([])
+    setOrders([])
     setItems([])
+    setCategories([])
+    setPromotions([])
     setTables([])
     setQrCodes({})
   }
 
-  async function complete(id: string) {
-    await supabase.from('service_requests').update({ status: 'done', completed_at: new Date().toISOString() }).eq('id', id)
+  // Acciones de Solicitudes de servicio
+  async function completeRequest(id: string) {
+    await supabase
+      .from('service_requests')
+      .update({ status: 'done', completed_at: new Date().toISOString() })
+      .eq('id', id)
     await load()
   }
 
+  // Acciones de Pedidos
+  async function updateOrderStatus(
+    id: string,
+    newStatus: 'acknowledged' | 'preparing' | 'delivered' | 'cancelled',
+  ) {
+    const updates: Record<string, unknown> = { status: newStatus }
+    if (newStatus === 'acknowledged') updates.acknowledged_at = new Date().toISOString()
+    if (newStatus === 'delivered') updates.delivered_at = new Date().toISOString()
+
+    await supabase.from('order_requests').update(updates).eq('id', id)
+    await load()
+  }
+
+  // Acciones de Recomendaciones
   async function removeRecommendation(id: string) {
     if (!confirm('¿Eliminar esta recomendación?')) return
     await supabase.from('recommendations').delete().eq('id', id)
     await load()
   }
 
+  // Menú Form Scroll & Handlers
   const menuFormRef = useRef<HTMLFormElement>(null)
-
   function scrollToMenuForm() {
     setTimeout(() => {
       menuFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 60)
   }
 
-  function edit(item: MenuItem) {
+  function editItem(item: MenuItem) {
     setEditing(item)
-    setForm({ ...item, image_url: item.image_url || '', gallery_urls: (item.gallery_urls || []).join('\n') })
+    setForm({
+      ...item,
+      category: item.category,
+      category_id: item.category_id || '',
+      image_url: item.image_url || '',
+      gallery_urls: (item.gallery_urls || []).join('\n'),
+    })
     setImageFile(null)
     setGalleryFiles([])
     scrollToMenuForm()
@@ -226,18 +468,29 @@ export default function Staff() {
 
   function newItem() {
     setEditing(null)
-    setForm(blank)
+    const defaultCat = categories.find((c) => c.active)?.name || 'Bebidas Calientes'
+    setForm({ ...blankMenuForm, category: defaultCat })
     setImageFile(null)
     setGalleryFiles([])
     scrollToMenuForm()
   }
 
-  const menuCategories = Array.from(new Set(items.map((item) => item.category))).sort((a, b) => a.localeCompare(b, 'es'))
+  const menuCategoryNames = useMemo(() => {
+    if (categories.length) {
+      return categories.map((c) => c.name)
+    }
+    return Array.from(new Set(items.map((item) => item.category))).sort((a, b) =>
+      a.localeCompare(b, 'es'),
+    )
+  }, [categories, items])
+
   const filteredAdminItems = items.filter((item) => {
     const normalizedQuery = menuQuery.trim().toLowerCase()
-    const matchesQuery = !normalizedQuery || `${item.name} ${item.description}`.toLowerCase().includes(normalizedQuery)
+    const matchesQuery =
+      !normalizedQuery || `${item.name} ${item.description}`.toLowerCase().includes(normalizedQuery)
     const matchesCategory = menuCategory === 'Todas' || item.category === menuCategory
-    const matchesStatus = menuStatus === 'Todos' || (menuStatus === 'Visibles' ? item.available : !item.available)
+    const matchesStatus =
+      menuStatus === 'Todos' || (menuStatus === 'Visibles' ? item.available : !item.available)
     return matchesQuery && matchesCategory && matchesStatus
   })
 
@@ -250,7 +503,11 @@ export default function Staff() {
     setSaving(true)
     setError('')
     let imageUrl = form.image_url.trim() || null
-    let galleryUrls = form.gallery_urls.split(/[\n,]/).map((url) => url.trim()).filter(Boolean)
+    let galleryUrls = form.gallery_urls
+      .split(/[\n,]/)
+      .map((url) => url.trim())
+      .filter(Boolean)
+
     if (imageFile || galleryFiles.length) {
       const filesToUpload = imageFile ? [imageFile, ...galleryFiles] : galleryFiles
       const uploadedUrls: string[] = []
@@ -262,7 +519,9 @@ export default function Staff() {
         }
         const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
         const path = `${crypto.randomUUID()}.${extension}`
-        const upload = await supabase.storage.from('menu-images').upload(path, file, { cacheControl: '31536000', contentType: file.type, upsert: false })
+        const upload = await supabase.storage
+          .from('menu-images')
+          .upload(path, file, { cacheControl: '31536000', contentType: file.type, upsert: false })
         if (upload.error) {
           setSaving(false)
           setError('No se pudo cargar la imagen. Verifica el bucket menu-images en Supabase.')
@@ -275,6 +534,10 @@ export default function Staff() {
       }
       galleryUrls = [...galleryUrls, ...uploadedUrls]
     }
+
+    // Buscar category_id según la categoría seleccionada
+    const matchedCategory = categories.find((c) => c.name === form.category)
+
     const payload = {
       name: form.name.trim(),
       slug:
@@ -288,17 +551,24 @@ export default function Staff() {
       description: form.description.trim(),
       price_cop: Number(form.price_cop),
       category: form.category,
+      category_id: matchedCategory?.id || null,
       available: form.available,
       sort_order: Number(form.sort_order) || 0,
       image_url: imageUrl,
       gallery_urls: galleryUrls,
     }
+
     const result = editing
       ? await supabase.from('menu_items').update(payload).eq('id', editing.id)
       : await supabase.from('menu_items').insert(payload)
+
     setSaving(false)
     if (result.error) {
-      setError(result.error.message.includes('duplicate') ? 'El slug ya existe. Usa otro.' : 'No se pudo guardar el producto.')
+      setError(
+        result.error.message.includes('duplicate')
+          ? 'El slug ya existe. Usa otro.'
+          : 'No se pudo guardar el producto.',
+      )
       return
     }
     newItem()
@@ -312,6 +582,137 @@ export default function Staff() {
     else await load()
   }
 
+  // Categorías CRUD Handlers
+  function editCat(cat: MenuCategory) {
+    setEditingCategory(cat)
+    setCategoryForm({
+      name: cat.name,
+      icon: cat.icon,
+      sort_order: cat.sort_order,
+      active: cat.active,
+    })
+  }
+
+  function newCat() {
+    setEditingCategory(null)
+    setCategoryForm({ ...blankCategoryForm, sort_order: categories.length + 1 })
+  }
+
+  async function saveCategory(e: React.FormEvent) {
+    e.preventDefault()
+    if (!categoryForm.name.trim()) {
+      setError('El nombre de la categoría es requerido.')
+      return
+    }
+    setError('')
+    setSaving(true)
+
+    const payload = {
+      name: categoryForm.name.trim(),
+      icon: categoryForm.icon.trim() || '☕',
+      sort_order: Number(categoryForm.sort_order) || 0,
+      active: categoryForm.active,
+    }
+
+    const res = editingCategory
+      ? await supabase.from('menu_categories').update(payload).eq('id', editingCategory.id)
+      : await supabase.from('menu_categories').insert(payload)
+
+    setSaving(false)
+    if (res.error) {
+      setError(
+        res.error.message.includes('unique')
+          ? 'Ya existe una categoría con ese nombre.'
+          : 'No se pudo guardar la categoría.',
+      )
+      return
+    }
+    newCat()
+    await load()
+  }
+
+  async function removeCategory(cat: MenuCategory) {
+    // Comprobar si hay productos asociados a esta categoría
+    const associatedItems = items.filter(
+      (it) => it.category_id === cat.id || it.category === cat.name,
+    )
+    if (associatedItems.length > 0) {
+      alert(
+        `No se puede eliminar "${cat.name}" porque tiene ${associatedItems.length} producto(s) asignado(s). Reasigna los productos primero o desactiva la categoría.`,
+      )
+      return
+    }
+
+    if (!confirm(`¿Eliminar la categoría "${cat.name}"?`)) return
+    const { error: delError } = await supabase.from('menu_categories').delete().eq('id', cat.id)
+    if (delError) {
+      setError('No se pudo eliminar la categoría. Asegúrate de que no tenga productos asociados.')
+    } else {
+      await load()
+    }
+  }
+
+  async function toggleCategoryActive(cat: MenuCategory) {
+    await supabase.from('menu_categories').update({ active: !cat.active }).eq('id', cat.id)
+    await load()
+  }
+
+  // Promociones CRUD Handlers
+  function editPromo(promo: Promotion) {
+    setEditingPromotion(promo)
+    setPromotionForm({
+      title: promo.title,
+      description: promo.description || '',
+      badge_text: promo.badge_text || 'PROMO DEL DÍA',
+      linked_menu_item_id: promo.linked_menu_item_id || '',
+      active: promo.active,
+      sort_order: promo.sort_order,
+    })
+  }
+
+  function newPromo() {
+    setEditingPromotion(null)
+    setPromotionForm(blankPromotionForm)
+  }
+
+  async function savePromotion(e: React.FormEvent) {
+    e.preventDefault()
+    if (!promotionForm.title.trim()) {
+      setError('El título de la promoción es obligatorio.')
+      return
+    }
+    setError('')
+    setSaving(true)
+
+    const payload = {
+      title: promotionForm.title.trim(),
+      description: promotionForm.description.trim(),
+      badge_text: promotionForm.badge_text.trim() || null,
+      linked_menu_item_id: promotionForm.linked_menu_item_id || null,
+      active: promotionForm.active,
+      sort_order: Number(promotionForm.sort_order) || 0,
+    }
+
+    const res = editingPromotion
+      ? await supabase.from('promotions').update(payload).eq('id', editingPromotion.id)
+      : await supabase.from('promotions').insert(payload)
+
+    setSaving(false)
+    if (res.error) {
+      setError('No se pudo guardar la promoción.')
+      return
+    }
+    newPromo()
+    await load()
+  }
+
+  async function removePromotion(promo: Promotion) {
+    if (!confirm(`¿Eliminar la promoción "${promo.title}"?`)) return
+    await supabase.from('promotions').delete().eq('id', promo.id)
+    await load()
+  }
+
+  // QR Handlers
   function downloadQr(cafeTable: CafeTable) {
     const dataUrl = qrCodes[cafeTable.id]
     if (!dataUrl) return
@@ -322,9 +723,11 @@ export default function Staff() {
   }
 
   function downloadAllQrs() {
-    tables.filter((cafeTable) => cafeTable.active && qrCodes[cafeTable.id]).forEach((cafeTable, index) => {
-      window.setTimeout(() => downloadQr(cafeTable), index * 180)
-    })
+    tables
+      .filter((cafeTable) => cafeTable.active && qrCodes[cafeTable.id])
+      .forEach((cafeTable, index) => {
+        window.setTimeout(() => downloadQr(cafeTable), index * 180)
+      })
   }
 
   if (!user) {
@@ -339,13 +742,13 @@ export default function Staff() {
             <h1>
               El café también se <em>coordina.</em>
             </h1>
-            <p>Gestiona las solicitudes de tus mesas y mantén la carta siempre lista para tus clientes.</p>
+            <p>Gestiona los pedidos de tus mesas y mantén la carta siempre lista para tus clientes.</p>
             <div className="login-points">
               <span>
-                <b>01</b> Atención en tiempo real
+                <b>01</b> Comandas en tiempo real
               </span>
               <span>
-                <b>02</b> Carta actualizada
+                <b>02</b> Categorías y promos dinámicas
               </span>
             </div>
           </div>
@@ -418,13 +821,11 @@ export default function Staff() {
                   tabIndex={-1}
                 >
                   {showPassword ? (
-                    /* Ojo cerrado / ocultar */
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
                       <line x1="1" y1="1" x2="23" y2="23" />
                     </svg>
                   ) : (
-                    /* Ojo abierto / ver */
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                       <circle cx="12" cy="12" r="3" />
@@ -452,6 +853,7 @@ export default function Staff() {
   }
 
   const canManage = role === 'owner' || role === 'manager'
+
   return (
     <main className="staff">
       <div className="staff-head">
@@ -465,7 +867,11 @@ export default function Staff() {
           Cerrar sesión
         </button>
       </div>
+
       <nav className="staff-tabs">
+        <button className={tab === 'orders' ? 'active' : ''} onClick={() => setTab('orders')}>
+          Pedidos ({orders.length})
+        </button>
         <button className={tab === 'requests' ? 'active' : ''} onClick={() => setTab('requests')}>
           Solicitudes ({requests.length})
         </button>
@@ -473,6 +879,12 @@ export default function Staff() {
           <>
             <button className={tab === 'menu' ? 'active' : ''} onClick={() => setTab('menu')}>
               Menú ({items.length})
+            </button>
+            <button className={tab === 'categories' ? 'active' : ''} onClick={() => setTab('categories')}>
+              Categorías ({categories.length})
+            </button>
+            <button className={tab === 'promotions' ? 'active' : ''} onClick={() => setTab('promotions')}>
+              Promociones ({promotions.length})
             </button>
             <button className={tab === 'qr' ? 'active' : ''} onClick={() => setTab('qr')}>
               QR por mesa
@@ -486,8 +898,114 @@ export default function Staff() {
           </>
         )}
       </nav>
+
       {error && <p className="admin-error">{error}</p>}
-      {tab === 'requests' ? (
+
+      {/* TAB: PEDIDOS (ORDER REQUESTS) */}
+      {tab === 'orders' ? (
+        <>
+          <div className="stats">
+            <div className="stat">
+              <span>Comandas activas</span>
+              <strong>{orders.length}</strong>
+            </div>
+            <div className="stat">
+              <span>Mesas pidiendo</span>
+              <strong>{new Set(orders.map((o) => o.table?.label)).size}</strong>
+            </div>
+            <div className="stat">
+              <span>Tiempo Real</span>
+              <strong>EN VIVO</strong>
+            </div>
+          </div>
+
+          <div className="orders-grid">
+            {orders.length ? (
+              orders.map((order) => {
+                const totalCop = (order.items || []).reduce(
+                  (acc, it) => acc + it.price_cop_snapshot * it.quantity,
+                  0,
+                )
+                return (
+                  <article className={`order-card status-${order.status}`} key={order.id}>
+                    <div className="order-card-header">
+                      <div>
+                        <span className="eyebrow">Mesa {order.table?.label || '—'}</span>
+                        <h3>Pedido #{order.id.slice(0, 5).toUpperCase()}</h3>
+                      </div>
+                      <small>
+                        {new Date(order.created_at).toLocaleTimeString('es-CO', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </small>
+                    </div>
+
+                    <div className="order-items-list">
+                      {(order.items || []).map((it) => (
+                        <div key={it.id}>
+                          <div className="order-item-line">
+                            <span>
+                              <span className="order-item-qty">{it.quantity}x</span>
+                              {it.name_snapshot}
+                            </span>
+                            <span style={{ color: 'var(--text-muted)' }}>
+                              {formatCop(it.price_cop_snapshot * it.quantity)}
+                            </span>
+                          </div>
+                          {it.item_notes && <span className="order-item-note">↳ {it.item_notes}</span>}
+                        </div>
+                      ))}
+                    </div>
+
+                    {order.notes && (
+                      <p className="order-general-note">
+                        <strong>Nota de mesa:</strong> {order.notes}
+                      </p>
+                    )}
+
+                    <div className="order-card-footer">
+                      <div className="order-total">{formatCop(totalCop)}</div>
+                      <div className="order-actions">
+                        {order.status === 'pending' && (
+                          <button
+                            className="action-primary"
+                            onClick={() => updateOrderStatus(order.id, 'acknowledged')}
+                          >
+                            Recibir
+                          </button>
+                        )}
+                        {order.status === 'acknowledged' && (
+                          <button
+                            className="action-primary"
+                            onClick={() => updateOrderStatus(order.id, 'preparing')}
+                          >
+                            En preparación
+                          </button>
+                        )}
+                        {order.status === 'preparing' && (
+                          <button
+                            className="action-primary"
+                            onClick={() => updateOrderStatus(order.id, 'delivered')}
+                          >
+                            Entregado ✓
+                          </button>
+                        )}
+                        <button onClick={() => updateOrderStatus(order.id, 'cancelled')}>
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                )
+              })
+            ) : (
+              <div className="request">No hay pedidos pendientes en este momento.</div>
+            )}
+          </div>
+        </>
+      ) : tab === 'requests' ? (
+        /* TAB: SOLICITUDES (WAITER / BILL) */
         <>
           <div className="stats">
             <div className="stat">
@@ -515,17 +1033,18 @@ export default function Staff() {
                       {new Date(r.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
                     </small>
                   </div>
-                  <button className="button" onClick={() => complete(r.id)}>
+                  <button className="button" onClick={() => completeRequest(r.id)}>
                     Atendida
                   </button>
                 </article>
               ))
             ) : (
-              <div className="request">No hay solicitudes pendientes.</div>
+              <div className="request">No hay llamadas de mesero ni cuentas pendientes.</div>
             )}
           </div>
         </>
       ) : tab === 'menu' ? (
+        /* TAB: MENÚ CRUD */
         <section className="menu-admin">
           <div className="menu-admin-head">
             <div>
@@ -545,7 +1064,7 @@ export default function Staff() {
               <span>Categoría</span>
               <select value={menuCategory} onChange={(e) => setMenuCategory(e.target.value)}>
                 <option>Todas</option>
-                {menuCategories.map((category) => <option key={category}>{category}</option>)}
+                {menuCategoryNames.map((category) => <option key={category}>{category}</option>)}
               </select>
             </label>
             <label>
@@ -556,7 +1075,19 @@ export default function Staff() {
                 <option>Ocultos</option>
               </select>
             </label>
-            {(menuQuery || menuCategory !== 'Todas' || menuStatus !== 'Todos') && <button className="clear-menu-filters" type="button" onClick={() => { setMenuQuery(''); setMenuCategory('Todas'); setMenuStatus('Todos') }}>Limpiar filtros</button>}
+            {(menuQuery || menuCategory !== 'Todas' || menuStatus !== 'Todos') && (
+              <button
+                className="clear-menu-filters"
+                type="button"
+                onClick={() => {
+                  setMenuQuery('')
+                  setMenuCategory('Todas')
+                  setMenuStatus('Todos')
+                }}
+              >
+                Limpiar filtros
+              </button>
+            )}
           </div>
           <div className="menu-admin-grid">
             <div className="admin-list">
@@ -570,12 +1101,14 @@ export default function Staff() {
                   </div>
                   <div>
                     {item.image_url && <span className="has-photo">Foto ✓</span>}
-                    <button onClick={() => edit(item)}>Editar</button>
+                    <button onClick={() => editItem(item)}>Editar</button>
                     <button onClick={() => removeItem(item)}>Eliminar</button>
                   </div>
-                  </article>
+                </article>
               ))}
-              {!filteredAdminItems.length && <div className="request menu-empty">No hay productos que coincidan con los filtros.</div>}
+              {!filteredAdminItems.length && (
+                <div className="request menu-empty">No hay productos que coincidan con los filtros.</div>
+              )}
             </div>
             <form ref={menuFormRef} className={`menu-form ${editing ? 'is-editing' : ''}`} onSubmit={saveItem}>
               <h3>{editing ? 'Editar producto' : 'Nuevo producto'}</h3>
@@ -595,16 +1128,26 @@ export default function Staff() {
               <small className="field-help">Puedes seleccionar varias fotos a la vez.{form.gallery_urls && !galleryFiles.length ? ' Las fotos actuales se conservarán.' : ''}</small>
               <label htmlFor="menu-category">Categoría</label>
               <select id="menu-category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                <option>Bebidas Calientes</option>
-                <option>Bebidas Frías</option>
-                <option>Gaseosas</option>
-                <option>Cervezas</option>
-                <option>Antojitos Panaderos</option>
-                <option>Sándwiches</option>
-                <option>Tortas y Brownies</option>
-                <option>Hojaldrados</option>
-                <option>Pizzetas</option>
-                <option>Otros</option>
+                {categories.length > 0 ? (
+                  categories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>
+                      {cat.icon} {cat.name} {!cat.active ? '(Inactiva)' : ''}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option>Bebidas Calientes</option>
+                    <option>Bebidas Frías</option>
+                    <option>Gaseosas</option>
+                    <option>Cervezas</option>
+                    <option>Antojitos Panaderos</option>
+                    <option>Sándwiches</option>
+                    <option>Tortas y Brownies</option>
+                    <option>Hojaldrados</option>
+                    <option>Pizzetas</option>
+                    <option>Otros</option>
+                  </>
+                )}
               </select>
               <label htmlFor="menu-order">Orden de aparición</label>
               <input id="menu-order" type="number" min="0" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })} placeholder="0" />
@@ -629,7 +1172,208 @@ export default function Staff() {
             </form>
           </div>
         </section>
+      ) : tab === 'categories' ? (
+        /* TAB: CATEGORÍAS DINÁMICAS */
+        <section className="menu-admin">
+          <div className="menu-admin-head">
+            <div>
+              <span className="eyebrow">Organización</span>
+              <h2>Categorías del menú.</h2>
+            </div>
+            <button className="button" onClick={newCat}>
+              + Nueva categoría
+            </button>
+          </div>
+          <div className="menu-admin-grid">
+            <div className="admin-list">
+              {categories.map((cat) => (
+                <article className={`admin-item ${!cat.active ? 'unavailable' : ''}`} key={cat.id}>
+                  <div>
+                    <strong>
+                      <span className="category-icon-preview">{cat.icon}</span>
+                      {cat.name}
+                      <span className="sort-order-badge">Orden: {cat.sort_order}</span>
+                    </strong>
+                    <small>
+                      {items.filter((it) => it.category === cat.name || it.category_id === cat.id).length} producto(s) asignados · {cat.active ? 'Activa' : 'Oculta'}
+                    </small>
+                  </div>
+                  <div>
+                    <button onClick={() => toggleCategoryActive(cat)}>
+                      {cat.active ? 'Ocultar' : 'Activar'}
+                    </button>
+                    <button onClick={() => editCat(cat)}>Editar</button>
+                    <button onClick={() => removeCategory(cat)}>Eliminar</button>
+                  </div>
+                </article>
+              ))}
+              {!categories.length && (
+                <div className="request menu-empty">No hay categorías configuradas.</div>
+              )}
+            </div>
+
+            <form className={`menu-form ${editingCategory ? 'is-editing' : ''}`} onSubmit={saveCategory}>
+              <h3>{editingCategory ? 'Editar categoría' : 'Nueva categoría'}</h3>
+              <label htmlFor="cat-name">Nombre de la categoría</label>
+              <input
+                id="cat-name"
+                value={categoryForm.name}
+                onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                placeholder="Ej. Postres y Dulces"
+                required
+              />
+              <label htmlFor="cat-icon">Ícono o Emoji</label>
+              <input
+                id="cat-icon"
+                value={categoryForm.icon}
+                onChange={(e) => setCategoryForm({ ...categoryForm, icon: e.target.value })}
+                placeholder="Ej. 🍮 o ☕"
+                maxLength={10}
+              />
+              <label htmlFor="cat-order">Orden de aparición</label>
+              <input
+                id="cat-order"
+                type="number"
+                min="0"
+                value={categoryForm.sort_order}
+                onChange={(e) => setCategoryForm({ ...categoryForm, sort_order: Number(e.target.value) })}
+                placeholder="1"
+              />
+              <label>
+                <input
+                  type="checkbox"
+                  checked={categoryForm.active}
+                  onChange={(e) => setCategoryForm({ ...categoryForm, active: e.target.checked })}
+                />{' '}
+                Visible en los tabs de la carta
+              </label>
+              <div>
+                <button type="submit" className="button" disabled={saving}>
+                  {saving ? 'Guardando…' : 'Guardar categoría'}
+                </button>
+                {editingCategory && (
+                  <button type="button" onClick={newCat}>
+                    Cancelar
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        </section>
+      ) : tab === 'promotions' ? (
+        /* TAB: PROMOCIONES DEL DÍA */
+        <section className="menu-admin">
+          <div className="menu-admin-head">
+            <div>
+              <span className="eyebrow">Destacados</span>
+              <h2>Promociones del día.</h2>
+            </div>
+            <button className="button" onClick={newPromo}>
+              + Nueva promoción
+            </button>
+          </div>
+          <div className="menu-admin-grid">
+            <div className="admin-list">
+              {promotions.map((promo) => (
+                <article className={`admin-item ${!promo.active ? 'unavailable' : ''}`} key={promo.id}>
+                  <div>
+                    <strong>
+                      {promo.badge_text ? `[${promo.badge_text}] ` : ''}
+                      {promo.title}
+                    </strong>
+                    {promo.description && (
+                      <p style={{ margin: '4px 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+                        {promo.description}
+                      </p>
+                    )}
+                    <small>
+                      {promo.linked_menu_item_id
+                        ? `Vinculada a: ${items.find((i) => i.id === promo.linked_menu_item_id)?.name || 'Producto'}`
+                        : 'Sin producto vinculado'}{' '}
+                      · {promo.active ? 'Activa' : 'Inactiva'}
+                    </small>
+                  </div>
+                  <div>
+                    <button onClick={() => editPromo(promo)}>Editar</button>
+                    <button onClick={() => removePromotion(promo)}>Eliminar</button>
+                  </div>
+                </article>
+              ))}
+              {!promotions.length && (
+                <div className="request menu-empty">No hay promociones configuradas.</div>
+              )}
+            </div>
+
+            <form className={`menu-form ${editingPromotion ? 'is-editing' : ''}`} onSubmit={savePromotion}>
+              <h3>{editingPromotion ? 'Editar promoción' : 'Nueva promoción'}</h3>
+              <label htmlFor="promo-title">Título de la promo</label>
+              <input
+                id="promo-title"
+                value={promotionForm.title}
+                onChange={(e) => setPromotionForm({ ...promotionForm, title: e.target.value })}
+                placeholder="Ej. 2x1 en Cappuccino"
+                required
+              />
+              <label htmlFor="promo-badge">Texto del badge</label>
+              <input
+                id="promo-badge"
+                value={promotionForm.badge_text}
+                onChange={(e) => setPromotionForm({ ...promotionForm, badge_text: e.target.value })}
+                placeholder="PROMO DEL DÍA o 2X1"
+              />
+              <label htmlFor="promo-desc">Descripción o términos</label>
+              <textarea
+                id="promo-desc"
+                value={promotionForm.description}
+                onChange={(e) => setPromotionForm({ ...promotionForm, description: e.target.value })}
+                placeholder="Válido de 3pm a 6pm de lunes a viernes."
+                maxLength={500}
+              />
+              <label htmlFor="promo-product">Producto vinculado (opcional)</label>
+              <select
+                id="promo-product"
+                value={promotionForm.linked_menu_item_id}
+                onChange={(e) => setPromotionForm({ ...promotionForm, linked_menu_item_id: e.target.value })}
+              >
+                <option value="">-- Ninguno (solo informativo) --</option>
+                {items.map((it) => (
+                  <option key={it.id} value={it.id}>
+                    {it.name} (${it.price_cop.toLocaleString('es-CO')})
+                  </option>
+                ))}
+              </select>
+              <label htmlFor="promo-order">Orden de aparición</label>
+              <input
+                id="promo-order"
+                type="number"
+                min="0"
+                value={promotionForm.sort_order}
+                onChange={(e) => setPromotionForm({ ...promotionForm, sort_order: Number(e.target.value) })}
+                placeholder="0"
+              />
+              <label>
+                <input
+                  type="checkbox"
+                  checked={promotionForm.active}
+                  onChange={(e) => setPromotionForm({ ...promotionForm, active: e.target.checked })}
+                />{' '}
+                Promoción activa en la carta
+              </label>
+              <div>
+                <button type="submit" className="button" disabled={saving}>
+                  {saving ? 'Guardando…' : 'Guardar promoción'}
+                </button>
+                {editingPromotion && (
+                  <button type="button" onClick={newPromo}>
+                    Cancelar
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        </section>
       ) : tab === 'qr' ? (
+        /* TAB: QR DE MESAS */
         <section className="qr-admin">
           <div className="qr-admin-head">
             <div>
@@ -646,8 +1390,6 @@ export default function Staff() {
               <article className="qr-card" key={cafeTable.id}>
                 <div className="qr-image-wrap">
                   {qrCodes[cafeTable.id] ? (
-                    // Generated `data:` URL QR code, not a remote/static asset — next/image
-                    // offers no optimization benefit here, so plain <img> is intentional.
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={qrCodes[cafeTable.id]} alt={`Código QR de la mesa ${cafeTable.label}`} />
                   ) : (
@@ -668,6 +1410,7 @@ export default function Staff() {
           {!tables.some((cafeTable) => cafeTable.active) && <div className="request">No hay mesas activas configuradas.</div>}
         </section>
       ) : tab === 'recommendations' ? (
+        /* TAB: RECOMENDACIONES */
         <section className="menu-admin">
           <div className="menu-admin-head">
             <div>
@@ -692,6 +1435,7 @@ export default function Staff() {
           </div>
         </section>
       ) : (
+        /* TAB: USUARIOS */
         <UserAdmin />
       )}
     </main>

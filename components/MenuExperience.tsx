@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import OrderCart, { type CartItem } from './OrderCart'
 
 export type MenuItem = {
   id: string
@@ -16,22 +17,21 @@ export type MenuItem = {
   gallery_urls: string[]
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  Todos: '☕',
-  'Bebidas Calientes': '♨️',
-  'Bebidas Frías': '🧊',
-  Gaseosas: '🥤',
-  Cervezas: '🍺',
-  'Antojitos Panaderos': '🥐',
-  Sándwiches: '🥪',
-  Sánduches: '🥪',
-  'Tortas y Brownies': '🍰',
-  Hojaldrados: '🥟',
-  Pizzetas: '🍕',
-  Café: '☕',
-  Frío: '🧊',
-  'Para comer': '🍴',
-  Otros: '✨',
+export type MenuCategory = {
+  id: string
+  name: string
+  icon: string
+  sort_order: number
+}
+
+export type Promotion = {
+  id: string
+  title: string
+  description: string
+  badge_text: string | null
+  image_url: string | null
+  linked_menu_item_id: string | null
+  sort_order: number
 }
 
 function formatCop(value: number) {
@@ -42,24 +42,36 @@ function formatCop(value: number) {
   }).format(value)
 }
 
-export default function MenuExperience({ initialMenu }: { initialMenu: MenuItem[] }) {
+type MenuExperienceProps = {
+  initialMenu: MenuItem[]
+  initialCategories?: MenuCategory[]
+  initialPromotions?: Promotion[]
+}
+
+export default function MenuExperience({
+  initialMenu,
+  initialCategories = [],
+  initialPromotions = [],
+}: MenuExperienceProps) {
   const supabase = useMemo(() => createClient(), [])
   const [table, setTable] = useState<{ id: string; label: string } | null>(null)
   const [tableChecked, setTableChecked] = useState(false)
   const [mesaToken, setMesaToken] = useState<string | null>(null)
   const [menu] = useState<MenuItem[]>(initialMenu)
+  const [categoriesList] = useState<MenuCategory[]>(initialCategories)
+  const [promotions] = useState<Promotion[]>(initialPromotions)
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('Todos')
   const [galleryItem, setGalleryItem] = useState<MenuItem | null>(null)
   const [galleryIndex, setGalleryIndex] = useState(0)
+  const [cart, setCart] = useState<CartItem[]>([])
+
   const galleryCloseRef = useRef<HTMLButtonElement>(null)
   const galleryPreviousFocusRef = useRef<HTMLElement | null>(null)
 
-  // Accesibilidad por teclado del modal de galería: Escape cierra, las flechas
-  // navegan entre fotos, y el foco se mueve al botón de cerrar al abrir y
-  // vuelve al elemento que lo abrió al cerrar (focus trap básico).
+  // Accesibilidad por teclado del modal de galería
   useEffect(() => {
     if (!galleryItem) return
 
@@ -85,11 +97,7 @@ export default function MenuExperience({ initialMenu }: { initialMenu: MenuItem[
     }
   }, [galleryItem])
 
-  // Mesa (?mesa=) token detection stays client-side: it depends on the URL the
-  // customer actually opened (from the printed QR) and on a live RPC call.
-  // Wrapped in an async IIFE so every setState call happens inside a resolved
-  // callback rather than synchronously in the effect body (avoids cascading
-  // renders on mount, see react-hooks/set-state-in-effect).
+  // Mesa (?mesa=) token detection
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -141,16 +149,41 @@ export default function MenuExperience({ initialMenu }: { initialMenu: MenuItem[
     if (typeof window !== 'undefined') {
       const hash = window.location.hash
       const search = window.location.search
-      if (hash.includes('access_token') || hash.includes('type=recovery') || (search.includes('code=') && !window.location.pathname.startsWith('/auth/callback'))) {
+      if (
+        hash.includes('access_token') ||
+        hash.includes('type=recovery') ||
+        (search.includes('code=') && !window.location.pathname.startsWith('/auth/callback'))
+      ) {
         router.push('/staff' + search + hash)
       }
     }
   }, [router])
 
-  const categories = useMemo(() => {
+  // Categorías ordenadas y dinámicas
+  const categoryPills = useMemo(() => {
+    if (categoriesList.length > 0) {
+      const pills = [{ name: 'Todos', icon: '☕' }]
+      categoriesList.forEach((c) => {
+        pills.push({ name: c.name, icon: c.icon || '✨' })
+      })
+      // Asegurar que si hay categorías en menu que no están en categoriesList, aparezcan al final
+      const existingNames = new Set(pills.map((p) => p.name))
+      menu.forEach((m) => {
+        if (!existingNames.has(m.category)) {
+          pills.push({ name: m.category, icon: '✨' })
+          existingNames.add(m.category)
+        }
+      })
+      return pills
+    }
+
+    // Fallback: derivado del menú si no se cargaron categorías dinámicas
     const unique = Array.from(new Set(menu.map((item) => item.category)))
-    return ['Todos', ...unique]
-  }, [menu])
+    return [
+      { name: 'Todos', icon: '☕' },
+      ...unique.map((u) => ({ name: u, icon: '✨' })),
+    ]
+  }, [categoriesList, menu])
 
   const filtered = useMemo(() => {
     return menu.filter(
@@ -160,8 +193,63 @@ export default function MenuExperience({ initialMenu }: { initialMenu: MenuItem[
     )
   }, [menu, category, query])
 
-  // No tenemos token de mesa (o todavía no terminamos de verificarlo): deshabilita
-  // visualmente las acciones de servicio en vez de solo avisar después de tocarlas.
+  // Manejo del Carrito de Pedidos
+  function addToCart(item: MenuItem) {
+    setCart((prev) => {
+      const existing = prev.find((ci) => ci.item.id === item.id)
+      if (existing) {
+        return prev.map((ci) =>
+          ci.item.id === item.id ? { ...ci, quantity: Math.min(ci.quantity + 1, 20) } : ci,
+        )
+      }
+      return [...prev, { item, quantity: 1, notes: '' }]
+    })
+    setNotice(`Agregaste "${item.name}" al pedido.`)
+  }
+
+  function updateCartQuantity(itemId: string, delta: number) {
+    setCart((prev) => {
+      return prev
+        .map((ci) => {
+          if (ci.item.id === itemId) {
+            const newQty = ci.quantity + delta
+            return newQty > 0 ? { ...ci, quantity: Math.min(newQty, 20) } : null
+          }
+          return ci
+        })
+        .filter(Boolean) as CartItem[]
+    })
+  }
+
+  function updateCartItemNotes(itemId: string, notes: string) {
+    setCart((prev) =>
+      prev.map((ci) => (ci.item.id === itemId ? { ...ci, notes } : ci)),
+    )
+  }
+
+  function removeCartItem(itemId: string) {
+    setCart((prev) => prev.filter((ci) => ci.item.id !== itemId))
+  }
+
+  function clearCart() {
+    setCart([])
+  }
+
+  function handleOrderSuccess() {
+    setNotice('¡Tu pedido fue enviado al equipo de Yarumo! Lo estamos preparando.')
+  }
+
+  function handlePromoClick(promo: Promotion) {
+    if (promo.linked_menu_item_id) {
+      const el = document.getElementById(`item-${promo.linked_menu_item_id}`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        el.classList.add('item-highlight')
+        setTimeout(() => el.classList.remove('item-highlight'), 2500)
+      }
+    }
+  }
+
   const serviceDisabled = loading || !mesaToken || (tableChecked && !table)
   const serviceHint = !mesaToken
     ? 'Escanea el QR de tu mesa para usar esta opción'
@@ -178,13 +266,20 @@ export default function MenuExperience({ initialMenu }: { initialMenu: MenuItem[
             Donde cada taza<br />
             <em>cuenta una historia.</em>
           </h1>
-          <p>Abre tu carta, pide la cuenta o llama al mesero sin levantarte de la mesa.</p>
+          <p>Abre tu carta, pide a la mesa o llama al mesero sin levantarte de tu lugar.</p>
           <a className="hero-link" href="#menu">
             Explorar la carta <span>↓</span>
           </a>
         </div>
-        <div className="hero-photo">
-          <Image src="/yarumo-cover-cafe.webp" alt="Café de Yarumo Coffee servido en mesa" fill sizes="(max-width: 700px) 100vw, 340px" priority />
+        <div className="hero-photo hero-logo-showcase">
+          <Image
+            className="hero-logo-img"
+            src="/yarumo-logo.png"
+            alt="Logo de Yarumo Coffee"
+            fill
+            sizes="(max-width: 700px) 100vw, 340px"
+            priority
+          />
           <div className="hero-photo-caption">
             <span>{table ? `Mesa ${table.label}` : 'Yarumo Coffee'}</span>
             <strong>
@@ -195,12 +290,41 @@ export default function MenuExperience({ initialMenu }: { initialMenu: MenuItem[
         </div>
       </section>
 
+      {/* Promociones del día (si hay activas) */}
+      {promotions.length > 0 && (
+        <section className="promotions-section" aria-label="Promociones especiales">
+          <div className="promotions-carousel">
+            {promotions.map((promo) => (
+              <div
+                className="promotion-card"
+                key={promo.id}
+                onClick={() => handlePromoClick(promo)}
+                role={promo.linked_menu_item_id ? 'button' : undefined}
+                tabIndex={promo.linked_menu_item_id ? 0 : undefined}
+                title={promo.linked_menu_item_id ? 'Toca para ver el producto en la carta' : undefined}
+              >
+                <div className="promotion-badge">
+                  {promo.badge_text || 'PROMO DEL DÍA'}
+                </div>
+                <div className="promotion-content">
+                  <h3>{promo.title}</h3>
+                  {promo.description && <p>{promo.description}</p>}
+                  {promo.linked_menu_item_id && (
+                    <span className="promotion-action">Ver producto en la carta →</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="service">
         <div className="service-card">
           <div>
             <span className="eyebrow">{table ? `Mesa ${table.label}` : 'Servicio en mesa'}</span>
             <h2>Todo desde tu celular.</h2>
-            <p>Sin esperas. Toca una opción y el equipo recibe la solicitud.</p>
+            <p>Arma tu comanda, pide la cuenta o llama al mesero sin esperas.</p>
           </div>
           <div className="service-actions">
             <button className="primary" onClick={() => request('waiter')} disabled={serviceDisabled} title={serviceHint || undefined}>
@@ -242,15 +366,15 @@ export default function MenuExperience({ initialMenu }: { initialMenu: MenuItem[
 
         <div className="category-tabs-container">
           <div className="category-tabs">
-            {categories.map((item) => (
+            {categoryPills.map((pill) => (
               <button
-                key={item}
-                className={`category-pill ${category === item ? 'active' : ''}`}
-                onClick={() => setCategory(item)}
+                key={pill.name}
+                className={`category-pill ${category === pill.name ? 'active' : ''}`}
+                onClick={() => setCategory(pill.name)}
               >
-                <span className="category-icon">{CATEGORY_ICONS[item] || '✨'}</span>
-                <span className="category-label">{item}</span>
-                {category === item && <span className="active-dot" />}
+                <span className="category-icon">{pill.icon}</span>
+                <span className="category-label">{pill.name}</span>
+                {category === pill.name && <span className="active-dot" />}
               </button>
             ))}
           </div>
@@ -266,7 +390,7 @@ export default function MenuExperience({ initialMenu }: { initialMenu: MenuItem[
         <div className="menu">
           {filtered.length ? (
             filtered.map((item) => (
-              <article className="item" key={item.id}>
+              <article className="item" key={item.id} id={`item-${item.id}`}>
                 {item.image_url ? (
                   <button
                     className="item-image-wrap"
@@ -296,18 +420,31 @@ export default function MenuExperience({ initialMenu }: { initialMenu: MenuItem[
                   {item.description && <p>{item.description}</p>}
                   <div className="item-footer">
                     <small className="item-price">{formatCop(item.price_cop)}</small>
-                    {(Boolean(item.image_url) || (item.gallery_urls?.length ?? 0) > 0) && (
+                    <div className="item-actions">
+                      {(Boolean(item.image_url) || (item.gallery_urls?.length ?? 0) > 0) && (
+                        <button
+                          className="gallery-link"
+                          type="button"
+                          onClick={() => {
+                            setGalleryItem(item)
+                            setGalleryIndex(0)
+                          }}
+                        >
+                          Ver fotos →
+                        </button>
+                      )}
                       <button
-                        className="gallery-link"
+                        className="add-to-cart-btn"
                         type="button"
-                        onClick={() => {
-                          setGalleryItem(item)
-                          setGalleryIndex(0)
-                        }}
+                        onClick={() => addToCart(item)}
+                        disabled={serviceDisabled}
+                        title={serviceHint || 'Agregar al pedido'}
+                        aria-label={`Agregar ${item.name} al pedido`}
                       >
-                        Ver fotos →
+                        <span>+</span>
+                        <span>Pedir</span>
                       </button>
-                    )}
+                    </div>
                   </div>
                 </div>
               </article>
@@ -330,12 +467,25 @@ export default function MenuExperience({ initialMenu }: { initialMenu: MenuItem[
         </div>
       </section>
 
+      {/* Carrito de Pedidos Flotante */}
+      <OrderCart
+        cart={cart}
+        table={table}
+        mesaToken={mesaToken}
+        onUpdateQuantity={updateCartQuantity}
+        onUpdateItemNotes={updateCartItemNotes}
+        onRemoveItem={removeCartItem}
+        onClearCart={clearCart}
+        onOrderSuccess={handleOrderSuccess}
+      />
+
       {notice && (
         <button className="notice" onClick={() => setNotice('')}>
           <span>{notice}</span>
           <span className="notice-close">×</span>
         </button>
       )}
+
       {galleryItem && (() => {
         const images = [galleryItem.image_url, ...(galleryItem.gallery_urls || [])].filter(Boolean) as string[]
         const currentImage = images[galleryIndex] || images[0]
