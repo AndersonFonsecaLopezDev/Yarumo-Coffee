@@ -9,11 +9,15 @@ import StaffAlerts, { type StaffAlert } from '@/components/StaffAlerts'
 import ThemeToggle from '@/components/ThemeToggle'
 import { SITE_URL as PUBLIC_MENU_URL } from '@/lib/site-url'
 
+let currentClockTime = typeof window !== 'undefined' ? Date.now() : 0
 function subscribeClock(callback: () => void) {
-  const timer = setInterval(callback, 30000)
+  const timer = setInterval(() => {
+    currentClockTime = Date.now()
+    callback()
+  }, 30000)
   return () => clearInterval(timer)
 }
-const getClockSnapshot = () => Date.now()
+const getClockSnapshot = () => currentClockTime
 const getClockServerSnapshot = () => 0
 
 
