@@ -75,6 +75,7 @@ La monitorización en producción y la analítica están completamente integrada
 - `202609170004_staff_orders_and_history.sql`: Toma manual de pedidos por staff (`staff_submit_order_request`), consulta segura de historial de pedidos de mesa en vivo (`get_table_orders`), columna `source` ('customer' | 'staff') y moderación de reseñas con estado `pending` por defecto.
 - `202609180001_unify_menu_taxonomy.sql`: Unificación de taxonomía de categorías de menú, columna `slug` en `menu_categories` y mapeo inteligente sin pérdida de datos.
 - `202609180002_site_settings_hero_image.sql`: Tabla `site_settings` con políticas RLS y soporte para editar la foto de portada del homepage desde el panel `/staff`.
+- `202609180003_harden_order_request_items_rls.sql`: Eliminación de política permisiva pública en `order_request_items`, forzando inserción segura vía RPC `submit_order_request` o rol staff.
 
 ### Personalización de portada del Homepage
 - **Foto de Portada**: Los administradores (`owner` / `manager`) pueden cambiar la foto principal del hero desde la pestaña **Portada** en `/staff`, subiendo una imagen desde su dispositivo o introduciendo una URL pública, con previsualización en tiempo real del encuadre y opción de restaurar la imagen original.
