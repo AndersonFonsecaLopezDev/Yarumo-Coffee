@@ -71,6 +71,11 @@ La monitorización en producción y la analítica están completamente integrada
 - `202609170002_promotions.sql`: Tabla de promociones del día y destacados (`promotions`) con filtros por vigencia temporal y producto vinculado opcional.
 - `202609170003_order_requests.sql`: Tablas `order_requests` y `order_request_items`, función RPC transaccional `submit_order_request` con snapshots de precios, protección anti-spam por mesa y publicación en tiempo real (`supabase_realtime`).
 - `202609170004_staff_orders_and_history.sql`: Toma manual de pedidos por staff (`staff_submit_order_request`), consulta segura de historial de pedidos de mesa en vivo (`get_table_orders`), columna `source` ('customer' | 'staff') y moderación de reseñas con estado `pending` por defecto.
+- `202609180001_unify_menu_taxonomy.sql`: Unificación de taxonomía de categorías de menú, columna `slug` en `menu_categories` y mapeo inteligente sin pérdida de datos.
+- `202609180002_site_settings_hero_image.sql`: Tabla `site_settings` con políticas RLS y soporte para editar la foto de portada del homepage desde el panel `/staff`.
+
+### Personalización de portada del Homepage
+- **Foto de Portada**: Los administradores (`owner` / `manager`) pueden cambiar la foto principal del hero desde la pestaña **Portada** en `/staff`, subiendo una imagen desde su dispositivo o introduciendo una URL pública, con previsualización en tiempo real del encuadre y opción de restaurar la imagen original.
 
 ### Pedidos desde la carta y toma manual en mesa
 - **Cliente**: Al escanear el QR (`/?mesa=TOKEN`), cada ítem de la carta muestra la opción de agregar al pedido. Un carrito flotante permite ajustar cantidades, agregar notas por ítem (ej. "sin azúcar"), nota general a la mesa y enviar la comanda. La sección **"Todo lo que has pedido"** se sincroniza en vivo por WebSockets mostrando el estado real de preparación y el consumo total acumulado de la mesa.

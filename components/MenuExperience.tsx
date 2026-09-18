@@ -67,12 +67,14 @@ type MenuExperienceProps = {
   initialMenu: MenuItem[]
   initialCategories?: MenuCategory[]
   initialPromotions?: Promotion[]
+  heroImageUrl?: string
 }
 
 export default function MenuExperience({
   initialMenu,
   initialCategories = [],
   initialPromotions = [],
+  heroImageUrl = '/yarumo-cover-cafe.webp',
 }: MenuExperienceProps) {
   const supabase = useMemo(() => createClient(), [])
   const [table, setTable] = useState<{ id: string; label: string } | null>(null)
@@ -366,7 +368,7 @@ export default function MenuExperience({
         </div>
         <div className="hero-photo">
           <Image
-            src="/yarumo-cover-cafe.webp"
+            src={heroImageUrl || '/yarumo-cover-cafe.webp'}
             alt="Café de Yarumo Coffee servido en mesa"
             fill
             sizes="(max-width: 700px) 100vw, 340px"

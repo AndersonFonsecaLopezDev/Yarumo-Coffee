@@ -248,8 +248,15 @@ export default function Staff() {
 
   // Tabs
   const [tab, setTab] = useState<
-    'activity' | 'menu' | 'categories' | 'promotions' | 'qr' | 'users' | 'recommendations'
+    'activity' | 'menu' | 'categories' | 'promotions' | 'qr' | 'users' | 'recommendations' | 'settings'
   >('activity')
+
+  // Portada / Hero del homepage
+  const [heroImageUrl, setHeroImageUrl] = useState('/yarumo-cover-cafe.webp')
+  const [heroImageInput, setHeroImageInput] = useState('/yarumo-cover-cafe.webp')
+  const [heroImageFile, setHeroImageFile] = useState<File | null>(null)
+  const [heroSaving, setHeroSaving] = useState(false)
+  const [heroSuccess, setHeroSuccess] = useState('')
 
   // Filtro de actividad
   const [activityFilter, setActivityFilter] = useState<'all' | 'orders' | 'requests'>('all')
@@ -391,6 +398,17 @@ export default function Staff() {
       .select('id,name,rating,comment,table_number,status,created_at')
       .order('created_at', { ascending: false })
     setRecommendations((recs.data || []) as RecommendationItem[])
+
+    // 8. Configuración del sitio / Foto de portada
+    const settingsRes = await supabase
+      .from('site_settings')
+      .select('key,value')
+      .eq('key', 'hero_image_url')
+      .maybeSingle()
+    if (settingsRes.data?.value) {
+      setHeroImageUrl(settingsRes.data.value)
+      setHeroImageInput(settingsRes.data.value)
+    }
   }, [supabase])
 
   useEffect(() => {
@@ -1022,6 +1040,77 @@ export default function Staff() {
       })
   }
 
+  // Guardar foto de portada
+  async function saveHeroImage(e: React.FormEvent) {
+    e.preventDefault()
+    setHeroSaving(true)
+    setError('')
+    setHeroSuccess('')
+
+    let finalUrl = heroImageInput.trim()
+
+    if (heroImageFile) {
+      if (!heroImageFile.type.startsWith('image/') || heroImageFile.size > 5 * 1024 * 1024) {
+        setHeroSaving(false)
+        setError('La imagen de portada debe ser JPG, PNG o WebP y pesar máximo 5 MB.')
+        return
+      }
+      const extension = heroImageFile.name.split('.').pop()?.toLowerCase() || 'jpg'
+      const path = `homepage-hero-${crypto.randomUUID()}.${extension}`
+      const upload = await supabase.storage
+        .from('menu-images')
+        .upload(path, heroImageFile, { cacheControl: '31536000', contentType: heroImageFile.type, upsert: false })
+
+      if (upload.error) {
+        setHeroSaving(false)
+        setError('No se pudo subir la foto de portada. Verifica la conexión con Supabase Storage.')
+        return
+      }
+      finalUrl = supabase.storage.from('menu-images').getPublicUrl(path).data.publicUrl
+    }
+
+    if (!finalUrl) {
+      setHeroSaving(false)
+      setError('Ingresa una URL de imagen o sube un archivo.')
+      return
+    }
+
+    const { error: upsertErr } = await supabase
+      .from('site_settings')
+      .upsert({ key: 'hero_image_url', value: finalUrl, updated_at: new Date().toISOString() })
+
+    setHeroSaving(false)
+    if (upsertErr) {
+      setError('No se pudo guardar la foto de portada.')
+    } else {
+      setHeroImageUrl(finalUrl)
+      setHeroImageInput(finalUrl)
+      setHeroImageFile(null)
+      setHeroSuccess('¡Foto de portada actualizada con éxito! Ya se refleja en el inicio.')
+    }
+  }
+
+  async function resetHeroImage() {
+    if (!confirm('¿Restaurar la foto de portada original de Yarumo?')) return
+    setHeroSaving(true)
+    setError('')
+    setHeroSuccess('')
+    const defaultUrl = '/yarumo-cover-cafe.webp'
+    const { error: upsertErr } = await supabase
+      .from('site_settings')
+      .upsert({ key: 'hero_image_url', value: defaultUrl, updated_at: new Date().toISOString() })
+
+    setHeroSaving(false)
+    if (upsertErr) {
+      setError('No se pudo restaurar la foto de portada.')
+    } else {
+      setHeroImageUrl(defaultUrl)
+      setHeroImageInput(defaultUrl)
+      setHeroImageFile(null)
+      setHeroSuccess('Se restauró la foto de portada original de Yarumo Coffee.')
+    }
+  }
+
   if (!user) {
     return (
       <main className="login-page">
@@ -1219,6 +1308,10 @@ export default function Staff() {
             <button className={tab === 'recommendations' ? 'active' : ''} onClick={() => setTab('recommendations')}>
               <span className="tab-icon">⭐</span>
               <span>Reseñas ({recommendations.length}) {pendingReviewsCount > 0 && `(🔔 ${pendingReviewsCount})`}</span>
+            </button>
+            <button className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>
+              <span className="tab-icon">🖼️</span>
+              <span>Portada</span>
             </button>
           </>
         )}
@@ -2042,6 +2135,109 @@ export default function Staff() {
               </article>
             ))}
             {!recommendations.length && <div className="request menu-empty">No hay recomendaciones registradas.</div>}
+          </div>
+        </section>
+      ) : tab === 'settings' ? (
+        /* TAB: PORTADA DEL HOMEPAGE */
+        <section className="menu-admin">
+          <div className="menu-admin-head">
+            <div>
+              <span className="eyebrow">Personalización</span>
+              <h2>Foto de portada del homepage.</h2>
+              <p>Cambia la imagen principal que ven los clientes al escanear el QR o abrir la carta digital.</p>
+            </div>
+          </div>
+
+          <div className="menu-admin-grid">
+            {/* Vista previa en tiempo real */}
+            <div className="admin-list">
+              <div className="hero-preview-container">
+                <span className="eyebrow" style={{ marginBottom: '8px', display: 'block' }}>Vista previa en vivo</span>
+                <div className="hero-preview-card">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={heroImageFile ? URL.createObjectURL(heroImageFile) : (heroImageInput.trim() || heroImageUrl || '/yarumo-cover-cafe.webp')}
+                    alt="Vista previa de portada Yarumo Coffee"
+                    className="hero-preview-image"
+                  />
+                  <div className="hero-preview-overlay">
+                    <div className="hero-caption-logo-wrap">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src="/yarumo-logo.webp"
+                        alt="Yarumo Coffee"
+                        className="hero-caption-logo"
+                      />
+                    </div>
+                    <span>Mesa 1 · Yarumo Coffee</span>
+                  </div>
+                </div>
+                <div className="hero-preview-info">
+                  <small style={{ color: 'var(--text-muted)' }}>
+                    <strong>Foto activa:</strong> {heroImageUrl}
+                  </small>
+                </div>
+              </div>
+            </div>
+
+            {/* Formulario de actualización de portada */}
+            <form className="menu-form" onSubmit={saveHeroImage}>
+              <h3>Actualizar foto de portada</h3>
+
+              {heroSuccess && (
+                <div className="hero-success-banner" role="status">
+                  ✓ {heroSuccess}
+                </div>
+              )}
+
+              <label htmlFor="hero-image-file">Subir nueva foto desde el dispositivo</label>
+              <div className="staff-file-drop-zone">
+                <input
+                  id="hero-image-file"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null
+                    setHeroImageFile(file)
+                    setHeroSuccess('')
+                  }}
+                />
+                <div className="drop-zone-placeholder">
+                  <span>📷 {heroImageFile ? heroImageFile.name : 'Seleccionar archivo JPG, PNG o WebP'}</span>
+                  <small>Máximo 5 MB · Formato vertical de alta calidad recomendado</small>
+                </div>
+              </div>
+
+              <div style={{ textAlign: 'center', margin: '8px 0', color: 'var(--text-muted)', fontSize: '12px' }}>
+                — o introduce una URL pública directa —
+              </div>
+
+              <label htmlFor="hero-image-url">URL pública de la imagen</label>
+              <input
+                id="hero-image-url"
+                type="text"
+                placeholder="https://... o /yarumo-cover-cafe.webp"
+                value={heroImageInput}
+                onChange={(e) => {
+                  setHeroImageInput(e.target.value)
+                  setHeroSuccess('')
+                }}
+              />
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+                <button type="submit" className="button" disabled={heroSaving}>
+                  {heroSaving ? 'Guardando…' : 'Guardar foto de portada'}
+                </button>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={resetHeroImage}
+                  disabled={heroSaving}
+                >
+                  Restaurar original
+                </button>
+              </div>
+            </form>
           </div>
         </section>
       ) : (

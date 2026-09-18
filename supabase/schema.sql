@@ -107,7 +107,16 @@ revoke all on function public.can_create_request(uuid, text, public.request_type
 grant execute on function public.can_create_request(uuid, text, public.request_type) to anon, authenticated;
 create policy "public can create request for matching active table" on public.service_requests for insert to anon, authenticated with check (public.can_create_request(table_id, table_token, type));
 create policy "staff can read requests" on public.service_requests for select to authenticated using (public.is_staff());
-create policy "staff can update requests" on public.service_requests for update to authenticated using (public.is_staff()) with check (public.is_staff());
+create table public.site_settings (
+  key text primary key check (char_length(key) between 1 and 60),
+  value text not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.site_settings enable row level security;
+create policy "public can read site settings" on public.site_settings for select to anon, authenticated using (true);
+create policy "admins can insert site settings" on public.site_settings for insert to authenticated with check (public.is_admin());
+create policy "admins can update site settings" on public.site_settings for update to authenticated using (public.is_admin()) with check (public.is_admin());
 
 alter publication supabase_realtime add table public.service_requests;
 

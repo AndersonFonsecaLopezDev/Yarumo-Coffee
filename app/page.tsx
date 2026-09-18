@@ -33,10 +33,11 @@ async function getInitialData(): Promise<{
   menu: MenuItem[]
   categories: MenuCategory[]
   promotions: Promotion[]
+  heroImageUrl: string
 }> {
   const supabase = await createClient()
 
-  const [menuRes, catRes, promoRes] = await Promise.all([
+  const [menuRes, catRes, promoRes, settingsRes] = await Promise.all([
     supabase
       .from('menu_items')
       .select('id,name,description,price_cop,category,category_id,sort_order,image_url,gallery_urls')
@@ -53,17 +54,25 @@ async function getInitialData(): Promise<{
       .select('id,title,description,badge_text,image_url,linked_menu_item_id,sort_order,starts_at,ends_at')
       .eq('active', true)
       .order('sort_order'),
+    supabase
+      .from('site_settings')
+      .select('key,value')
+      .eq('key', 'hero_image_url')
+      .maybeSingle(),
   ])
+
+  const heroImageUrl = settingsRes.data?.value || '/yarumo-cover-cafe.webp'
 
   return {
     menu: (menuRes.data || []) as MenuItem[],
     categories: (catRes.data || []) as MenuCategory[],
     promotions: (promoRes.data || []) as Promotion[],
+    heroImageUrl,
   }
 }
 
 export default async function Home() {
-  const { menu, categories, promotions } = await getInitialData()
+  const { menu, categories, promotions, heroImageUrl } = await getInitialData()
 
   return (
     <>
@@ -97,6 +106,7 @@ export default async function Home() {
           initialMenu={menu}
           initialCategories={categories}
           initialPromotions={promotions}
+          heroImageUrl={heroImageUrl}
         />
 
         <section className="visit-strip" id="visitanos">
