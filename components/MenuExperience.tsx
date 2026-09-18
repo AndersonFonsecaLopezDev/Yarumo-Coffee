@@ -12,6 +12,7 @@ export type MenuItem = {
   description: string
   price_cop: number
   category: string
+  category_id?: string | null
   sort_order: number
   image_url: string | null
   gallery_urls: string[]
@@ -20,6 +21,7 @@ export type MenuItem = {
 export type MenuCategory = {
   id: string
   name: string
+  slug?: string
   icon: string
   sort_order: number
 }

@@ -3,13 +3,24 @@ create extension if not exists pgcrypto;
 create type public.request_type as enum ('waiter', 'bill');
 create type public.request_status as enum ('pending', 'acknowledged', 'done', 'cancelled');
 
+create table public.menu_categories (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique check (char_length(name) between 1 and 80),
+  slug text not null unique check (slug ~ '^[a-z0-9-]+$'),
+  icon text not null default '✨' check (char_length(icon) <= 10),
+  sort_order integer not null default 0,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
 create table public.menu_items (
   id uuid primary key default gen_random_uuid(),
+  category_id uuid references public.menu_categories(id) on delete restrict,
   name text not null check (char_length(name) between 2 and 100),
   slug text not null unique check (slug ~ '^[a-z0-9-]+$'),
   description text not null default '' check (char_length(description) <= 500),
   price_cop integer not null check (price_cop >= 0),
-  category text not null check (category in ('Bebidas Calientes', 'Bebidas Frías', 'Gaseosas', 'Cervezas', 'Antojitos Panaderos', 'Sándwiches', 'Sánduches', 'Tortas y Brownies', 'Hojaldrados', 'Pizzetas', 'Café', 'Frío', 'Para comer', 'Otros')),
+  category text not null check (category in ('Bebidas Calientes', 'Bebidas Frías', 'Gaseosas', 'Cervezas', 'Antojitos Panaderos', 'Sándwiches', 'Tortas y Brownies', 'Hojaldrados', 'Pizzetas', 'Otros')),
   image_url text,
   gallery_urls text[] not null default '{}',
   available boolean not null default true,
@@ -49,6 +60,7 @@ alter table public.staff_profiles enable row level security;
 alter table public.cafe_tables enable row level security;
 alter table public.service_requests enable row level security;
 alter table public.menu_items enable row level security;
+alter table public.menu_categories enable row level security;
 
 create or replace function public.is_staff() returns boolean language sql stable security definer set search_path = public as $$
   select exists(select 1 from public.staff_profiles where user_id = auth.uid());
@@ -66,6 +78,14 @@ create trigger menu_items_touch_updated_at before update on public.menu_items fo
 create index service_requests_status_created_idx on public.service_requests(status, created_at desc);
 create index service_requests_table_created_idx on public.service_requests(table_id, created_at desc);
 create index menu_items_available_sort_idx on public.menu_items(available, sort_order, name);
+create index menu_items_category_id_idx on public.menu_items(category_id);
+create index menu_categories_sort_idx on public.menu_categories(sort_order, name);
+
+create policy "public can read active categories" on public.menu_categories for select to anon, authenticated using (active = true);
+create policy "staff can read all categories" on public.menu_categories for select to authenticated using (public.is_staff());
+create policy "admins can create categories" on public.menu_categories for insert to authenticated with check (public.is_admin());
+create policy "admins can update categories" on public.menu_categories for update to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "admins can delete categories" on public.menu_categories for delete to authenticated using (public.is_admin());
 
 create policy "staff can read own profile" on public.staff_profiles for select to authenticated using (user_id = auth.uid());
 create policy "staff can read tables" on public.cafe_tables for select to authenticated using (public.is_staff());

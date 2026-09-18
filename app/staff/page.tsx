@@ -50,6 +50,7 @@ type OrderRequest = {
 type MenuCategory = {
   id: string
   name: string
+  slug?: string
   icon: string
   sort_order: number
   active: boolean
@@ -127,6 +128,7 @@ const blankMenuForm: MenuForm = {
 
 type CategoryForm = {
   name: string
+  slug: string
   icon: string
   sort_order: number
   active: boolean
@@ -134,6 +136,7 @@ type CategoryForm = {
 
 const blankCategoryForm: CategoryForm = {
   name: '',
+  slug: '',
   icon: '☕',
   sort_order: 0,
   active: true,
@@ -341,7 +344,7 @@ export default function Staff() {
     // 3. Categorías dinámicas
     const cats = await supabase
       .from('menu_categories')
-      .select('id,name,icon,sort_order,active,created_at')
+      .select('id,name,slug,icon,sort_order,active,created_at')
       .order('sort_order')
       .order('name')
     setCategories((cats.data || []) as MenuCategory[])
@@ -690,10 +693,11 @@ export default function Staff() {
 
   function editItem(item: MenuItem) {
     setEditing(item)
+    const matchedCat = categories.find((c) => c.id === item.category_id || c.name === item.category)
     setForm({
       ...item,
-      category: item.category,
-      category_id: item.category_id || '',
+      category: matchedCat?.name || item.category,
+      category_id: matchedCat?.id || item.category_id || '',
       image_url: item.image_url || '',
       gallery_urls: (item.gallery_urls || []).join('\n'),
     })
@@ -704,8 +708,12 @@ export default function Staff() {
 
   function newItem() {
     setEditing(null)
-    const defaultCat = categories.find((c) => c.active)?.name || 'Bebidas Calientes'
-    setForm({ ...blankMenuForm, category: defaultCat })
+    const defaultCat = categories.find((c) => c.active) || categories[0]
+    setForm({
+      ...blankMenuForm,
+      category: defaultCat?.name || 'Bebidas Calientes',
+      category_id: defaultCat?.id || '',
+    })
     setImageFile(null)
     setGalleryFiles([])
     scrollToMenuForm()
@@ -799,7 +807,9 @@ export default function Staff() {
       galleryUrls = [...galleryUrls, ...uploadedUrls]
     }
 
-    const matchedCategory = categories.find((c) => c.name === form.category)
+    const matchedCategory = categories.find(
+      (c) => c.id === form.category_id || c.name === form.category,
+    ) || categories[0]
 
     const payload = {
       name: form.name.trim(),
@@ -813,7 +823,7 @@ export default function Staff() {
           .replace(/(^-|-$)/g, ''),
       description: form.description.trim(),
       price_cop: Number(form.price_cop),
-      category: form.category,
+      category: matchedCategory?.name || form.category,
       category_id: matchedCategory?.id || null,
       available: form.available,
       sort_order: Number(form.sort_order) || 0,
@@ -850,6 +860,7 @@ export default function Staff() {
     setEditingCategory(cat)
     setCategoryForm({
       name: cat.name,
+      slug: cat.slug || '',
       icon: cat.icon,
       sort_order: cat.sort_order,
       active: cat.active,
@@ -870,8 +881,20 @@ export default function Staff() {
     setError('')
     setSaving(true)
 
+    const generatedSlug = (
+      categoryForm.slug.trim() ||
+      categoryForm.name
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+    )
+
     const payload = {
       name: categoryForm.name.trim(),
+      slug: generatedSlug,
       icon: categoryForm.icon.trim() || '☕',
       sort_order: Number(categoryForm.sort_order) || 0,
       active: categoryForm.active,
@@ -885,7 +908,7 @@ export default function Staff() {
     if (res.error) {
       setError(
         res.error.message.includes('unique')
-          ? 'Ya existe una categoría con ese nombre.'
+          ? 'Ya existe una categoría con ese nombre o slug.'
           : 'No se pudo guardar la categoría.',
       )
       return
@@ -1599,25 +1622,36 @@ export default function Staff() {
                 </div>
               </div>
               <label htmlFor="menu-category">Categoría</label>
-              <select id="menu-category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+              <select
+                id="menu-category"
+                value={form.category_id || categories.find((c) => c.name === form.category)?.id || form.category}
+                onChange={(e) => {
+                  const selected = categories.find((c) => c.id === e.target.value || c.name === e.target.value)
+                  if (selected) {
+                    setForm({ ...form, category: selected.name, category_id: selected.id })
+                  } else {
+                    setForm({ ...form, category: e.target.value })
+                  }
+                }}
+              >
                 {categories.length > 0 ? (
                   categories.map((cat) => (
-                    <option key={cat.id} value={cat.name}>
+                    <option key={cat.id} value={cat.id}>
                       {cat.icon} {cat.name} {!cat.active ? '(Inactiva)' : ''}
                     </option>
                   ))
                 ) : (
                   <>
-                    <option>Bebidas Calientes</option>
-                    <option>Bebidas Frías</option>
-                    <option>Gaseosas</option>
-                    <option>Cervezas</option>
-                    <option>Antojitos Panaderos</option>
-                    <option>Sándwiches</option>
-                    <option>Tortas y Brownies</option>
-                    <option>Hojaldrados</option>
-                    <option>Pizzetas</option>
-                    <option>Otros</option>
+                    <option value="Bebidas Calientes">♨️ Bebidas Calientes</option>
+                    <option value="Bebidas Frías">🧊 Bebidas Frías</option>
+                    <option value="Gaseosas">🥤 Gaseosas</option>
+                    <option value="Cervezas">🍺 Cervezas</option>
+                    <option value="Antojitos Panaderos">🥐 Antojitos Panaderos</option>
+                    <option value="Sándwiches">🥪 Sándwiches</option>
+                    <option value="Tortas y Brownies">🍰 Tortas y Brownies</option>
+                    <option value="Hojaldrados">🥟 Hojaldrados</option>
+                    <option value="Pizzetas">🍕 Pizzetas</option>
+                    <option value="Otros">✨ Otros</option>
                   </>
                 )}
               </select>
@@ -1668,6 +1702,7 @@ export default function Staff() {
                     </strong>
                     <small>
                       {items.filter((it) => it.category === cat.name || it.category_id === cat.id).length} producto(s) asignados · {cat.active ? 'Activa' : 'Oculta'}
+                      {cat.slug ? ` · /${cat.slug}` : ''}
                     </small>
                   </div>
                   <div>
@@ -1693,6 +1728,13 @@ export default function Staff() {
                 onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
                 placeholder="Ej. Postres y Dulces"
                 required
+              />
+              <label htmlFor="cat-slug">Slug <span>(opcional)</span></label>
+              <input
+                id="cat-slug"
+                value={categoryForm.slug}
+                onChange={(e) => setCategoryForm({ ...categoryForm, slug: e.target.value })}
+                placeholder="ej. postres-y-dulces"
               />
               <label htmlFor="cat-icon">Ícono o Emoji</label>
               <input

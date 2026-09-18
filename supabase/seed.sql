@@ -95,18 +95,19 @@ insert into public.menu_items (name, slug, description, price_cop, category, sor
 ('Pizzeta Napolitana', 'pizzeta-napolitana', 'Tomate fresco, albahaca, queso mozzarella, orégano y salsa de tomate.', 17500, 'Pizzetas', 72, true)
 
 -- Categorías de menú
-insert into public.menu_categories (name, icon, sort_order, active) values
-  ('Bebidas Calientes', '♨️', 1, true),
-  ('Bebidas Frías', '🧊', 2, true),
-  ('Gaseosas', '🥤', 3, true),
-  ('Cervezas', '🍺', 4, true),
-  ('Antojitos Panaderos', '🥐', 5, true),
-  ('Sándwiches', '🥪', 6, true),
-  ('Tortas y Brownies', '🍰', 7, true),
-  ('Hojaldrados', '🥟', 8, true),
-  ('Pizzetas', '🍕', 9, true),
-  ('Otros', '✨', 10, true)
+insert into public.menu_categories (name, slug, icon, sort_order, active) values
+  ('Bebidas Calientes', 'bebidas-calientes', '♨️', 1, true),
+  ('Bebidas Frías', 'bebidas-frias', '🧊', 2, true),
+  ('Gaseosas', 'gaseosas', '🥤', 3, true),
+  ('Cervezas', 'cervezas', '🍺', 4, true),
+  ('Antojitos Panaderos', 'antojitos-panaderos', '🥐', 5, true),
+  ('Sándwiches', 'sandwiches', '🥪', 6, true),
+  ('Tortas y Brownies', 'tortas-y-brownies', '🍰', 7, true),
+  ('Hojaldrados', 'hojaldrados', '🥟', 8, true),
+  ('Pizzetas', 'pizzetas', '🍕', 9, true),
+  ('Otros', 'otros', '✨', 10, true)
 on conflict (name) do update set
+  slug = excluded.slug,
   icon = excluded.icon,
   sort_order = excluded.sort_order,
   active = excluded.active;
