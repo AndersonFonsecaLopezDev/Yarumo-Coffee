@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { MenuItem } from './MenuExperience'
 
@@ -10,12 +10,23 @@ export type CartItem = {
   notes: string
 }
 
-export type PlacedOrder = {
+export type TableOrderItem = {
   id: string
-  created_at: string
-  itemsCount: number
-  totalCop: number
+  name_snapshot: string
+  price_cop_snapshot: number
+  quantity: number
+  item_notes: string
+}
+
+export type TableOrder = {
+  id: string
   status: 'pending' | 'acknowledged' | 'preparing' | 'delivered' | 'cancelled'
+  notes: string
+  source: string
+  created_at: string
+  acknowledged_at: string | null
+  delivered_at: string | null
+  items: TableOrderItem[]
 }
 
 type OrderCartProps = {
@@ -37,6 +48,23 @@ function formatCop(value: number) {
   }).format(value)
 }
 
+function getStatusLabel(status: TableOrder['status']) {
+  switch (status) {
+    case 'pending':
+      return { text: '⏳ Enviado al equipo', className: 'status-pending' }
+    case 'acknowledged':
+      return { text: '👀 Recibido', className: 'status-acknowledged' }
+    case 'preparing':
+      return { text: '☕ En preparación', className: 'status-preparing' }
+    case 'delivered':
+      return { text: '✓ Entregado', className: 'status-delivered' }
+    case 'cancelled':
+      return { text: '✕ Cancelado', className: 'status-cancelled' }
+    default:
+      return { text: status, className: 'status-pending' }
+  }
+}
+
 export default function OrderCart({
   cart,
   table,
@@ -51,10 +79,67 @@ export default function OrderCart({
   const [orderNotes, setOrderNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const [sessionOrders, setSessionOrders] = useState<PlacedOrder[]>([])
+  const [tableOrders, setTableOrders] = useState<TableOrder[]>([])
 
   const totalItems = cart.reduce((acc, curr) => acc + curr.quantity, 0)
   const totalPrice = cart.reduce((acc, curr) => acc + curr.item.price_cop * curr.quantity, 0)
+
+  // Cargar historial real de pedidos de la mesa
+  const fetchOrdersForTable = useCallback(async (tableId: string, token: string) => {
+    const supabase = createClient()
+    const { data } = await supabase.rpc('get_table_orders', {
+      p_table_id: tableId,
+      p_table_token: token,
+    })
+    if (data) {
+      setTableOrders(data as TableOrder[])
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    if (!table || !mesaToken) return
+
+    // Async call inside resolved promise or tick to satisfy React compiler
+    void Promise.resolve().then(() => {
+      if (active) {
+        void fetchOrdersForTable(table.id, mesaToken)
+      }
+    })
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`table-orders-${table.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'order_requests',
+          filter: `table_id=eq.${table.id}`,
+        },
+        () => {
+          if (active) void fetchOrdersForTable(table.id, mesaToken)
+        },
+      )
+      .subscribe()
+
+    return () => {
+      active = false
+      void supabase.removeChannel(channel)
+    }
+  }, [table, mesaToken, fetchOrdersForTable])
+
+  // Total acumulado de todos los pedidos no cancelados de la mesa
+  const accumulatedTotalCop = tableOrders
+    .filter((o) => o.status !== 'cancelled')
+    .reduce((acc, o) => {
+      const orderSum = (o.items || []).reduce(
+        (sum, it) => sum + (it.price_cop_snapshot || 0) * (it.quantity || 1),
+        0,
+      )
+      return acc + orderSum
+    }, 0)
 
   async function handleSendOrder() {
     if (!table || !mesaToken) {
@@ -98,21 +183,11 @@ export default function OrderCart({
       const orderData = data as { success: boolean; order_id: string; created_at: string } | null
       const orderId = orderData?.order_id || 'ok'
 
-      setSessionOrders((prev) => [
-        {
-          id: orderId,
-          created_at: new Date().toISOString(),
-          itemsCount: totalItems,
-          totalCop: totalPrice,
-          status: 'pending',
-        },
-        ...prev,
-      ])
-
       onClearCart()
       setOrderNotes('')
       setSubmitting(false)
       setIsOpen(false)
+      void fetchOrdersForTable(table.id, mesaToken)
       onOrderSuccess(orderId)
     } catch {
       setErrorMessage('Error de conexión al enviar el pedido. Verifica tu conexión a internet.')
@@ -120,8 +195,9 @@ export default function OrderCart({
     }
   }
 
-  // Floating trigger button (visible when there are items in cart or orders in session)
-  if (!totalItems && sessionOrders.length === 0) {
+  // El botón flotante es visible si hay items en carrito o si hay pedidos realizados para la mesa
+  if (!totalItems && tableOrders.length === 0) {
+
     return null
   }
 
@@ -143,7 +219,7 @@ export default function OrderCart({
             {table ? `Mesa ${table.label}` : 'Tu Pedido'}
           </span>
           <strong className="cart-btn-price">
-            {totalItems > 0 ? formatCop(totalPrice) : `${sessionOrders.length} pedido(s)`}
+            {totalItems > 0 ? formatCop(totalPrice) : `${tableOrders.length} comanda(s)`}
           </strong>
         </div>
         <span className="cart-btn-arrow" aria-hidden="true">→</span>
@@ -184,7 +260,7 @@ export default function OrderCart({
               {cart.length === 0 ? (
                 <div className="cart-empty-message">
                   <span className="cart-empty-icon">☕</span>
-                  <p>No tienes productos en el carrito actualmente.</p>
+                  <p>No tienes productos por enviar en el carrito.</p>
                 </div>
               ) : (
                 <div className="cart-items-list">
@@ -256,26 +332,50 @@ export default function OrderCart({
                 </div>
               )}
 
-              {sessionOrders.length > 0 && (
+              {/* Historial Real de Pedidos de la Mesa */}
+              {tableOrders.length > 0 && (
                 <div className="cart-session-history">
-                  <h3>Pedidos enviados en esta sesión</h3>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                    <h3>Todo lo que has pedido</h3>
+                    <small style={{ color: 'var(--orange)', fontWeight: 700 }}>
+                      Consumo: {formatCop(accumulatedTotalCop)}
+                    </small>
+                  </div>
                   <div className="session-orders-list">
-                    {sessionOrders.map((ord, idx) => (
-                      <div className="session-order-badge" key={ord.id || idx}>
-                        <div className="session-order-header">
-                          <span>
-                            Pedido #{idx + 1} ({ord.itemsCount} {ord.itemsCount === 1 ? 'ítem' : 'ítems'})
-                          </span>
-                          <span className="order-status-pill status-pending">Enviado al barista</span>
+                    {tableOrders.map((ord, idx) => {
+                      const statusInfo = getStatusLabel(ord.status)
+                      const orderSum = (ord.items || []).reduce(
+                        (sum, it) => sum + it.price_cop_snapshot * it.quantity,
+                        0,
+                      )
+                      return (
+                        <div className="session-order-badge" key={ord.id || idx}>
+                          <div className="session-order-header">
+                            <span>
+                              Comanda #{tableOrders.length - idx}{' '}
+                              {ord.source === 'staff' && <small style={{ color: 'var(--text-muted)' }}>(Mesero)</small>}
+                            </span>
+                            <span className={`order-status-pill ${statusInfo.className}`}>
+                              {statusInfo.text}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '12px', margin: '4px 0', color: 'var(--text)' }}>
+                            {(ord.items || []).map((it) => (
+                              <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>{it.quantity}x {it.name_snapshot}</span>
+                                <span style={{ color: 'var(--text-muted)' }}>{formatCop(it.price_cop_snapshot * it.quantity)}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <small style={{ color: 'var(--text-muted)' }}>
+                            {new Date(ord.created_at).toLocaleTimeString('es-CO', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })} · Subtotal: {formatCop(orderSum)}
+                          </small>
                         </div>
-                        <small>
-                          {new Date(ord.created_at).toLocaleTimeString('es-CO', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })} · Total: {formatCop(ord.totalCop)}
-                        </small>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -284,7 +384,7 @@ export default function OrderCart({
             {cart.length > 0 && (
               <div className="cart-modal-footer">
                 <div className="cart-footer-summary">
-                  <span>Total estimado</span>
+                  <span>Total a enviar</span>
                   <strong>{formatCop(totalPrice)}</strong>
                 </div>
                 <button

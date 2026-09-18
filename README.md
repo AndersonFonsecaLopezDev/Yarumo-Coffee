@@ -70,10 +70,16 @@ No se implementó en esta ronda por no contar con las cuentas correspondientes. 
 - `202609170001_menu_categories.sql`: Categorías dinámicas (`menu_categories`), vinculación con `menu_items.category_id`, preservación íntegra de datos existentes y políticas RLS públicas y de staff.
 - `202609170002_promotions.sql`: Tabla de promociones del día y destacados (`promotions`) con filtros por vigencia temporal y producto vinculado opcional.
 - `202609170003_order_requests.sql`: Tablas `order_requests` y `order_request_items`, función RPC transaccional `submit_order_request` con snapshots de precios, protección anti-spam por mesa y publicación en tiempo real (`supabase_realtime`).
+- `202609170004_staff_orders_and_history.sql`: Toma manual de pedidos por staff (`staff_submit_order_request`), consulta segura de historial de pedidos de mesa en vivo (`get_table_orders`), columna `source` ('customer' | 'staff') y moderación de reseñas con estado `pending` por defecto.
 
-### Pedidos desde la carta al mesero (Comandas en mesa)
-- **Cliente**: Al escanear el QR (`/?mesa=TOKEN`), cada ítem de la carta muestra la opción de agregar al pedido. Un carrito flotante permite ajustar cantidades, agregar notas por ítem (ej. "sin azúcar"), nota general a la mesa y enviar la comanda directamente. Incluye historial de pedidos enviados en la sesión.
-- **Equipo (`/staff`)**: Nueva pestaña **Pedidos** con actualización instantánea por WebSockets (Supabase Realtime) y alerta sonora/visual. Permite cambiar el estado de la comanda: `Recibir` (`acknowledged`) → `En preparación` (`preparing`) → `Entregado` (`delivered`) o `Cancelar`.
+### Pedidos desde la carta y toma manual en mesa
+- **Cliente**: Al escanear el QR (`/?mesa=TOKEN`), cada ítem de la carta muestra la opción de agregar al pedido. Un carrito flotante permite ajustar cantidades, agregar notas por ítem (ej. "sin azúcar"), nota general a la mesa y enviar la comanda. La sección **"Todo lo que has pedido"** se sincroniza en vivo por WebSockets mostrando el estado real de preparación y el consumo total acumulado de la mesa.
+- **Equipo (`/staff`)**:
+  - **Vista unificada por mesa**: Consolidación de comandas y solicitudes de mesero/cuenta agrupadas por mesa con filtros rápidos y acciones inmediatas.
+  - **Toma manual de pedidos**: Botón `+ Tomar pedido` para que el mesero anote pedidos verbales directo a la comanda desde el panel.
+  - **Alertas emergentes (Toasts)**: Sistema flotante de alertas visuales y sonoras en tiempo real que se descartan automáticamente por tiempo (14s con pausa al hover/pestaña oculta) o por resolución cuando la solicitud es atendida.
+  - **Moderación de reseñas**: Aprobación previa de opiniones antes de publicarse en el sitio público.
+
 
 ### Categorías Dinámicas y Promociones
 - **Categorías (`menu_categories`)**: Los administradores pueden crear, editar iconos/emojis, ordenar y activar/desactivar categorías desde el panel `/staff`. La carta pública organiza automáticamente las pestañas según este orden.

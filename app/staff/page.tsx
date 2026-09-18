@@ -5,10 +5,12 @@ import Image from 'next/image'
 import QRCode from 'qrcode'
 import { createClient } from '@/lib/supabase/client'
 import UserAdmin from '@/components/UserAdmin'
+import StaffAlerts, { type StaffAlert } from '@/components/StaffAlerts'
 import { SITE_URL as PUBLIC_MENU_URL } from '@/lib/site-url'
 
 type Request = {
   id: string
+  table_id: string
   type: 'waiter' | 'bill'
   status: string
   created_at: string
@@ -25,8 +27,10 @@ type OrderRequestItem = {
 
 type OrderRequest = {
   id: string
+  table_id: string
   status: 'pending' | 'acknowledged' | 'preparing' | 'delivered' | 'cancelled'
   notes: string
+  source?: 'customer' | 'staff'
   created_at: string
   acknowledged_at: string | null
   delivered_at: string | null
@@ -69,6 +73,7 @@ type RecommendationItem = {
   rating: number
   comment: string
   table_number: string | null
+  status: 'published' | 'pending' | 'hidden'
   created_at: string
 }
 
@@ -170,7 +175,20 @@ function playNotificationChime() {
     osc.start()
     osc.stop(ctx.currentTime + 0.4)
   } catch {
-    // Ignorar si el navegador bloquea audio sin interacción previa
+    // Silent fallback
+  }
+}
+
+function triggerBrowserNotification(title: string, body: string) {
+  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification(title, {
+        body,
+        icon: '/yarumo-icon-180.png',
+      })
+    } catch {
+      // Silent fallback
+    }
   }
 }
 
@@ -206,8 +224,23 @@ export default function Staff() {
 
   // Tabs
   const [tab, setTab] = useState<
-    'orders' | 'requests' | 'menu' | 'categories' | 'promotions' | 'qr' | 'users' | 'recommendations'
-  >('orders')
+    'activity' | 'menu' | 'categories' | 'promotions' | 'qr' | 'users' | 'recommendations'
+  >('activity')
+
+  // Filtro de actividad
+  const [activityFilter, setActivityFilter] = useState<'all' | 'orders' | 'requests'>('all')
+  const [highlightedTable, setHighlightedTable] = useState<string | null>(null)
+
+  // Alertas / Toasts
+  const [alerts, setAlerts] = useState<StaffAlert[]>([])
+
+  // Modal Toma Manual de Pedido
+  const [manualOrderTable, setManualOrderTable] = useState<CafeTable | null>(null)
+  const [manualCart, setManualCart] = useState<Array<{ item: MenuItem; quantity: number; notes: string }>>([])
+  const [manualNotes, setManualNotes] = useState('')
+  const [manualQuery, setManualQuery] = useState('')
+  const [manualCategory, setManualCategory] = useState('Todas')
+  const [manualSubmitting, setManualSubmitting] = useState(false)
 
   // Formularios
   const [editing, setEditing] = useState<MenuItem | null>(null)
@@ -227,6 +260,15 @@ export default function Staff() {
   const [galleryFiles, setGalleryFiles] = useState<File[]>([])
   const [saving, setSaving] = useState(false)
 
+  // Solicitar permisos de notificación en navegador
+  useEffect(() => {
+    if (user && typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        void Notification.requestPermission()
+      }
+    }
+  }, [user])
+
   const load = useCallback(async () => {
     const {
       data: { user: currentUser },
@@ -244,7 +286,7 @@ export default function Staff() {
     // 1. Solicitudes de servicio (mesero / cuenta)
     const rq = await supabase
       .from('service_requests')
-      .select('id,type,status,created_at,table:cafe_tables(label)')
+      .select('id,table_id,type,status,created_at,table:cafe_tables(label)')
       .in('status', ['pending', 'acknowledged'])
       .order('created_at', { ascending: false })
     setRequests((rq.data || []) as unknown as Request[])
@@ -254,8 +296,10 @@ export default function Staff() {
       .from('order_requests')
       .select(`
         id,
+        table_id,
         status,
         notes,
+        source,
         created_at,
         acknowledged_at,
         delivered_at,
@@ -316,10 +360,10 @@ export default function Staff() {
     setQrCodes(Object.fromEntries(generated))
     setQrLoading(false)
 
-    // 7. Recomendaciones
+    // 7. Recomendaciones (incluyendo pendientes)
     const recs = await supabase
       .from('recommendations')
-      .select('id,name,rating,comment,table_number,created_at')
+      .select('id,name,rating,comment,table_number,status,created_at')
       .order('created_at', { ascending: false })
     setRecommendations((recs.data || []) as RecommendationItem[])
   }, [supabase])
@@ -343,23 +387,93 @@ export default function Staff() {
     // Realtime para solicitudes de servicio
     const serviceChannel = supabase
       .channel('staff-service-requests')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'service_requests' }, (payload) => {
-        if (active) {
-          if (payload.eventType === 'INSERT') playNotificationChime()
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'service_requests' },
+        (payload) => {
+          if (!active) return
+
+          if (payload.eventType === 'INSERT') {
+            const newReq = payload.new as { id: string; type: 'waiter' | 'bill'; table_id: string }
+            playNotificationChime()
+            // Resolver etiqueta de mesa si está cargada
+            const tbl = tables.find((t) => t.id === newReq.table_id)
+            const tableLabel = tbl?.label || 'Mesa'
+            const title =
+              newReq.type === 'waiter'
+                ? `🛎️ Mesa ${tableLabel} llama al mesero`
+                : `🧾 Mesa ${tableLabel} pide la cuenta`
+            const subtitle = 'Toca para atender la solicitud'
+
+            setAlerts((prev) => [
+              {
+                id: crypto.randomUUID(),
+                sourceId: newReq.id,
+                type: newReq.type,
+                tableLabel,
+                title,
+                subtitle,
+                createdAt: Date.now(),
+              },
+              ...prev,
+            ])
+
+            triggerBrowserNotification('Yarumo Coffee · Atención en mesa', title)
+          } else if (payload.eventType === 'UPDATE') {
+            // Auto-cerrar toast si la solicitud fue resuelta
+            const updated = payload.new as { id: string; status: string }
+            if (updated.status === 'done' || updated.status === 'cancelled') {
+              setAlerts((prev) => prev.filter((a) => a.sourceId !== updated.id))
+            }
+          }
+
           void load()
-        }
-      })
+        },
+      )
       .subscribe()
 
     // Realtime para pedidos
     const orderChannel = supabase
       .channel('staff-order-requests')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_requests' }, (payload) => {
-        if (active) {
-          if (payload.eventType === 'INSERT') playNotificationChime()
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'order_requests' },
+        (payload) => {
+          if (!active) return
+
+          if (payload.eventType === 'INSERT') {
+            const newOrd = payload.new as { id: string; table_id: string; source: string }
+            playNotificationChime()
+            const tbl = tables.find((t) => t.id === newOrd.table_id)
+            const tableLabel = tbl?.label || 'Mesa'
+            const title = `🛍️ Nueva comanda · Mesa ${tableLabel}`
+            const subtitle = newOrd.source === 'staff' ? 'Tomada por el mesero' : 'Pedida por el cliente'
+
+            setAlerts((prev) => [
+              {
+                id: crypto.randomUUID(),
+                sourceId: newOrd.id,
+                type: 'order',
+                tableLabel,
+                title,
+                subtitle,
+                createdAt: Date.now(),
+              },
+              ...prev,
+            ])
+
+            triggerBrowserNotification('Yarumo Coffee · Nuevo pedido', `${title} (${subtitle})`)
+          } else if (payload.eventType === 'UPDATE') {
+            // Auto-cerrar toast si la comanda fue entregada o cancelada
+            const updated = payload.new as { id: string; status: string }
+            if (updated.status === 'delivered' || updated.status === 'cancelled') {
+              setAlerts((prev) => prev.filter((a) => a.sourceId !== updated.id))
+            }
+          }
+
           void load()
-        }
-      })
+        },
+      )
       .subscribe()
 
     return () => {
@@ -368,7 +482,29 @@ export default function Staff() {
       void supabase.removeChannel(serviceChannel)
       void supabase.removeChannel(orderChannel)
     }
-  }, [load, supabase])
+  }, [load, supabase, tables])
+
+  // Click en toast de alerta
+  function handleAlertClick(alert: StaffAlert) {
+    setTab('activity')
+    setHighlightedTable(alert.tableLabel)
+    setAlerts((prev) => prev.filter((a) => a.id !== alert.id))
+
+    setTimeout(() => {
+      const el = document.getElementById(`table-card-${alert.tableLabel}`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }, 80)
+
+    setTimeout(() => {
+      setHighlightedTable(null)
+    }, 2800)
+  }
+
+  function dismissAlert(alertId: string) {
+    setAlerts((prev) => prev.filter((a) => a.id !== alertId))
+  }
 
   async function login(e: React.FormEvent) {
     e.preventDefault()
@@ -405,7 +541,7 @@ export default function Staff() {
     }
     setUser(null)
     setRole('')
-    setTab('orders')
+    setTab('activity')
     setRequests([])
     setOrders([])
     setItems([])
@@ -413,6 +549,7 @@ export default function Staff() {
     setPromotions([])
     setTables([])
     setQrCodes({})
+    setAlerts([])
   }
 
   // Acciones de Solicitudes de servicio
@@ -421,6 +558,7 @@ export default function Staff() {
       .from('service_requests')
       .update({ status: 'done', completed_at: new Date().toISOString() })
       .eq('id', id)
+    setAlerts((prev) => prev.filter((a) => a.sourceId !== id))
     await load()
   }
 
@@ -434,13 +572,89 @@ export default function Staff() {
     if (newStatus === 'delivered') updates.delivered_at = new Date().toISOString()
 
     await supabase.from('order_requests').update(updates).eq('id', id)
+    if (newStatus === 'delivered' || newStatus === 'cancelled') {
+      setAlerts((prev) => prev.filter((a) => a.sourceId !== id))
+    }
     await load()
   }
 
-  // Acciones de Recomendaciones
+  // Moderación de Recomendaciones
+  async function updateRecommendationStatus(id: string, status: 'published' | 'hidden') {
+    await supabase.from('recommendations').update({ status }).eq('id', id)
+    await load()
+  }
+
   async function removeRecommendation(id: string) {
     if (!confirm('¿Eliminar esta recomendación?')) return
     await supabase.from('recommendations').delete().eq('id', id)
+    await load()
+  }
+
+  // Toma manual de pedidos
+  function openManualOrder(tableItem: CafeTable) {
+    setManualOrderTable(tableItem)
+    setManualCart([])
+    setManualNotes('')
+    setManualQuery('')
+    setManualCategory('Todas')
+  }
+
+  function addManualProduct(item: MenuItem) {
+    setManualCart((prev) => {
+      const exists = prev.find((ci) => ci.item.id === item.id)
+      if (exists) {
+        return prev.map((ci) =>
+          ci.item.id === item.id ? { ...ci, quantity: Math.min(ci.quantity + 1, 20) } : ci,
+        )
+      }
+      return [...prev, { item, quantity: 1, notes: '' }]
+    })
+  }
+
+  function updateManualQty(itemId: string, delta: number) {
+    setManualCart((prev) =>
+      prev
+        .map((ci) => {
+          if (ci.item.id === itemId) {
+            const next = ci.quantity + delta
+            return next > 0 ? { ...ci, quantity: Math.min(next, 20) } : null
+          }
+          return ci
+        })
+        .filter(Boolean) as Array<{ item: MenuItem; quantity: number; notes: string }>,
+    )
+  }
+
+  function updateManualItemNotes(itemId: string, notes: string) {
+    setManualCart((prev) => prev.map((ci) => (ci.item.id === itemId ? { ...ci, notes } : ci)))
+  }
+
+  async function submitManualOrder() {
+    if (!manualOrderTable || !manualCart.length) return
+    setManualSubmitting(true)
+    setError('')
+
+    const payloadItems = manualCart.map((ci) => ({
+      menu_item_id: ci.item.id,
+      quantity: ci.quantity,
+      item_notes: ci.notes.trim(),
+    }))
+
+    const { error: rpcErr } = await supabase.rpc('staff_submit_order_request', {
+      p_table_id: manualOrderTable.id,
+      p_notes: manualNotes.trim(),
+      p_items: payloadItems,
+    })
+
+    setManualSubmitting(false)
+    if (rpcErr) {
+      setError(rpcErr.message || 'No se pudo registrar la comanda manual.')
+      return
+    }
+
+    setManualOrderTable(null)
+    setManualCart([])
+    setManualNotes('')
     await load()
   }
 
@@ -494,6 +708,34 @@ export default function Staff() {
     return matchesQuery && matchesCategory && matchesStatus
   })
 
+  // Agrupación unificada de actividad por mesa (Requisito 10)
+  const groupedTableActivity = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        table: CafeTable
+        orders: OrderRequest[]
+        requests: Request[]
+      }
+    >()
+
+    // Incluir mesas con pedidos o solicitudes activas
+    tables.forEach((tbl) => {
+      const tableOrders = orders.filter((o) => o.table_id === tbl.id)
+      const tableRequests = requests.filter((r) => r.table_id === tbl.id)
+
+      if (tableOrders.length > 0 || tableRequests.length > 0) {
+        map.set(tbl.id, {
+          table: tbl,
+          orders: tableOrders,
+          requests: tableRequests,
+        })
+      }
+    })
+
+    return Array.from(map.values())
+  }, [tables, orders, requests])
+
   async function saveItem(e: React.FormEvent) {
     e.preventDefault()
     if (!form.name.trim() || form.price_cop < 0) {
@@ -535,7 +777,6 @@ export default function Staff() {
       galleryUrls = [...galleryUrls, ...uploadedUrls]
     }
 
-    // Buscar category_id según la categoría seleccionada
     const matchedCategory = categories.find((c) => c.name === form.category)
 
     const payload = {
@@ -632,7 +873,6 @@ export default function Staff() {
   }
 
   async function removeCategory(cat: MenuCategory) {
-    // Comprobar si hay productos asociados a esta categoría
     const associatedItems = items.filter(
       (it) => it.category_id === cat.id || it.category === cat.name,
     )
@@ -742,13 +982,13 @@ export default function Staff() {
             <h1>
               El café también se <em>coordina.</em>
             </h1>
-            <p>Gestiona los pedidos de tus mesas y mantén la carta siempre lista para tus clientes.</p>
+            <p>Gestiona la actividad de tus mesas en tiempo real y atiende cada comanda con agilidad.</p>
             <div className="login-points">
               <span>
-                <b>01</b> Comandas en tiempo real
+                <b>01</b> Comandas y llamadas en vivo
               </span>
               <span>
-                <b>02</b> Categorías y promos dinámicas
+                <b>02</b> Pedidos manuales y catálogo
               </span>
             </div>
           </div>
@@ -853,9 +1093,13 @@ export default function Staff() {
   }
 
   const canManage = role === 'owner' || role === 'manager'
+  const pendingReviewsCount = recommendations.filter((r) => r.status === 'pending').length
 
   return (
     <main className="staff">
+      {/* Alertas Toasts Flotantes */}
+      <StaffAlerts alerts={alerts} onDismiss={dismissAlert} onAlertClick={handleAlertClick} />
+
       <div className="staff-head">
         <div>
           <span className="eyebrow">Operación en mesa</span>
@@ -869,11 +1113,8 @@ export default function Staff() {
       </div>
 
       <nav className="staff-tabs">
-        <button className={tab === 'orders' ? 'active' : ''} onClick={() => setTab('orders')}>
-          Pedidos ({orders.length})
-        </button>
-        <button className={tab === 'requests' ? 'active' : ''} onClick={() => setTab('requests')}>
-          Solicitudes ({requests.length})
+        <button className={tab === 'activity' ? 'active' : ''} onClick={() => setTab('activity')}>
+          Mesas ({groupedTableActivity.length})
         </button>
         {canManage && (
           <>
@@ -893,7 +1134,7 @@ export default function Staff() {
               Usuarios
             </button>
             <button className={tab === 'recommendations' ? 'active' : ''} onClick={() => setTab('recommendations')}>
-              Recomendaciones ({recommendations.length})
+              Reseñas ({recommendations.length}) {pendingReviewsCount > 0 && `(🔔 ${pendingReviewsCount})`}
             </button>
           </>
         )}
@@ -901,145 +1142,222 @@ export default function Staff() {
 
       {error && <p className="admin-error">{error}</p>}
 
-      {/* TAB: PEDIDOS (ORDER REQUESTS) */}
-      {tab === 'orders' ? (
+      {/* TAB: ACTIVIDAD UNIFICADA POR MESA (Requisito 10) */}
+      {tab === 'activity' ? (
         <>
           <div className="stats">
+            <div className="stat">
+              <span>Mesas con actividad</span>
+              <strong>{groupedTableActivity.length}</strong>
+            </div>
             <div className="stat">
               <span>Comandas activas</span>
               <strong>{orders.length}</strong>
             </div>
             <div className="stat">
-              <span>Mesas pidiendo</span>
-              <strong>{new Set(orders.map((o) => o.table?.label)).size}</strong>
-            </div>
-            <div className="stat">
-              <span>Tiempo Real</span>
-              <strong>EN VIVO</strong>
+              <span>Solicitudes de atención</span>
+              <strong>{requests.length}</strong>
             </div>
           </div>
 
-          <div className="orders-grid">
-            {orders.length ? (
-              orders.map((order) => {
-                const totalCop = (order.items || []).reduce(
-                  (acc, it) => acc + it.price_cop_snapshot * it.quantity,
-                  0,
-                )
+          <div className="menu-admin-filters" style={{ margin: '14px 0 20px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                Filtro rápido:
+              </span>
+              <button
+                type="button"
+                className={`category-pill ${activityFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setActivityFilter('all')}
+              >
+                <span>Todo</span>
+              </button>
+              <button
+                type="button"
+                className={`category-pill ${activityFilter === 'orders' ? 'active' : ''}`}
+                onClick={() => setActivityFilter('orders')}
+              >
+                <span>Solo pedidos ({orders.length})</span>
+              </button>
+              <button
+                type="button"
+                className={`category-pill ${activityFilter === 'requests' ? 'active' : ''}`}
+                onClick={() => setActivityFilter('requests')}
+              >
+                <span>Solo solicitudes ({requests.length})</span>
+              </button>
+            </div>
+
+            <div style={{ marginLeft: 'auto' }}>
+              <button
+                type="button"
+                className="button"
+                onClick={() => {
+                  const firstActive = tables.find((t) => t.active) || tables[0]
+                  if (firstActive) openManualOrder(firstActive)
+                }}
+              >
+                + Tomar pedido manual
+              </button>
+            </div>
+          </div>
+
+          <div className="table-activity-grid">
+            {groupedTableActivity.length ? (
+              groupedTableActivity.map(({ table: tbl, orders: tblOrders, requests: tblRequests }) => {
+                const showOrders = activityFilter === 'all' || activityFilter === 'orders'
+                const showRequests = activityFilter === 'all' || activityFilter === 'requests'
+                const isHighlighted = highlightedTable === tbl.label
+
                 return (
-                  <article className={`order-card status-${order.status}`} key={order.id}>
-                    <div className="order-card-header">
-                      <div>
-                        <span className="eyebrow">Mesa {order.table?.label || '—'}</span>
-                        <h3>Pedido #{order.id.slice(0, 5).toUpperCase()}</h3>
+                  <article
+                    className={`table-activity-card ${isHighlighted ? 'highlight-pulse' : ''}`}
+                    key={tbl.id}
+                    id={`table-card-${tbl.label}`}
+                  >
+                    <div className="table-activity-header">
+                      <div className="table-activity-title">
+                        <h3>Mesa {tbl.label}</h3>
+                        <span className="table-activity-badge">
+                          {tblOrders.length} pedido(s) · {tblRequests.length} llamada(s)
+                        </span>
                       </div>
-                      <small>
-                        {new Date(order.created_at).toLocaleTimeString('es-CO', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </small>
-                    </div>
-
-                    <div className="order-items-list">
-                      {(order.items || []).map((it) => (
-                        <div key={it.id}>
-                          <div className="order-item-line">
-                            <span>
-                              <span className="order-item-qty">{it.quantity}x</span>
-                              {it.name_snapshot}
-                            </span>
-                            <span style={{ color: 'var(--text-muted)' }}>
-                              {formatCop(it.price_cop_snapshot * it.quantity)}
-                            </span>
-                          </div>
-                          {it.item_notes && <span className="order-item-note">↳ {it.item_notes}</span>}
-                        </div>
-                      ))}
-                    </div>
-
-                    {order.notes && (
-                      <p className="order-general-note">
-                        <strong>Nota de mesa:</strong> {order.notes}
-                      </p>
-                    )}
-
-                    <div className="order-card-footer">
-                      <div className="order-total">{formatCop(totalCop)}</div>
-                      <div className="order-actions">
-                        {order.status === 'pending' && (
-                          <button
-                            className="action-primary"
-                            onClick={() => updateOrderStatus(order.id, 'acknowledged')}
-                          >
-                            Recibir
-                          </button>
-                        )}
-                        {order.status === 'acknowledged' && (
-                          <button
-                            className="action-primary"
-                            onClick={() => updateOrderStatus(order.id, 'preparing')}
-                          >
-                            En preparación
-                          </button>
-                        )}
-                        {order.status === 'preparing' && (
-                          <button
-                            className="action-primary"
-                            onClick={() => updateOrderStatus(order.id, 'delivered')}
-                          >
-                            Entregado ✓
-                          </button>
-                        )}
-                        <button onClick={() => updateOrderStatus(order.id, 'cancelled')}>
-                          Cancelar
+                      <div className="table-activity-actions">
+                        <button
+                          type="button"
+                          className="btn-manual-order"
+                          onClick={() => openManualOrder(tbl)}
+                          title="Anotar pedido para esta mesa"
+                        >
+                          + Pedido
                         </button>
                       </div>
+                    </div>
+
+                    <div className="table-entries-list">
+                      {/* Solicitudes de servicio */}
+                      {showRequests &&
+                        tblRequests.map((r) => (
+                          <div className="entry-box entry-service" key={r.id}>
+                            <div className="entry-header">
+                              <span>
+                                {r.type === 'waiter' ? '🛎️ Mesero solicitado' : '🧾 Cuenta solicitada'}
+                              </span>
+                              <small style={{ color: 'var(--text-muted)' }}>
+                                {new Date(r.created_at).toLocaleTimeString('es-CO', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </small>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                              <button
+                                type="button"
+                                className="button"
+                                style={{ padding: '6px 12px', fontSize: '11px' }}
+                                onClick={() => completeRequest(r.id)}
+                              >
+                                Marcar atendida ✓
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+
+                      {/* Comandas de pedidos */}
+                      {showOrders &&
+                        tblOrders.map((ord) => {
+                          const orderSum = (ord.items || []).reduce(
+                            (acc, it) => acc + (it.price_cop_snapshot || 0) * (it.quantity || 1),
+                            0,
+                          )
+                          return (
+                            <div className={`entry-box entry-order status-${ord.status}`} key={ord.id}>
+                              <div className="entry-header">
+                                <span>
+                                  🛍️ Comanda #{ord.id.slice(0, 5).toUpperCase()}{' '}
+                                  {ord.source === 'staff' && <small style={{ color: 'var(--orange)' }}>[Mesero]</small>}
+                                </span>
+                                <small style={{ color: 'var(--text-muted)' }}>
+                                  {new Date(ord.created_at).toLocaleTimeString('es-CO', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </small>
+                              </div>
+
+                              <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {(ord.items || []).map((it) => (
+                                  <div key={it.id}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                      <span>
+                                        <strong style={{ color: 'var(--orange)', marginRight: '6px' }}>
+                                          {it.quantity}x
+                                        </strong>
+                                        {it.name_snapshot}
+                                      </span>
+                                      <span style={{ color: 'var(--text-muted)' }}>
+                                        {formatCop(it.price_cop_snapshot * it.quantity)}
+                                      </span>
+                                    </div>
+                                    {it.item_notes && (
+                                      <span className="order-item-note">↳ {it.item_notes}</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+
+                              {ord.notes && (
+                                <p className="order-general-note">
+                                  <strong>Nota:</strong> {ord.notes}
+                                </p>
+                              )}
+
+                              <div className="order-card-footer" style={{ padding: '6px 0 0' }}>
+                                <div className="order-total">{formatCop(orderSum)}</div>
+                                <div className="order-actions">
+                                  {ord.status === 'pending' && (
+                                    <button
+                                      type="button"
+                                      className="action-primary"
+                                      onClick={() => updateOrderStatus(ord.id, 'acknowledged')}
+                                    >
+                                      Recibir
+                                    </button>
+                                  )}
+                                  {ord.status === 'acknowledged' && (
+                                    <button
+                                      type="button"
+                                      className="action-primary"
+                                      onClick={() => updateOrderStatus(ord.id, 'preparing')}
+                                    >
+                                      En preparación
+                                    </button>
+                                  )}
+                                  {ord.status === 'preparing' && (
+                                    <button
+                                      type="button"
+                                      className="action-primary"
+                                      onClick={() => updateOrderStatus(ord.id, 'delivered')}
+                                    >
+                                      Entregado ✓
+                                    </button>
+                                  )}
+                                  <button type="button" onClick={() => updateOrderStatus(ord.id, 'cancelled')}>
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
                     </div>
                   </article>
                 )
               })
             ) : (
-              <div className="request">No hay pedidos pendientes en este momento.</div>
-            )}
-          </div>
-        </>
-      ) : tab === 'requests' ? (
-        /* TAB: SOLICITUDES (WAITER / BILL) */
-        <>
-          <div className="stats">
-            <div className="stat">
-              <span>Pendientes</span>
-              <strong>{requests.length}</strong>
-            </div>
-            <div className="stat">
-              <span>Mesas activas</span>
-              <strong>{new Set(requests.map((r) => r.table?.label)).size}</strong>
-            </div>
-            <div className="stat">
-              <span>Sesión</span>
-              <strong>OK</strong>
-            </div>
-          </div>
-          <div className="request-list">
-            {requests.length ? (
-              requests.map((r) => (
-                <article className="request" key={r.id}>
-                  <div>
-                    <strong>
-                      Mesa {r.table?.label || '—'} · {r.type === 'waiter' ? 'Llamar al mesero' : 'Pedir la cuenta'}
-                    </strong>
-                    <small>
-                      {new Date(r.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
-                    </small>
-                  </div>
-                  <button className="button" onClick={() => completeRequest(r.id)}>
-                    Atendida
-                  </button>
-                </article>
-              ))
-            ) : (
-              <div className="request">No hay llamadas de mesero ni cuentas pendientes.</div>
+              <div className="request" style={{ gridColumn: '1 / -1' }}>
+                No hay actividad pendiente en las mesas en este momento.
+              </div>
             )}
           </div>
         </>
@@ -1410,23 +1728,46 @@ export default function Staff() {
           {!tables.some((cafeTable) => cafeTable.active) && <div className="request">No hay mesas activas configuradas.</div>}
         </section>
       ) : tab === 'recommendations' ? (
-        /* TAB: RECOMENDACIONES */
+        /* TAB: RESEÑAS Y MODERACIÓN (Requisito 5) */
         <section className="menu-admin">
           <div className="menu-admin-head">
             <div>
-              <span className="eyebrow">Opiniones</span>
+              <span className="eyebrow">Opiniones y Moderación</span>
               <h2>Recomendaciones de clientes.</h2>
             </div>
           </div>
           <div className="admin-list">
             {recommendations.map((rec) => (
-              <article className="admin-item" key={rec.id}>
+              <article className={`admin-item ${rec.status === 'hidden' ? 'unavailable' : ''}`} key={rec.id}>
                 <div>
-                  <strong>{rec.name} {rec.table_number ? `(Mesa ${rec.table_number})` : ''} · {'★'.repeat(rec.rating)}</strong>
+                  <strong>
+                    {rec.name} {rec.table_number ? `(Mesa ${rec.table_number})` : ''} · {'★'.repeat(rec.rating)}
+                    <span
+                      className="sort-order-badge"
+                      style={{
+                        background:
+                          rec.status === 'published' ? '#d9e86a' : rec.status === 'pending' ? '#ffcc00' : '#888',
+                        color: '#18362f',
+                        marginLeft: '8px',
+                      }}
+                    >
+                      {rec.status === 'published' ? 'Publicada' : rec.status === 'pending' ? 'Pendiente' : 'Oculta'}
+                    </span>
+                  </strong>
                   <p style={{ margin: '6px 0', fontSize: '13px', fontStyle: 'italic' }}>“{rec.comment}”</p>
                   <small>{new Date(rec.created_at).toLocaleString('es-CO')}</small>
                 </div>
                 <div>
+                  {rec.status !== 'published' && (
+                    <button onClick={() => updateRecommendationStatus(rec.id, 'published')}>
+                      Aprobar ✓
+                    </button>
+                  )}
+                  {rec.status === 'published' && (
+                    <button onClick={() => updateRecommendationStatus(rec.id, 'hidden')}>
+                      Ocultar
+                    </button>
+                  )}
                   <button onClick={() => removeRecommendation(rec.id)}>Eliminar</button>
                 </div>
               </article>
@@ -1437,6 +1778,176 @@ export default function Staff() {
       ) : (
         /* TAB: USUARIOS */
         <UserAdmin />
+      )}
+
+      {/* MODAL TOMA MANUAL DE PEDIDOS (Requisito 11) */}
+      {manualOrderTable && (
+        <div className="manual-order-overlay" onClick={() => setManualOrderTable(null)}>
+          <div className="manual-order-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="manual-order-head">
+              <div>
+                <span className="eyebrow">Comanda manual</span>
+                <h2>Tomar pedido · Mesa {manualOrderTable.label}</h2>
+              </div>
+              <button
+                type="button"
+                className="cart-modal-close"
+                onClick={() => setManualOrderTable(null)}
+                aria-label="Cerrar modal"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="manual-order-body">
+              {/* Buscador y filtro de categoría */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Buscar producto..."
+                  value={manualQuery}
+                  onChange={(e) => setManualQuery(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--text)',
+                  }}
+                />
+                <select
+                  value={manualCategory}
+                  onChange={(e) => setManualCategory(e.target.value)}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--text)',
+                  }}
+                >
+                  <option>Todas</option>
+                  {menuCategoryNames.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Lista de productos para agregar */}
+              <div className="manual-products-list">
+                {items
+                  .filter((it) => it.available)
+                  .filter(
+                    (it) =>
+                      (manualCategory === 'Todas' || it.category === manualCategory) &&
+                      `${it.name} ${it.description}`.toLowerCase().includes(manualQuery.toLowerCase()),
+                  )
+                  .map((it) => (
+                    <div className="manual-product-row" key={it.id}>
+                      <div>
+                        <strong>{it.name}</strong>
+                        <small style={{ display: 'block', color: 'var(--text-muted)' }}>
+                          {formatCop(it.price_cop)} · {it.category}
+                        </small>
+                      </div>
+                      <button
+                        type="button"
+                        className="button"
+                        style={{ padding: '6px 12px', fontSize: '11px' }}
+                        onClick={() => addManualProduct(it)}
+                      >
+                        + Agregar
+                      </button>
+                    </div>
+                  ))}
+              </div>
+
+              {/* Ítems agregados a la comanda */}
+              {manualCart.length > 0 && (
+                <div className="manual-order-cart-items">
+                  <span style={{ fontSize: '12px', fontWeight: 800, textTransform: 'uppercase' }}>
+                    Productos en la comanda ({manualCart.reduce((sum, ci) => sum + ci.quantity, 0)}):
+                  </span>
+                  {manualCart.map(({ item, quantity, notes }) => (
+                    <div key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <strong>{item.name}</strong>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                            {formatCop(item.price_cop * quantity)}
+                          </span>
+                        </div>
+                        <div className="cart-qty-picker">
+                          <button type="button" onClick={() => updateManualQty(item.id, -1)}>
+                            −
+                          </button>
+                          <span>{quantity}</span>
+                          <button type="button" onClick={() => updateManualQty(item.id, 1)}>
+                            +
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Nota (ej. sin azúcar)"
+                        value={notes}
+                        onChange={(e) => updateManualItemNotes(item.id, e.target.value)}
+                        style={{
+                          fontSize: '11px',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border)',
+                          background: 'var(--surface)',
+                          color: 'var(--text)',
+                        }}
+                      />
+                    </div>
+                  ))}
+                  <div style={{ marginTop: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 700 }}>Nota general:</label>
+                    <input
+                      type="text"
+                      placeholder="Instrucciones para barra o cocina..."
+                      value={manualNotes}
+                      onChange={(e) => setManualNotes(e.target.value)}
+                      style={{
+                        width: '100%',
+                        fontSize: '12px',
+                        padding: '6px 8px',
+                        marginTop: '4px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border)',
+                        background: 'var(--surface)',
+                        color: 'var(--text)',
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="manual-order-footer">
+              <div>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Total comanda:</span>
+                <strong style={{ display: 'block', fontSize: '18px', color: 'var(--orange)' }}>
+                  {formatCop(
+                    manualCart.reduce((sum, ci) => sum + ci.item.price_cop * ci.quantity, 0),
+                  )}
+                </strong>
+              </div>
+              <button
+                type="button"
+                className="button"
+                style={{ background: 'var(--orange)', color: '#fff' }}
+                disabled={manualSubmitting || !manualCart.length}
+                onClick={submitManualOrder}
+              >
+                {manualSubmitting ? 'Registrando…' : 'Crear comanda'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   )

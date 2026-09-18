@@ -50,10 +50,11 @@ export async function POST(request: NextRequest) {
         rating: numRating,
         comment: comment.trim(),
         table_number: tableNumber ? String(tableNumber).trim() : null,
-        status: 'published',
+        status: 'pending',
       })
       .select()
       .single()
+
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })

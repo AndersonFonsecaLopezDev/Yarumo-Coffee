@@ -72,14 +72,12 @@ export default function RecomendacionesPage() {
         return
       }
 
-      setSuccessMsg('¡Muchas gracias por tu recomendación! Tu opinión ha sido publicada.')
+      setSuccessMsg('¡Muchas gracias por tu recomendación! Tu opinión ha sido recibida.')
       setName('')
       setRating(5)
       setTableNumber('')
       setComment('')
 
-      // Add to list dynamically
-      setRecommendations((prev) => [data, ...prev])
     } catch {
       setErrorMsg('No se pudo conectar con el servidor. Intenta de nuevo.')
     } finally {

@@ -420,32 +420,19 @@ export default function MenuExperience({
                   {item.description && <p>{item.description}</p>}
                   <div className="item-footer">
                     <small className="item-price">{formatCop(item.price_cop)}</small>
-                    <div className="item-actions">
-                      {(Boolean(item.image_url) || (item.gallery_urls?.length ?? 0) > 0) && (
-                        <button
-                          className="gallery-link"
-                          type="button"
-                          onClick={() => {
-                            setGalleryItem(item)
-                            setGalleryIndex(0)
-                          }}
-                        >
-                          Ver fotos →
-                        </button>
-                      )}
-                      <button
-                        className="add-to-cart-btn"
-                        type="button"
-                        onClick={() => addToCart(item)}
-                        disabled={serviceDisabled}
-                        title={serviceHint || 'Agregar al pedido'}
-                        aria-label={`Agregar ${item.name} al pedido`}
-                      >
-                        <span>+</span>
-                        <span>Pedir</span>
-                      </button>
-                    </div>
+                    <button
+                      className="add-to-cart-btn"
+                      type="button"
+                      onClick={() => addToCart(item)}
+                      disabled={serviceDisabled}
+                      title={serviceHint || 'Agregar al pedido'}
+                      aria-label={`Agregar ${item.name} al pedido`}
+                    >
+                      <span>+</span>
+                      <span>Pedir</span>
+                    </button>
                   </div>
+
                 </div>
               </article>
             ))

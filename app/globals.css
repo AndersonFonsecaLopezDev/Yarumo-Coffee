@@ -683,24 +683,37 @@ h1 em, h2 em {
 
 .notice {
   position: fixed;
-  bottom: 24px;
+  top: 86px;
   left: 50%;
   transform: translateX(-50%);
   background: var(--ink);
   color: var(--cream);
-  padding: 14px 24px;
+  padding: 12px 22px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 600;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
-  z-index: 100;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  z-index: 250;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  max-width: 90vw;
+  max-width: min(500px, 92vw);
+  animation: noticeSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+@keyframes noticeSlideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -16px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 
 .notice-close {
   opacity: 0.7;
@@ -883,9 +896,11 @@ h1 em, h2 em {
   .notice {
     width: calc(100vw - 32px);
     justify-content: space-between;
-    padding: 12px 18px;
-    bottom: 16px;
+    padding: 11px 18px;
+    top: 80px;
+    bottom: auto;
   }
+
 }
 
 /* Skeleton loading state (app/loading.tsx, and menu section while filters hydrate) */
