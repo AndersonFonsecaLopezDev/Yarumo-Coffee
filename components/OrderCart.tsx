@@ -42,12 +42,13 @@ type OrderCartProps = {
   onOrderSuccess: (orderId: string) => void
 }
 
-function formatCop(value: number) {
+function formatCop(value?: number | null) {
+  const safe = typeof value === 'number' && !Number.isNaN(value) ? value : 0
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: 'COP',
     maximumFractionDigits: 0,
-  }).format(value)
+  }).format(safe)
 }
 
 function getStatusLabel(status: TableOrder['status']) {

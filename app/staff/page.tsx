@@ -172,12 +172,13 @@ const blankPromotionForm: PromotionForm = {
   sort_order: 0,
 }
 
-function formatCop(value: number) {
+function formatCop(value?: number | null) {
+  const safe = typeof value === 'number' && !Number.isNaN(value) ? value : 0
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: 'COP',
     maximumFractionDigits: 0,
-  }).format(value)
+  }).format(safe)
 }
 
 function playNotificationChime() {
@@ -634,8 +635,16 @@ export default function Staff() {
   }
 
   // Toma manual de pedidos
-  function openManualOrder(tableItem: CafeTable) {
-    setManualOrderTable(tableItem)
+  function openManualOrder(tableItem?: CafeTable | null) {
+    let targetTable = tableItem
+    if (!targetTable) {
+      targetTable = tables.find((t) => t.active) || tables[0] || null
+    }
+    if (!targetTable) {
+      setError('No hay mesas disponibles para registrar un pedido.')
+      return
+    }
+    setManualOrderTable(targetTable)
     setManualCart([])
     setManualNotes('')
     setManualQuery('')
@@ -643,11 +652,12 @@ export default function Staff() {
   }
 
   function addManualProduct(item: MenuItem) {
+    if (!item || !item.id) return
     setManualCart((prev) => {
-      const exists = prev.find((ci) => ci.item.id === item.id)
+      const exists = prev.find((ci) => ci.item?.id === item.id)
       if (exists) {
         return prev.map((ci) =>
-          ci.item.id === item.id ? { ...ci, quantity: Math.min(ci.quantity + 1, 20) } : ci,
+          ci.item?.id === item.id ? { ...ci, quantity: Math.min((ci.quantity || 1) + 1, 20) } : ci,
         )
       }
       return [...prev, { item, quantity: 1, notes: '' }]
@@ -658,8 +668,8 @@ export default function Staff() {
     setManualCart((prev) =>
       prev
         .map((ci) => {
-          if (ci.item.id === itemId) {
-            const next = ci.quantity + delta
+          if (ci.item?.id === itemId) {
+            const next = (ci.quantity || 1) + delta
             return next > 0 ? { ...ci, quantity: Math.min(next, 20) } : null
           }
           return ci
@@ -669,7 +679,7 @@ export default function Staff() {
   }
 
   function updateManualItemNotes(itemId: string, notes: string) {
-    setManualCart((prev) => prev.map((ci) => (ci.item.id === itemId ? { ...ci, notes } : ci)))
+    setManualCart((prev) => prev.map((ci) => (ci.item?.id === itemId ? { ...ci, notes: notes || '' } : ci)))
   }
 
   async function submitManualOrder() {
@@ -677,28 +687,74 @@ export default function Staff() {
     setManualSubmitting(true)
     setError('')
 
-    const payloadItems = manualCart.map((ci) => ({
-      menu_item_id: ci.item.id,
-      quantity: ci.quantity,
-      item_notes: ci.notes.trim(),
-    }))
+    try {
+      const validCartItems = manualCart.filter((ci) => ci && ci.item && ci.item.id)
+      if (!validCartItems.length) {
+        throw new Error('Debes seleccionar al menos un producto válido.')
+      }
 
-    const { error: rpcErr } = await supabase.rpc('staff_submit_order_request', {
-      p_table_id: manualOrderTable.id,
-      p_notes: manualNotes.trim(),
-      p_items: payloadItems,
-    })
+      const payloadItems = validCartItems.map((ci) => ({
+        menu_item_id: ci.item.id,
+        quantity: Math.max(1, Math.min(ci.quantity || 1, 20)),
+        item_notes: (ci.notes || '').trim(),
+      }))
 
-    setManualSubmitting(false)
-    if (rpcErr) {
-      setError(rpcErr.message || 'No se pudo registrar la comanda manual.')
-      return
+      // Intentar primero a través de la función RPC segura
+      const { error: rpcErr } = await supabase.rpc('staff_submit_order_request', {
+        p_table_id: manualOrderTable.id,
+        p_notes: (manualNotes || '').trim(),
+        p_items: payloadItems,
+      })
+
+      if (rpcErr) {
+        console.warn('RPC staff_submit_order_request falló o no está disponible, ejecutando inserción directa:', rpcErr)
+
+        // Fallback: Inserción directa en order_requests y order_request_items
+        const { data: insertedOrder, error: orderErr } = await supabase
+          .from('order_requests')
+          .insert({
+            table_id: manualOrderTable.id,
+            table_token: manualOrderTable.public_token || '',
+            notes: (manualNotes || '').trim(),
+            status: 'pending',
+            source: 'staff',
+          })
+          .select('id')
+          .single()
+
+        if (orderErr || !insertedOrder) {
+          throw new Error(orderErr?.message || rpcErr.message || 'No se pudo crear el pedido.')
+        }
+
+        const itemsToInsert = validCartItems.map((ci) => ({
+          order_request_id: insertedOrder.id,
+          menu_item_id: ci.item.id,
+          name_snapshot: ci.item.name || 'Producto',
+          price_cop_snapshot: typeof ci.item.price_cop === 'number' ? ci.item.price_cop : 0,
+          quantity: Math.max(1, Math.min(ci.quantity || 1, 20)),
+          item_notes: (ci.notes || '').trim(),
+        }))
+
+        const { error: itemsErr } = await supabase
+          .from('order_request_items')
+          .insert(itemsToInsert)
+
+        if (itemsErr) {
+          throw new Error(itemsErr.message || 'No se pudieron registrar los productos del pedido.')
+        }
+      }
+
+      setManualOrderTable(null)
+      setManualCart([])
+      setManualNotes('')
+      await load()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'No se pudo registrar la comanda manual.'
+      setError(msg)
+      console.error('Error en submitManualOrder:', err)
+    } finally {
+      setManualSubmitting(false)
     }
-
-    setManualOrderTable(null)
-    setManualCart([])
-    setManualNotes('')
-    await load()
   }
 
   // Menú Form Scroll & Handlers
@@ -2252,7 +2308,7 @@ export default function Staff() {
             <div className="manual-order-head">
               <div className="manual-order-title-group">
                 <span className="eyebrow">Comanda manual</span>
-                <h2>Tomar pedido · Mesa {manualOrderTable.label}</h2>
+                <h2>Tomar pedido · Mesa {manualOrderTable.label || 'Seleccionada'}</h2>
               </div>
               <button
                 type="button"
@@ -2281,7 +2337,7 @@ export default function Staff() {
                 >
                   {tables.map((t) => (
                     <option key={t.id} value={t.id}>
-                      Mesa {t.label} {!t.active ? '(Inactiva)' : ''}
+                      Mesa {t.label || t.id} {!t.active ? '(Inactiva)' : ''}
                     </option>
                   ))}
                 </select>
@@ -2311,18 +2367,20 @@ export default function Staff() {
               {/* Lista de productos para agregar */}
               <div className="manual-products-list">
                 {items
-                  .filter((it) => it.available)
+                  .filter((it) => it && it.available)
                   .filter(
                     (it) =>
                       (manualCategory === 'Todas' || it.category === manualCategory) &&
-                      `${it.name} ${it.description}`.toLowerCase().includes(manualQuery.toLowerCase()),
+                      `${it.name || ''} ${it.description || ''}`
+                        .toLowerCase()
+                        .includes((manualQuery || '').toLowerCase().trim()),
                   )
                   .map((it) => (
                     <div className="manual-product-row" key={it.id}>
                       <div className="manual-product-info">
-                        <strong>{it.name}</strong>
+                        <strong>{it.name || 'Sin nombre'}</strong>
                         <small>
-                          {formatCop(it.price_cop)} · {it.category}
+                          {formatCop(it.price_cop)} {it.category ? `· ${it.category}` : ''}
                         </small>
                       </div>
                       <button
@@ -2340,36 +2398,44 @@ export default function Staff() {
               {manualCart.length > 0 && (
                 <div className="manual-order-cart-items">
                   <div className="manual-cart-header">
-                    <span>Productos en la comanda ({manualCart.reduce((sum, ci) => sum + ci.quantity, 0)}):</span>
+                    <span>
+                      Productos en la comanda (
+                      {manualCart.reduce((sum, ci) => sum + (ci?.quantity || 1), 0)}):
+                    </span>
                   </div>
-                  {manualCart.map(({ item, quantity, notes }) => (
-                    <div key={item.id} className="manual-cart-item-box">
-                      <div className="manual-cart-item-row">
-                        <div>
-                          <strong>{item.name}</strong>
-                          <span className="manual-item-subtotal">
-                            {formatCop(item.price_cop * quantity)}
-                          </span>
+                  {manualCart.map(({ item, quantity, notes }) => {
+                    if (!item) return null
+                    const itemPrice = typeof item.price_cop === 'number' ? item.price_cop : 0
+                    const qty = typeof quantity === 'number' ? quantity : 1
+                    return (
+                      <div key={item.id} className="manual-cart-item-box">
+                        <div className="manual-cart-item-row">
+                          <div>
+                            <strong>{item.name || 'Producto'}</strong>
+                            <span className="manual-item-subtotal">
+                              {formatCop(itemPrice * qty)}
+                            </span>
+                          </div>
+                          <div className="cart-qty-picker">
+                            <button type="button" onClick={() => updateManualQty(item.id, -1)}>
+                              −
+                            </button>
+                            <span>{qty}</span>
+                            <button type="button" onClick={() => updateManualQty(item.id, 1)}>
+                              +
+                            </button>
+                          </div>
                         </div>
-                        <div className="cart-qty-picker">
-                          <button type="button" onClick={() => updateManualQty(item.id, -1)}>
-                            −
-                          </button>
-                          <span>{quantity}</span>
-                          <button type="button" onClick={() => updateManualQty(item.id, 1)}>
-                            +
-                          </button>
-                        </div>
+                        <input
+                          type="text"
+                          placeholder="Nota o especificación (ej. sin azúcar, leche deslactosada)"
+                          value={notes || ''}
+                          onChange={(e) => updateManualItemNotes(item.id, e.target.value)}
+                          className="manual-item-note-input"
+                        />
                       </div>
-                      <input
-                        type="text"
-                        placeholder="Nota o especificación (ej. sin azúcar, leche deslactosada)"
-                        value={notes}
-                        onChange={(e) => updateManualItemNotes(item.id, e.target.value)}
-                        className="manual-item-note-input"
-                      />
-                    </div>
-                  ))}
+                    )
+                  })}
                   <div className="manual-notes-group">
                     <label htmlFor="manual-general-notes">Nota general para barra/cocina:</label>
                     <input
@@ -2387,10 +2453,14 @@ export default function Staff() {
 
             <div className="manual-order-footer">
               <div className="manual-order-total-info">
-                <span>Total comanda (Mesa {manualOrderTable.label}):</span>
+                <span>Total comanda (Mesa {manualOrderTable.label || 'Seleccionada'}):</span>
                 <strong>
                   {formatCop(
-                    manualCart.reduce((sum, ci) => sum + ci.item.price_cop * ci.quantity, 0),
+                    manualCart.reduce((sum, ci) => {
+                      const p = typeof ci?.item?.price_cop === 'number' ? ci.item.price_cop : 0
+                      const q = typeof ci?.quantity === 'number' ? ci.quantity : 1
+                      return sum + p * q
+                    }, 0),
                   )}
                 </strong>
               </div>
@@ -2400,7 +2470,9 @@ export default function Staff() {
                 disabled={manualSubmitting || !manualCart.length}
                 onClick={submitManualOrder}
               >
-                {manualSubmitting ? 'Registrando…' : `Crear comanda · Mesa ${manualOrderTable.label}`}
+                {manualSubmitting
+                  ? 'Registrando…'
+                  : `Crear comanda · Mesa ${manualOrderTable.label || 'Seleccionada'}`}
               </button>
             </div>
           </div>
