@@ -67,7 +67,11 @@ export async function PATCH(request: NextRequest) {
     const role = (body.role || '').trim().toLowerCase()
     if (!body.id || !body.displayName || !role || !roles.includes(role as typeof roles[number])) return NextResponse.json({ error: 'Datos de usuario incompletos' }, { status: 400 })
     if (!canAssignRole(auth.role, role)) return NextResponse.json({ error: 'Solo un owner puede asignar el rol owner' }, { status: 403 })
-    if (body.id === auth.user.id && role !== 'owner') return NextResponse.json({ error: 'No puedes quitarte tu propio rol de owner' }, { status: 400 })
+    if (body.id === auth.user.id && auth.role === 'owner' && role !== 'owner') return NextResponse.json({ error: 'No puedes quitarte tu propio rol de owner' }, { status: 400 })
+    if (auth.role !== 'owner') {
+      const { data: target } = await auth.admin.from('staff_profiles').select('role').eq('user_id', body.id).maybeSingle()
+      if (target?.role === 'owner') return NextResponse.json({ error: 'Solo un owner puede modificar otro owner' }, { status: 403 })
+    }
     const update: { user_metadata: { display_name: string }; password?: string } = { user_metadata: { display_name: body.displayName.trim() } }
     if (body.password) { if (body.password.length < 10) return NextResponse.json({ error: 'La contraseña debe tener mínimo 10 caracteres' }, { status: 400 }); update.password = body.password }
     const changed = await auth.admin.auth.admin.updateUserById(body.id, update)
