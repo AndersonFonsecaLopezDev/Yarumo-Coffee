@@ -276,6 +276,7 @@ export default function Staff() {
   // Modal Toma Manual de Pedido
   const [manualOrderTable, setManualOrderTable] = useState<CafeTable | null>(null)
   const [manualCart, setManualCart] = useState<Array<{ item: MenuItem; quantity: number; notes: string }>>([])
+  const [manualTab, setManualTab] = useState<'catalog' | 'cart'>('catalog')
   const [manualNotes, setManualNotes] = useState('')
   const [manualQuery, setManualQuery] = useState('')
   const [manualCategory, setManualCategory] = useState('Todas')
@@ -653,6 +654,7 @@ export default function Staff() {
     }
     setManualOrderTable(targetTable)
     setManualCart([])
+    setManualTab('catalog')
     setManualNotes('')
     setManualQuery('')
     setManualCategory('Todas')
@@ -2309,182 +2311,281 @@ export default function Staff() {
       )}
 
       {/* MODAL TOMA MANUAL DE PEDIDOS (Requisitos 7 y 8) */}
-      {manualOrderTable && (
-        <div className="manual-order-overlay" onClick={() => setManualOrderTable(null)}>
-          <div className="manual-order-dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="manual-order-head">
-              <div className="manual-order-title-group">
-                <span className="eyebrow">Comanda manual</span>
-                <h2>Tomar pedido · Mesa {manualOrderTable.label || 'Seleccionada'}</h2>
-              </div>
-              <button
-                type="button"
-                className="cart-modal-close"
-                onClick={() => setManualOrderTable(null)}
-                aria-label="Cerrar modal"
-              >
-                ×
-              </button>
-            </div>
+      {manualOrderTable && (() => {
+        const manualTotalQty = manualCart.reduce((sum, ci) => sum + (ci?.quantity || 1), 0)
+        const manualTotalPrice = manualCart.reduce((sum, ci) => {
+          const p = typeof ci?.item?.price_cop === 'number' ? ci.item.price_cop : 0
+          const q = typeof ci?.quantity === 'number' ? ci.quantity : 1
+          return sum + p * q
+        }, 0)
+        const filteredCatalogItems = items
+          .filter((it) => it && it.available)
+          .filter(
+            (it) =>
+              (manualCategory === 'Todas' || it.category === manualCategory) &&
+              `${it.name || ''} ${it.description || ''}`
+                .toLowerCase()
+                .includes((manualQuery || '').toLowerCase().trim()),
+          )
 
-            <div className="manual-order-body">
-              {/* Selector de Mesa para elegir o cambiar mesa (Requisito 7) */}
-              <div className="manual-table-selector-card">
-                <label htmlFor="manual-table-select">
-                  <span>Mesa receptora:</span>
-                </label>
-                <select
-                  id="manual-table-select"
-                  value={manualOrderTable.id}
-                  onChange={(e) => {
-                    const chosen = tables.find((t) => t.id === e.target.value)
-                    if (chosen) setManualOrderTable(chosen)
-                  }}
-                  className="manual-table-select"
+        return (
+          <div className="manual-order-overlay" onClick={() => setManualOrderTable(null)}>
+            <div className="manual-order-dialog" onClick={(e) => e.stopPropagation()}>
+              <div className="manual-order-head">
+                <div className="manual-order-title-group">
+                  <span className="eyebrow">Comanda manual</span>
+                  <h2>Tomar pedido · Mesa {manualOrderTable.label || 'Seleccionada'}</h2>
+                </div>
+                <button
+                  type="button"
+                  className="cart-modal-close"
+                  onClick={() => setManualOrderTable(null)}
+                  aria-label="Cerrar modal"
                 >
-                  {tables.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      Mesa {t.label || t.id} {!t.active ? '(Inactiva)' : ''}
-                    </option>
-                  ))}
-                </select>
+                  ×
+                </button>
               </div>
 
-              {/* Buscador y filtro de categoría */}
-              <div className="manual-search-filter-row">
-                <input
-                  type="text"
-                  placeholder="Buscar producto en la carta..."
-                  value={manualQuery}
-                  onChange={(e) => setManualQuery(e.target.value)}
-                  className="manual-search-input"
-                />
-                <select
-                  value={manualCategory}
-                  onChange={(e) => setManualCategory(e.target.value)}
-                  className="manual-category-select"
+              {/* Mobile Tab switcher (visible only on mobile) */}
+              <div className="manual-order-tabs">
+                <button
+                  type="button"
+                  className={`manual-order-tab-btn ${manualTab === 'catalog' ? 'active' : ''}`}
+                  onClick={() => setManualTab('catalog')}
                 >
-                  <option>Todas</option>
-                  {menuCategoryNames.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
+                  <span>🔍 Carta ({filteredCatalogItems.length})</span>
+                </button>
+                <button
+                  type="button"
+                  className={`manual-order-tab-btn ${manualTab === 'cart' ? 'active' : ''}`}
+                  onClick={() => setManualTab('cart')}
+                >
+                  <span>🛍️ Comanda ({manualTotalQty})</span>
+                  {manualTotalPrice > 0 && <span className="tab-btn-price">{formatCop(manualTotalPrice)}</span>}
+                </button>
               </div>
 
-              {/* Lista de productos para agregar */}
-              <div className="manual-products-list">
-                {items
-                  .filter((it) => it && it.available)
-                  .filter(
-                    (it) =>
-                      (manualCategory === 'Todas' || it.category === manualCategory) &&
-                      `${it.name || ''} ${it.description || ''}`
-                        .toLowerCase()
-                        .includes((manualQuery || '').toLowerCase().trim()),
-                  )
-                  .map((it) => (
-                    <div className="manual-product-row" key={it.id}>
-                      <div className="manual-product-info">
-                        <strong>{it.name || 'Sin nombre'}</strong>
-                        <small>
-                          {formatCop(it.price_cop)} {it.category ? `· ${it.category}` : ''}
-                        </small>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn-manual-add"
-                        onClick={() => addManualProduct(it)}
-                      >
-                        + Agregar
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-              {/* Ítems agregados a la comanda */}
-              {manualCart.length > 0 && (
-                <div className="manual-order-cart-items">
-                  <div className="manual-cart-header">
-                    <span>
-                      Productos en la comanda (
-                      {manualCart.reduce((sum, ci) => sum + (ci?.quantity || 1), 0)}):
-                    </span>
+              <div className="manual-order-body">
+                {/* COLUMNA 1: CARTA Y BÚSQUEDA */}
+                <div className={`manual-order-col manual-order-col-catalog ${manualTab === 'catalog' ? 'tab-active' : 'tab-hidden'}`}>
+                  {/* Selector de Mesa para elegir o cambiar mesa (Requisito 7) */}
+                  <div className="manual-table-selector-card">
+                    <label htmlFor="manual-table-select">
+                      <span>Mesa receptora:</span>
+                    </label>
+                    <select
+                      id="manual-table-select"
+                      value={manualOrderTable.id}
+                      onChange={(e) => {
+                        const chosen = tables.find((t) => t.id === e.target.value)
+                        if (chosen) setManualOrderTable(chosen)
+                      }}
+                      className="manual-table-select"
+                    >
+                      {tables.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          Mesa {t.label || t.id} {!t.active ? '(Inactiva)' : ''}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  {manualCart.map(({ item, quantity, notes }) => {
-                    if (!item) return null
-                    const itemPrice = typeof item.price_cop === 'number' ? item.price_cop : 0
-                    const qty = typeof quantity === 'number' ? quantity : 1
-                    return (
-                      <div key={item.id} className="manual-cart-item-box">
-                        <div className="manual-cart-item-row">
-                          <div>
-                            <strong>{item.name || 'Producto'}</strong>
-                            <span className="manual-item-subtotal">
-                              {formatCop(itemPrice * qty)}
-                            </span>
+
+                  {/* Buscador y filtro de categoría */}
+                  <div className="manual-search-filter-row">
+                    <input
+                      type="text"
+                      placeholder="Buscar producto en la carta..."
+                      value={manualQuery}
+                      onChange={(e) => setManualQuery(e.target.value)}
+                      className="manual-search-input"
+                    />
+                    <select
+                      value={manualCategory}
+                      onChange={(e) => setManualCategory(e.target.value)}
+                      className="manual-category-select"
+                    >
+                      <option>Todas</option>
+                      {menuCategoryNames.map((c) => (
+                        <option key={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Lista de productos para agregar */}
+                  <div className="manual-products-list">
+                    {filteredCatalogItems.length > 0 ? (
+                      filteredCatalogItems.map((it) => {
+                        const inCart = manualCart.find((ci) => ci.item?.id === it.id)
+                        const inCartQty = inCart?.quantity || 0
+
+                        return (
+                          <div className={`manual-product-row ${inCartQty > 0 ? 'is-in-cart' : ''}`} key={it.id}>
+                            <div className="manual-product-info">
+                              <div className="manual-product-name-row">
+                                <strong>{it.name || 'Sin nombre'}</strong>
+                                {inCartQty > 0 && (
+                                  <span className="manual-product-badge-qty">{inCartQty} en comanda</span>
+                                )}
+                              </div>
+                              <small>
+                                {formatCop(it.price_cop)} {it.category ? `· ${it.category}` : ''}
+                              </small>
+                            </div>
+
+                            <div className="manual-product-action">
+                              {inCartQty > 0 ? (
+                                <div className="manual-row-qty-picker">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateManualQty(it.id, -1)}
+                                    aria-label={`Disminuir ${it.name}`}
+                                  >
+                                    −
+                                  </button>
+                                  <span>{inCartQty}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateManualQty(it.id, 1)}
+                                    aria-label={`Aumentar ${it.name}`}
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="btn-manual-add"
+                                  onClick={() => addManualProduct(it)}
+                                >
+                                  + Agregar
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <div className="cart-qty-picker">
-                            <button type="button" onClick={() => updateManualQty(item.id, -1)}>
-                              −
-                            </button>
-                            <span>{qty}</span>
-                            <button type="button" onClick={() => updateManualQty(item.id, 1)}>
-                              +
-                            </button>
+                        )
+                      })
+                    ) : (
+                      <div className="manual-products-empty">
+                        <span>☕ No se encontraron productos coincidentes.</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Botón flotante en móvil para ir a la comanda */}
+                  {manualCart.length > 0 && (
+                    <button
+                      type="button"
+                      className="manual-mobile-view-cart-btn"
+                      onClick={() => setManualTab('cart')}
+                    >
+                      <span>🛍️ Ver comanda ({manualTotalQty})</span>
+                      <strong>{formatCop(manualTotalPrice)} →</strong>
+                    </button>
+                  )}
+                </div>
+
+                {/* COLUMNA 2: ITEMS AGREGADOS A LA COMANDA */}
+                <div className={`manual-order-col manual-order-col-cart ${manualTab === 'cart' ? 'tab-active' : 'tab-hidden'}`}>
+                  <div className="manual-cart-header-section">
+                    <div className="manual-cart-header">
+                      <span>
+                        Productos en la comanda ({manualTotalQty}):
+                      </span>
+                      {manualCart.length > 0 && (
+                        <button
+                          type="button"
+                          className="manual-cart-clear-btn"
+                          onClick={() => setManualCart([])}
+                        >
+                          Vaciar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {manualCart.length > 0 ? (
+                    <div className="manual-cart-scroll-area">
+                      {manualCart.map(({ item, quantity, notes }) => {
+                        if (!item) return null
+                        const itemPrice = typeof item.price_cop === 'number' ? item.price_cop : 0
+                        const qty = typeof quantity === 'number' ? quantity : 1
+                        return (
+                          <div key={item.id} className="manual-cart-item-box">
+                            <div className="manual-cart-item-row">
+                              <div>
+                                <strong>{item.name || 'Producto'}</strong>
+                                <span className="manual-item-subtotal">
+                                  {formatCop(itemPrice * qty)}
+                                </span>
+                              </div>
+                              <div className="cart-qty-picker">
+                                <button type="button" onClick={() => updateManualQty(item.id, -1)}>
+                                  −
+                                </button>
+                                <span>{qty}</span>
+                                <button type="button" onClick={() => updateManualQty(item.id, 1)}>
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="Nota o especificación (ej. sin azúcar, leche deslactosada)"
+                              value={notes || ''}
+                              onChange={(e) => updateManualItemNotes(item.id, e.target.value)}
+                              className="manual-item-note-input"
+                            />
                           </div>
-                        </div>
+                        )
+                      })}
+                      <div className="manual-notes-group">
+                        <label htmlFor="manual-general-notes">Nota general para barra/cocina:</label>
                         <input
+                          id="manual-general-notes"
                           type="text"
-                          placeholder="Nota o especificación (ej. sin azúcar, leche deslactosada)"
-                          value={notes || ''}
-                          onChange={(e) => updateManualItemNotes(item.id, e.target.value)}
-                          className="manual-item-note-input"
+                          placeholder="Instrucciones para el servicio..."
+                          value={manualNotes}
+                          onChange={(e) => setManualNotes(e.target.value)}
+                          className="manual-general-notes-input"
                         />
                       </div>
-                    )
-                  })}
-                  <div className="manual-notes-group">
-                    <label htmlFor="manual-general-notes">Nota general para barra/cocina:</label>
-                    <input
-                      id="manual-general-notes"
-                      type="text"
-                      placeholder="Instrucciones para el servicio..."
-                      value={manualNotes}
-                      onChange={(e) => setManualNotes(e.target.value)}
-                      className="manual-general-notes-input"
-                    />
+                    </div>
+                  ) : (
+                    <div className="manual-cart-empty-state">
+                      <span className="empty-cart-icon">🛍️</span>
+                      <p>Aún no has agregado productos a esta comanda.</p>
+                      <button
+                        type="button"
+                        className="btn-manual-browse-menu"
+                        onClick={() => setManualTab('catalog')}
+                      >
+                        Ver carta y agregar productos
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="manual-order-footer">
+                    <div className="manual-order-total-info">
+                      <span>Total comanda (Mesa {manualOrderTable.label || 'Seleccionada'}):</span>
+                      <strong>{formatCop(manualTotalPrice)}</strong>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-manual-submit"
+                      disabled={manualSubmitting || !manualCart.length}
+                      onClick={submitManualOrder}
+                    >
+                      {manualSubmitting
+                        ? 'Registrando…'
+                        : `Crear comanda · Mesa ${manualOrderTable.label || 'Seleccionada'}`}
+                    </button>
                   </div>
                 </div>
-              )}
-            </div>
-
-            <div className="manual-order-footer">
-              <div className="manual-order-total-info">
-                <span>Total comanda (Mesa {manualOrderTable.label || 'Seleccionada'}):</span>
-                <strong>
-                  {formatCop(
-                    manualCart.reduce((sum, ci) => {
-                      const p = typeof ci?.item?.price_cop === 'number' ? ci.item.price_cop : 0
-                      const q = typeof ci?.quantity === 'number' ? ci.quantity : 1
-                      return sum + p * q
-                    }, 0),
-                  )}
-                </strong>
               </div>
-              <button
-                type="button"
-                className="btn-manual-submit"
-                disabled={manualSubmitting || !manualCart.length}
-                onClick={submitManualOrder}
-              >
-                {manualSubmitting
-                  ? 'Registrando…'
-                  : `Crear comanda · Mesa ${manualOrderTable.label || 'Seleccionada'}`}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </main>
   )
 }

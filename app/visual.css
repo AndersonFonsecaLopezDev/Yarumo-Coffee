@@ -139,6 +139,53 @@
 .gallery-dots { display: flex; gap: 7px; margin-top: 28px; }
 .gallery-dots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 50%; background: #c5cec8; cursor: pointer; }.gallery-dots button.active { background: var(--orange); transform: scale(1.25); }
 
+@media (max-width: 768px) {
+  .gallery-modal {
+    padding: 14px;
+  }
+  .gallery-dialog {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: 1fr;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 20px;
+  }
+  .gallery-main-image {
+    width: 100%;
+    height: 300px;
+    min-height: 230px;
+    max-height: 42vh;
+    flex-shrink: 0;
+  }
+  .gallery-main-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .gallery-close {
+    top: 12px;
+    right: 12px;
+    z-index: 10;
+  }
+  .gallery-details {
+    padding: 20px 20px 24px;
+    justify-content: flex-start;
+  }
+  .gallery-details h2 {
+    font-size: 22px;
+    margin: 6px 0 10px;
+  }
+  .gallery-details p {
+    font-size: 13px;
+    margin: 0 0 14px;
+  }
+  .gallery-dots {
+    margin-top: 16px;
+  }
+}
+
 /* Customer Live Order Status Tracker (Requisito 6) */
 .customer-order-tracker-wrap {
   max-width: 1080px;
