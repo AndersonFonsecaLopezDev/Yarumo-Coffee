@@ -259,12 +259,18 @@ export default function Staff() {
     'activity' | 'menu' | 'categories' | 'promotions' | 'qr' | 'users' | 'recommendations' | 'settings'
   >('activity')
 
-  // Portada / Hero del homepage
+  // Portada / Hero del homepage y Ajustes
   const [heroImageUrl, setHeroImageUrl] = useState('/yarumo-cover-cafe.webp')
   const [heroImageInput, setHeroImageInput] = useState('/yarumo-cover-cafe.webp')
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null)
   const [heroSaving, setHeroSaving] = useState(false)
   const [heroSuccess, setHeroSuccess] = useState('')
+
+  // WhatsApp Domicilios
+  const [whatsappDeliveryNumber, setWhatsappDeliveryNumber] = useState('573192208938')
+  const [whatsappInput, setWhatsappInput] = useState('3192208938')
+  const [whatsappSaving, setWhatsappSaving] = useState(false)
+  const [whatsappSuccess, setWhatsappSuccess] = useState('')
 
   // Filtro de actividad
   const [activityFilter, setActivityFilter] = useState<'all' | 'orders' | 'requests'>('all')
@@ -408,15 +414,23 @@ export default function Staff() {
       .order('created_at', { ascending: false })
     setRecommendations((recs.data || []) as RecommendationItem[])
 
-    // 8. Configuración del sitio / Foto de portada
+    // 8. Configuración del sitio / Foto de portada y WhatsApp
     const settingsRes = await supabase
       .from('site_settings')
       .select('key,value')
-      .eq('key', 'hero_image_url')
-      .maybeSingle()
-    if (settingsRes.data?.value) {
-      setHeroImageUrl(settingsRes.data.value)
-      setHeroImageInput(settingsRes.data.value)
+    if (settingsRes.data) {
+      const settingsMap = settingsRes.data.reduce(
+        (acc, row) => ({ ...acc, [row.key]: row.value }),
+        {} as Record<string, string>,
+      )
+      if (settingsMap['hero_image_url']) {
+        setHeroImageUrl(settingsMap['hero_image_url'])
+        setHeroImageInput(settingsMap['hero_image_url'])
+      }
+      if (settingsMap['whatsapp_delivery_number']) {
+        setWhatsappDeliveryNumber(settingsMap['whatsapp_delivery_number'])
+        setWhatsappInput(settingsMap['whatsapp_delivery_number'].replace(/^57/, ''))
+      }
     }
   }, [supabase])
 
@@ -1173,6 +1187,38 @@ export default function Staff() {
       setHeroImageInput(defaultUrl)
       setHeroImageFile(null)
       setHeroSuccess('Se restauró la foto de portada original de Yarumo Coffee.')
+    }
+  }
+
+  // Guardar número de WhatsApp para Domicilios
+  async function saveWhatsappNumber(e: React.FormEvent) {
+    e.preventDefault()
+    setWhatsappSaving(true)
+    setError('')
+    setWhatsappSuccess('')
+
+    let clean = whatsappInput.trim().replace(/\D/g, '')
+    if (!clean) {
+      setWhatsappSaving(false)
+      setError('Por favor introduce un número de WhatsApp válido.')
+      return
+    }
+    if (!clean.startsWith('57') && clean.length === 10) {
+      clean = '57' + clean
+    }
+
+    const { error: upsertErr } = await supabase.from('site_settings').upsert({
+      key: 'whatsapp_delivery_number',
+      value: clean,
+      updated_at: new Date().toISOString(),
+    })
+
+    setWhatsappSaving(false)
+    if (upsertErr) {
+      setError('No se pudo guardar el número de WhatsApp: ' + upsertErr.message)
+    } else {
+      setWhatsappDeliveryNumber(clean)
+      setWhatsappSuccess('¡Número de WhatsApp para domicilios actualizado con éxito!')
     }
   }
 
@@ -2300,6 +2346,46 @@ export default function Staff() {
                   disabled={heroSaving}
                 >
                   Restaurar original
+                </button>
+              </div>
+            </form>
+
+            {/* Formulario de WhatsApp para Domicilios */}
+            <form className="menu-form" onSubmit={saveWhatsappNumber} style={{ marginTop: '24px' }}>
+              <div className="form-header">
+                <h3>🛵 WhatsApp de Recepción de Domicilios</h3>
+              </div>
+
+              {whatsappSuccess && (
+                <div className="hero-success-banner" role="status">
+                  ✓ {whatsappSuccess}
+                </div>
+              )}
+
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '4px 0 14px' }}>
+                Este es el número al que los clientes enviarán su pedido a domicilio al confirmar el carrito en la web.
+              </p>
+
+              <label htmlFor="whatsapp-delivery-input">Número de WhatsApp (Colombia):</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-muted)' }}>+57</span>
+                <input
+                  id="whatsapp-delivery-input"
+                  type="tel"
+                  placeholder="3192208938"
+                  value={whatsappInput}
+                  onChange={(e) => {
+                    setWhatsappInput(e.target.value)
+                    setWhatsappSuccess('')
+                  }}
+                  required
+                  style={{ flex: 1 }}
+                />
+              </div>
+
+              <div style={{ marginTop: '16px' }}>
+                <button type="submit" className="button" disabled={whatsappSaving}>
+                  {whatsappSaving ? 'Guardando…' : 'Guardar número de WhatsApp'}
                 </button>
               </div>
             </form>

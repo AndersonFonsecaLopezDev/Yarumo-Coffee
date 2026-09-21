@@ -34,6 +34,7 @@ type OrderCartProps = {
   table: { id: string; label: string } | null
   mesaToken: string | null
   tableOrders?: TableOrder[]
+  whatsappNumber?: string
   onOrdersRefresh?: () => void
   onUpdateQuantity: (itemId: string, delta: number) => void
   onUpdateItemNotes: (itemId: string, notes: string) => void
@@ -73,6 +74,7 @@ export default function OrderCart({
   table,
   mesaToken,
   tableOrders: propTableOrders,
+  whatsappNumber = '573192208938',
   onOrdersRefresh,
   onUpdateQuantity,
   onUpdateItemNotes,
@@ -82,9 +84,29 @@ export default function OrderCart({
 }: OrderCartProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [orderNotes, setOrderNotes] = useState('')
+  const [customerName, setCustomerName] = useState('')
+  const [deliveryAddress, setDeliveryAddress] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<'Efectivo' | 'Llave (Transferencia)'>('Efectivo')
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [internalOrders, setInternalOrders] = useState<TableOrder[]>([])
+
+  const isInsideTable = Boolean(table && mesaToken)
+
+  // Cargar datos previos de entrega de localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('yarumo_delivery_customer')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed.name) setCustomerName(parsed.name)
+        if (parsed.address) setDeliveryAddress(parsed.address)
+        if (parsed.phone) setCustomerPhone(parsed.phone)
+        if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod)
+      }
+    } catch {}
+  }, [])
 
   const effectiveOrders = propTableOrders ?? internalOrders
   const totalItems = cart.reduce((acc, curr) => acc + curr.quantity, 0)
@@ -151,57 +173,130 @@ export default function OrderCart({
     }, 0)
 
   async function handleSendOrder() {
-    if (!table || !mesaToken) {
-      setErrorMessage('Debes escanear el QR asignado a tu mesa para enviar un pedido.')
-      return
-    }
-
     if (!cart.length) {
       setErrorMessage('Tu carrito está vacío.')
       return
     }
 
-    setSubmitting(true)
     setErrorMessage('')
 
-    const supabase = createClient()
-    const payloadItems = cart.map((ci) => ({
-      menu_item_id: ci.item.id,
-      quantity: ci.quantity,
-      item_notes: ci.notes.trim(),
-    }))
-
-    try {
-      const { data, error } = await supabase.rpc('submit_order_request', {
-        p_table_id: table.id,
-        p_table_token: mesaToken,
-        p_notes: orderNotes.trim(),
-        p_items: payloadItems,
-      })
-
-      if (error) {
-        setErrorMessage(
-          error.message.includes('No es posible crear el pedido')
-            ? 'Por favor espera unos segundos antes de enviar otro pedido.'
-            : error.message || 'No se pudo enviar el pedido. Intenta nuevamente.',
-        )
-        setSubmitting(false)
+    // FLUJO 1: SERVICIO EN MESA (Comanda a cocina por Supabase)
+    if (isInsideTable) {
+      if (!table || !mesaToken) {
+        setErrorMessage('Debes escanear el QR asignado a tu mesa para enviar un pedido.')
         return
       }
 
-      const orderData = data as { success: boolean; order_id: string; created_at: string } | null
-      const orderId = orderData?.order_id || 'ok'
+      setSubmitting(true)
 
-      onClearCart()
-      setOrderNotes('')
-      setSubmitting(false)
-      setIsOpen(false)
-      void fetchOrdersForTable(table.id, mesaToken)
-      onOrderSuccess(orderId)
-    } catch {
-      setErrorMessage('Error de conexión al enviar el pedido. Verifica tu conexión a internet.')
-      setSubmitting(false)
+      const supabase = createClient()
+      const payloadItems = cart.map((ci) => ({
+        menu_item_id: ci.item.id,
+        quantity: ci.quantity,
+        item_notes: ci.notes.trim(),
+      }))
+
+      try {
+        const { data, error } = await supabase.rpc('submit_order_request', {
+          p_table_id: table.id,
+          p_table_token: mesaToken,
+          p_notes: orderNotes.trim(),
+          p_items: payloadItems,
+        })
+
+        if (error) {
+          setErrorMessage(
+            error.message.includes('No es posible crear el pedido')
+              ? 'Por favor espera unos segundos antes de enviar otro pedido.'
+              : error.message || 'No se pudo enviar el pedido. Intenta nuevamente.',
+          )
+          setSubmitting(false)
+          return
+        }
+
+        const orderData = data as { success: boolean; order_id: string; created_at: string } | null
+        const orderId = orderData?.order_id || 'ok'
+
+        onClearCart()
+        setOrderNotes('')
+        setSubmitting(false)
+        setIsOpen(false)
+        void fetchOrdersForTable(table.id, mesaToken)
+        onOrderSuccess(orderId)
+      } catch {
+        setErrorMessage('Error de conexión al enviar el pedido. Verifica tu conexión a internet.')
+        setSubmitting(false)
+      }
+      return
     }
+
+    // FLUJO 2: PEDIDO A DOMICILIO (Envío estructurado a WhatsApp)
+    if (!customerName.trim()) {
+      setErrorMessage('Por favor ingresa tu nombre para el domicilio.')
+      return
+    }
+
+    if (!deliveryAddress.trim()) {
+      setErrorMessage('Por favor ingresa tu dirección de entrega.')
+      return
+    }
+
+    if (!customerPhone.trim()) {
+      setErrorMessage('Por favor ingresa tu número de teléfono o celular.')
+      return
+    }
+
+    // Guardar datos del cliente en localStorage
+    try {
+      localStorage.setItem(
+        'yarumo_delivery_customer',
+        JSON.stringify({
+          name: customerName.trim(),
+          address: deliveryAddress.trim(),
+          phone: customerPhone.trim(),
+          paymentMethod,
+        }),
+      )
+    } catch {}
+
+    // Construir mensaje legible para WhatsApp
+    const lines = [
+      '🛵 *¡Hola Yarumo Coffee! Quiero hacer un pedido a domicilio:*',
+      '',
+      `👤 *Cliente:* ${customerName.trim()}`,
+      `📍 *Dirección:* ${deliveryAddress.trim()}`,
+      `📞 *Teléfono:* ${customerPhone.trim()}`,
+      `💳 *Forma de pago:* ${paymentMethod}`,
+      '',
+      '📋 *PRODUCTOS:*',
+    ]
+
+    cart.forEach((ci) => {
+      const itemTotal = ci.item.price_cop * ci.quantity
+      const notePart = ci.notes.trim() ? ` _(${ci.notes.trim()})_` : ''
+      lines.push(`• ${ci.quantity}x ${ci.item.name}${notePart} — ${formatCop(itemTotal)}`)
+    })
+
+    if (orderNotes.trim()) {
+      lines.push('')
+      lines.push(`📝 *Notas / Instrucciones:* ${orderNotes.trim()}`)
+    }
+
+    lines.push('')
+    lines.push(`💰 *TOTAL A PAGAR:* ${formatCop(totalPrice)}`)
+    lines.push('')
+    lines.push('_Pedido generado desde yarumocoffee.com_')
+
+    const cleanNumber = (whatsappNumber || '573192208938').replace(/\D/g, '')
+    const message = lines.join('\n')
+    const whatsappUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`
+
+    // Abrir WhatsApp
+    window.open(whatsappUrl, '_blank')
+
+    onClearCart()
+    setIsOpen(false)
+    onOrderSuccess('whatsapp')
   }
 
   // El botón flotante solo es visible si hay items en carrito o si hay pedidos realizados para la mesa
@@ -219,12 +314,12 @@ export default function OrderCart({
         aria-label={`Ver pedido actual (${totalItems} productos)`}
       >
         <div className="cart-badge-icon">
-          <span>🛒</span>
+          <span>{isInsideTable ? '🛒' : '🛵'}</span>
           {totalItems > 0 && <span className="cart-count-badge">{totalItems}</span>}
         </div>
         <div className="cart-btn-info">
           <span className="cart-btn-label">
-            {table ? `Mesa ${table.label}` : 'Tu Pedido'}
+            {isInsideTable ? `Mesa ${table?.label}` : 'Tu Domicilio'}
           </span>
           <strong className="cart-btn-price">
             {totalItems > 0 ? formatCop(totalPrice) : `${effectiveOrders.length} comanda(s)`}
@@ -239,14 +334,16 @@ export default function OrderCart({
           className="cart-modal-overlay"
           role="dialog"
           aria-modal="true"
-          aria-label="Resumen de tu pedido"
+          aria-label={isInsideTable ? 'Resumen de tu pedido en mesa' : 'Resumen de tu pedido a domicilio'}
           onClick={() => setIsOpen(false)}
         >
           <div className="cart-modal-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="cart-modal-header">
               <div>
-                <span className="eyebrow">{table ? `Mesa ${table.label}` : 'Servicio en mesa'}</span>
-                <h2>Tu Pedido</h2>
+                <span className="eyebrow">
+                  {isInsideTable ? `Mesa ${table?.label}` : '🛵 Pedido a Domicilio'}
+                </span>
+                <h2>{isInsideTable ? 'Tu Pedido en Mesa' : 'Tu Pedido'}</h2>
               </div>
               <button
                 type="button"
@@ -268,7 +365,7 @@ export default function OrderCart({
               {cart.length === 0 ? (
                 <div className="cart-empty-message">
                   <span className="cart-empty-icon">☕</span>
-                  <p>No tienes nuevos productos por enviar en el carrito.</p>
+                  <p>No tienes productos en tu carrito.</p>
                 </div>
               ) : (
                 <div className="cart-items-list">
@@ -316,7 +413,7 @@ export default function OrderCart({
                       <div className="cart-item-note-input-wrap">
                         <input
                           type="text"
-                          placeholder="Nota para este ítem (ej. sin azúcar, leche de almendra)"
+                          placeholder="Nota para este producto (ej. sin azúcar, leche deslactosada)"
                           value={notes}
                           onChange={(e) => onUpdateItemNotes(item.id, e.target.value)}
                           maxLength={150}
@@ -326,12 +423,90 @@ export default function OrderCart({
                     </div>
                   ))}
 
+                  {/* FORMULARIO DE DOMICILIO: Solo cuando NO está en mesa física */}
+                  {!isInsideTable && (
+                    <div className="delivery-form-section">
+                      <div className="delivery-form-title">
+                        <span>📍 Datos de entrega para el domicilio:</span>
+                      </div>
+
+                      <div className="delivery-field-group">
+                        <label htmlFor="delivery-name">Tu nombre completo: *</label>
+                        <input
+                          id="delivery-name"
+                          type="text"
+                          placeholder="Ej. Ana María Gómez"
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                          required
+                          className="delivery-input"
+                        />
+                      </div>
+
+                      <div className="delivery-field-group">
+                        <label htmlFor="delivery-address">Dirección de entrega (Apto / Casa / Barrio): *</label>
+                        <input
+                          id="delivery-address"
+                          type="text"
+                          placeholder="Ej. Cra 14 # 9 Norte - 20, Apto 402, Barrio Los Profesionales"
+                          value={deliveryAddress}
+                          onChange={(e) => setDeliveryAddress(e.target.value)}
+                          required
+                          className="delivery-input"
+                        />
+                      </div>
+
+                      <div className="delivery-field-group">
+                        <label htmlFor="delivery-phone">Teléfono / Celular de contacto: *</label>
+                        <input
+                          id="delivery-phone"
+                          type="tel"
+                          placeholder="Ej. 310 123 4567"
+                          value={customerPhone}
+                          onChange={(e) => setCustomerPhone(e.target.value)}
+                          required
+                          className="delivery-input"
+                        />
+                      </div>
+
+                      <div className="delivery-field-group">
+                        <label>Forma de pago: *</label>
+                        <div className="delivery-payment-options">
+                          <button
+                            type="button"
+                            className={`delivery-payment-btn ${paymentMethod === 'Efectivo' ? 'active' : ''}`}
+                            onClick={() => setPaymentMethod('Efectivo')}
+                          >
+                            <span>💵</span>
+                            <span>Efectivo</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={`delivery-payment-btn ${paymentMethod === 'Llave (Transferencia)' ? 'active' : ''}`}
+                            onClick={() => setPaymentMethod('Llave (Transferencia)')}
+                          >
+                            <span>🔑</span>
+                            <span>Llave / Transferencia</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="cart-general-notes">
-                    <label htmlFor="order-general-notes">Notas o instrucciones para el equipo:</label>
+                    <label htmlFor="order-general-notes">
+                      {isInsideTable
+                        ? 'Notas o instrucciones para el equipo:'
+                        : 'Instrucciones adicionales para la entrega / preparación:'}
+                    </label>
                     <textarea
                       id="order-general-notes"
                       rows={2}
-                      placeholder="Ej. Servir bebidas primero, cubiertos adicionales..."
+                      placeholder={
+                        isInsideTable
+                          ? 'Ej. Servir bebidas primero, cubiertos adicionales...'
+                          : 'Ej. Dejar en portería, timbrar al llegar, llevar cambio de $50.000...'
+                      }
                       value={orderNotes}
                       onChange={(e) => setOrderNotes(e.target.value)}
                       maxLength={400}
@@ -341,7 +516,7 @@ export default function OrderCart({
               )}
 
               {/* Historial Real de Pedidos de la Mesa */}
-              {effectiveOrders.length > 0 && (
+              {isInsideTable && effectiveOrders.length > 0 && (
                 <div className="cart-session-history">
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                     <h3>Todo lo que has pedido</h3>
@@ -392,16 +567,20 @@ export default function OrderCart({
             {cart.length > 0 && (
               <div className="cart-modal-footer">
                 <div className="cart-footer-summary">
-                  <span>Total a enviar</span>
+                  <span>{isInsideTable ? 'Total a enviar' : 'Total del pedido'}</span>
                   <strong>{formatCop(totalPrice)}</strong>
                 </div>
                 <button
                   type="button"
-                  className="cart-submit-order-btn"
+                  className={`cart-submit-order-btn ${!isInsideTable ? 'btn-whatsapp-submit' : ''}`}
                   onClick={handleSendOrder}
-                  disabled={submitting || !table}
+                  disabled={submitting}
                 >
-                  {submitting ? 'Enviando comanda…' : table ? `Enviar comanda a Mesa ${table.label}` : 'Escanea el QR de tu mesa'}
+                  {isInsideTable
+                    ? submitting
+                      ? 'Enviando comanda…'
+                      : `Enviar comanda · Mesa ${table?.label}`
+                    : '📲 Enviar pedido por WhatsApp →'}
                 </button>
               </div>
             )}

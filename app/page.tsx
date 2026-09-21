@@ -34,6 +34,7 @@ async function getInitialData(): Promise<{
   categories: MenuCategory[]
   promotions: Promotion[]
   heroImageUrl: string
+  whatsappDeliveryNumber: string
 }> {
   const supabase = await createClient()
 
@@ -56,23 +57,28 @@ async function getInitialData(): Promise<{
       .order('sort_order'),
     supabase
       .from('site_settings')
-      .select('key,value')
-      .eq('key', 'hero_image_url')
-      .maybeSingle(),
+      .select('key,value'),
   ])
 
-  const heroImageUrl = settingsRes.data?.value || '/yarumo-cover-cafe.webp'
+  const settingsMap = (settingsRes.data || []).reduce(
+    (acc, row) => ({ ...acc, [row.key]: row.value }),
+    {} as Record<string, string>,
+  )
+
+  const heroImageUrl = settingsMap['hero_image_url'] || '/yarumo-cover-cafe.webp'
+  const whatsappDeliveryNumber = settingsMap['whatsapp_delivery_number'] || '573192208938'
 
   return {
     menu: (menuRes.data || []) as MenuItem[],
     categories: (catRes.data || []) as MenuCategory[],
     promotions: (promoRes.data || []) as Promotion[],
     heroImageUrl,
+    whatsappDeliveryNumber,
   }
 }
 
 export default async function Home() {
-  const { menu, categories, promotions, heroImageUrl } = await getInitialData()
+  const { menu, categories, promotions, heroImageUrl, whatsappDeliveryNumber } = await getInitialData()
 
   return (
     <>
@@ -107,6 +113,7 @@ export default async function Home() {
           initialCategories={categories}
           initialPromotions={promotions}
           heroImageUrl={heroImageUrl}
+          whatsappDeliveryNumber={whatsappDeliveryNumber}
         />
 
         <section className="visit-strip" id="visitanos">

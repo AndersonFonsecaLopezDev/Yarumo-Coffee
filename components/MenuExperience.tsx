@@ -69,6 +69,7 @@ type MenuExperienceProps = {
   initialCategories?: MenuCategory[]
   initialPromotions?: Promotion[]
   heroImageUrl?: string
+  whatsappDeliveryNumber?: string
 }
 
 export default function MenuExperience({
@@ -76,6 +77,7 @@ export default function MenuExperience({
   initialCategories = [],
   initialPromotions = [],
   heroImageUrl = '/yarumo-cover-cafe.webp',
+  whatsappDeliveryNumber = '573192208938',
 }: MenuExperienceProps) {
   const supabase = useMemo(() => createClient(), [])
   const [table, setTable] = useState<{ id: string; label: string } | null>(null)
@@ -293,7 +295,11 @@ export default function MenuExperience({
       }
       return [...prev, { item, quantity: 1, notes: '' }]
     })
-    setNotice(`Agregaste "${item.name}" a tu comanda.`)
+    setNotice(
+      isInsideTable
+        ? `Agregaste "${item.name}" a tu comanda.`
+        : `Agregaste "${item.name}" a tu pedido a domicilio.`,
+    )
   }
 
   function updateCartQuantity(itemId: string, delta: number) {
@@ -324,10 +330,14 @@ export default function MenuExperience({
     setCart([])
   }
 
-  function handleOrderSuccess() {
-    setNotice('¡Tu pedido fue enviado al equipo de Yarumo! Lo estamos preparando.')
-    if (table && mesaToken) {
-      void fetchTableOrders(table.id, mesaToken)
+  function handleOrderSuccess(orderId?: string) {
+    if (orderId === 'whatsapp') {
+      setNotice('¡Abriendo WhatsApp para enviar tu pedido a domicilio!')
+    } else {
+      setNotice('¡Tu pedido fue enviado al equipo de Yarumo! Lo estamos preparando.')
+      if (table && mesaToken) {
+        void fetchTableOrders(table.id, mesaToken)
+      }
     }
   }
 
@@ -391,44 +401,59 @@ export default function MenuExperience({
         </div>
       </section>
 
-      {/* SERVICE IN-TABLE ACTIONS */}
+      {/* SERVICE SECTION (En mesa o Domicilio) */}
       <section className="service">
-        <div className="service-card">
-          <div>
-            <span className="eyebrow">{table ? `Mesa ${table.label}` : 'Servicio en mesa'}</span>
-            <h2>Todo desde tu celular.</h2>
-            <p>
-              {table
-                ? 'Arma tu comanda, sigue el estado de tu pedido o pide la cuenta.'
-                : 'Escanea el QR de tu mesa para pedir directo a cocina y llamar al mesero.'}
-            </p>
+        {isInsideTable ? (
+          <div className="service-card">
+            <div>
+              <span className="eyebrow">{table ? `Mesa ${table.label}` : 'Servicio en mesa'}</span>
+              <h2>Todo desde tu celular.</h2>
+              <p>
+                Arma tu comanda, sigue el estado de tu pedido o pide la cuenta.
+              </p>
+            </div>
+            <div className="service-actions">
+              <button
+                className="primary"
+                onClick={() => request('waiter')}
+                disabled={serviceDisabled}
+                title={serviceHint || undefined}
+              >
+                <span>🛎️</span>
+                <span>{loading ? 'Enviando…' : 'Llamar al mesero'}</span>
+              </button>
+              <button
+                onClick={() => request('bill')}
+                disabled={serviceDisabled}
+                title={serviceHint || undefined}
+                className="bill-request-btn"
+              >
+                <span>🧾</span>
+                <span>
+                  {accumulatedTotalCop > 0
+                    ? `Pedir la cuenta (${formatCop(accumulatedTotalCop)})`
+                    : 'Pedir la cuenta'}
+                </span>
+              </button>
+              {serviceHint && <p className="service-hint">{serviceHint}</p>}
+            </div>
           </div>
-          <div className="service-actions">
-            <button
-              className="primary"
-              onClick={() => request('waiter')}
-              disabled={serviceDisabled}
-              title={serviceHint || undefined}
-            >
-              <span>🛎️</span>
-              <span>{loading ? 'Enviando…' : 'Llamar al mesero'}</span>
-            </button>
-            <button
-              onClick={() => request('bill')}
-              disabled={serviceDisabled}
-              title={serviceHint || undefined}
-              className="bill-request-btn"
-            >
-              <span>🧾</span>
-              <span>
-                {accumulatedTotalCop > 0
-                  ? `Pedir la cuenta (${formatCop(accumulatedTotalCop)})`
-                  : 'Pedir la cuenta'}
-              </span>
-            </button>
-            {serviceHint && <p className="service-hint">{serviceHint}</p>}
+        ) : (
+          <div className="service-card delivery-service-card">
+            <div>
+              <span className="eyebrow">🛵 Pedidos a Domicilio</span>
+              <h2>Pide tu café a domicilio.</h2>
+              <p>
+                Selecciona tus productos favoritos. Al confirmar el carrito, enviaremos el pedido por WhatsApp para despacharlo de inmediato.
+              </p>
+            </div>
+            <div className="service-actions">
+              <a className="hero-link delivery-explore-btn" href="#menu">
+                <span>Explorar carta y pedir</span> <span>↓</span>
+              </a>
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       {/* LIVE ORDER STATUS TRACKER FOR CUSTOMER (Requisito 6) */}
@@ -519,23 +544,21 @@ export default function MenuExperience({
                   className="promotion-card"
                   key={promo.id}
                   onClick={() => handlePromoClick(promo)}
-                  role={promo.linked_menu_item_id ? 'button' : undefined}
-                  tabIndex={promo.linked_menu_item_id ? 0 : undefined}
-                  title={promo.linked_menu_item_id ? 'Toca para ver el producto en la carta' : undefined}
+                  tabIndex={0}
+                  role="button"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      handlePromoClick(promo)
+                    }
+                  }}
                 >
-                  <div className="promotion-badge">
-                    {promo.badge_text || 'PROMO DEL DÍA'}
-                  </div>
+                  {promo.badge_text && <span className="promotion-badge">{promo.badge_text}</span>}
                   <div className="promotion-content">
                     <h3>{promo.title}</h3>
                     {promo.description && <p>{promo.description}</p>}
-                    {promo.ends_at && (
-                      <small style={{ display: 'block', marginTop: '6px', fontSize: '11px', color: 'var(--orange)', fontWeight: 700 }}>
-                        ⏳ Vigente hasta: {new Date(promo.ends_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
-                      </small>
-                    )}
                     {promo.linked_menu_item_id && (
-                      <span className="promotion-action">Ver producto en la carta →</span>
+                      <span className="promotion-action">Ver en la carta →</span>
                     )}
                   </div>
                 </div>
@@ -549,48 +572,37 @@ export default function MenuExperience({
       <section className="content" id="menu">
         <div className="section-top">
           <div>
-            <span className="eyebrow">Nuestra Carta</span>
-            <h2>Elige tu antojo.</h2>
+            <span className="eyebrow">Nuestro Menú</span>
+            <h2>Sabores de origen.</h2>
           </div>
           <div className="search-wrap">
-            <div className="search">
-              <span className="search-icon">🔍</span>
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar café, postre, pizza..."
-                aria-label="Buscar en la carta"
-              />
-              {query && (
-                <button className="search-clear" onClick={() => setQuery('')} aria-label="Limpiar búsqueda">
-                  ×
-                </button>
-              )}
-            </div>
+            <input
+              type="search"
+              placeholder="Buscar por nombre o ingrediente..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Buscar productos del menú"
+            />
           </div>
         </div>
 
+        {/* Dynamic Category Pill Tabs */}
         <div className="category-tabs-container">
-          <div className="category-tabs">
-            {categoryPills.map((pill) => (
+          <div className="category-tabs" role="tablist" aria-label="Categorías del menú">
+            {categoryPills.map((cat) => (
               <button
-                key={pill.name}
-                className={`category-pill ${category === pill.name ? 'active' : ''}`}
-                onClick={() => setCategory(pill.name)}
+                key={cat.name}
+                type="button"
+                role="tab"
+                aria-selected={category === cat.name}
+                className={`category-pill ${category === cat.name ? 'active' : ''}`}
+                onClick={() => setCategory(cat.name)}
               >
-                <span className="category-icon">{pill.icon}</span>
-                <span className="category-label">{pill.name}</span>
-                {category === pill.name && <span className="active-dot" />}
+                <span className="category-icon">{cat.icon}</span>
+                <span>{cat.name}</span>
               </button>
             ))}
           </div>
-        </div>
-
-        <div className="menu-results-count">
-          <span>
-            Mostrando <strong>{filtered.length}</strong> {filtered.length === 1 ? 'producto' : 'productos'}
-            {category !== 'Todos' && <> en <em>{category}</em></>}
-          </span>
         </div>
 
         <div className="menu">
@@ -627,21 +639,21 @@ export default function MenuExperience({
                   <div className="item-footer">
                     <small className="item-price">{formatCop(item.price_cop)}</small>
                     
-                    {/* Botón Pedir: SOLO si está dentro de una mesa escaneada (Requisito 2) */}
-                    {isInsideTable ? (
+                    {/* Botón Pedir: Activo tanto en mesa como para Domicilio */}
+                    <div className="item-actions">
                       <button
                         className="add-to-cart-btn"
                         type="button"
                         onClick={() => addToCart(item)}
-                        disabled={serviceDisabled}
-                        title={serviceHint || 'Agregar a tu pedido'}
+                        disabled={loading || (isInsideTable && tableChecked && !table)}
+                        title={isInsideTable ? (serviceHint || 'Agregar a tu pedido') : 'Agregar a tu pedido a domicilio'}
                         aria-label={`Agregar ${item.name} al pedido`}
                       >
                         <span>+</span>
-                        <span>Pedir</span>
+                        <span>{isInsideTable ? 'Pedir' : 'Pedir'}</span>
                       </button>
-                    ) : (
-                      (Boolean(item.image_url) || (item.gallery_urls?.length ?? 0) > 0) && (
+
+                      {!isInsideTable && (Boolean(item.image_url) || (item.gallery_urls?.length ?? 0) > 0) && (
                         <button
                           className="gallery-link"
                           type="button"
@@ -649,11 +661,12 @@ export default function MenuExperience({
                             setGalleryItem(item)
                             setGalleryIndex(0)
                           }}
+                          aria-label={`Ver fotos de ${item.name}`}
                         >
-                          Ver fotos →
+                          Fotos ↗
                         </button>
-                      )
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               </article>
@@ -676,23 +689,22 @@ export default function MenuExperience({
         </div>
       </section>
 
-      {/* Carrito de Pedidos Flotante (Solo activo si está en mesa) */}
-      {isInsideTable && (
-        <OrderCart
-          cart={cart}
-          table={table}
-          mesaToken={mesaToken}
-          tableOrders={tableOrders}
-          onOrdersRefresh={() => {
-            if (table && mesaToken) void fetchTableOrders(table.id, mesaToken)
-          }}
-          onUpdateQuantity={updateCartQuantity}
-          onUpdateItemNotes={updateCartItemNotes}
-          onRemoveItem={removeCartItem}
-          onClearCart={clearCart}
-          onOrderSuccess={handleOrderSuccess}
-        />
-      )}
+      {/* Carrito de Pedidos Flotante (En mesa o a Domicilio) */}
+      <OrderCart
+        cart={cart}
+        table={table}
+        mesaToken={mesaToken}
+        tableOrders={tableOrders}
+        whatsappNumber={whatsappDeliveryNumber}
+        onOrdersRefresh={() => {
+          if (table && mesaToken) void fetchTableOrders(table.id, mesaToken)
+        }}
+        onUpdateQuantity={updateCartQuantity}
+        onUpdateItemNotes={updateCartItemNotes}
+        onRemoveItem={removeCartItem}
+        onClearCart={clearCart}
+        onOrderSuccess={handleOrderSuccess}
+      />
 
       {notice && (
         <button className="notice" onClick={() => setNotice('')}>

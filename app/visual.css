@@ -955,3 +955,111 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ==========================================================================
+   DELIVERY & WHATSAPP ORDERING STYLES
+   ========================================================================== */
+.delivery-service-card {
+  border-left: 6px solid #25d366;
+}
+
+.delivery-explore-btn {
+  background: var(--ink);
+  color: var(--lime);
+}
+
+.delivery-form-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.delivery-form-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  border-bottom: 1px dashed var(--border);
+  padding-bottom: 8px;
+}
+
+.delivery-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.delivery-field-group label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.delivery-input {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-card);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.delivery-input:focus {
+  border-color: #25d366;
+}
+
+.delivery-payment-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.delivery-payment-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--surface-card);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.delivery-payment-btn:hover {
+  border-color: #25d366;
+}
+
+.delivery-payment-btn.active {
+  background: color-mix(in srgb, #25d366 12%, var(--surface-card));
+  border-color: #25d366;
+  color: #128c7e;
+}
+
+:root[data-theme="dark"] .delivery-payment-btn.active {
+  background: color-mix(in srgb, #25d366 22%, var(--surface-card));
+  color: #4ade80;
+  border-color: #4ade80;
+}
+
+.btn-whatsapp-submit {
+  background: #25d366 !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 18px rgba(37, 211, 102, 0.4) !important;
+  font-size: 15px !important;
+}
+
+.btn-whatsapp-submit:hover:not(:disabled) {
+  background: #20bd5a !important;
+  box-shadow: 0 10px 24px rgba(37, 211, 102, 0.5) !important;
+}
