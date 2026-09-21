@@ -2363,7 +2363,7 @@ export default function Staff() {
               )}
 
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '4px 0 14px' }}>
-                Este es el número al que los clientes enviarán su pedido a domicilio al confirmar el carrito en la web.
+                Este es el número al que los clientes enviarán su pedido a domicilio al confirmar el carrito en la web. (Actualmente: <strong>+{whatsappDeliveryNumber}</strong>)
               </p>
 
               <label htmlFor="whatsapp-delivery-input">Número de WhatsApp (Colombia):</label>

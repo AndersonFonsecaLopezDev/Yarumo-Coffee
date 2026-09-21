@@ -94,10 +94,9 @@ export default function OrderCart({
 
   const isInsideTable = Boolean(table && mesaToken)
 
-  // Cargar datos previos de entrega de localStorage
-  useEffect(() => {
+  function openCartDrawer() {
     try {
-      const saved = localStorage.getItem('yarumo_delivery_customer')
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('yarumo_delivery_customer') : null
       if (saved) {
         const parsed = JSON.parse(saved)
         if (parsed.name) setCustomerName(parsed.name)
@@ -106,7 +105,8 @@ export default function OrderCart({
         if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod)
       }
     } catch {}
-  }, [])
+    setIsOpen(true)
+  }
 
   const effectiveOrders = propTableOrders ?? internalOrders
   const totalItems = cart.reduce((acc, curr) => acc + curr.quantity, 0)
@@ -310,7 +310,7 @@ export default function OrderCart({
       <button
         type="button"
         className="floating-cart-btn"
-        onClick={() => setIsOpen(true)}
+        onClick={openCartDrawer}
         aria-label={`Ver pedido actual (${totalItems} productos)`}
       >
         <div className="cart-badge-icon">
