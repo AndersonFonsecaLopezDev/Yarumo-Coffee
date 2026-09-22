@@ -283,7 +283,8 @@ export default function OrderCart({
     }
 
     lines.push('')
-    lines.push(`💰 *TOTAL A PAGAR:* ${formatCop(totalPrice)}`)
+    lines.push(`💰 *TOTAL PRODUCTOS:* ${formatCop(totalPrice)}`)
+    lines.push('🛵 _(Nota: El costo de domicilio aún no está incluido. Quedo atento a que me confirmen el valor de la entrega y el total final)_')
     lines.push('')
     lines.push('_Pedido generado desde yarumocoffee.com_')
 
@@ -490,6 +491,20 @@ export default function OrderCart({
                           </button>
                         </div>
                       </div>
+
+                      <div
+                        style={{
+                          fontSize: '11px',
+                          color: 'var(--text-muted)',
+                          background: 'color-mix(in srgb, var(--orange) 10%, var(--surface))',
+                          border: '1px dashed color-mix(in srgb, var(--orange) 40%, transparent)',
+                          borderRadius: '8px',
+                          padding: '8px 10px',
+                          lineHeight: '1.4',
+                        }}
+                      >
+                        🛵 <strong>Nota:</strong> El costo de domicilio no está incluido en este valor y te será confirmado por WhatsApp al validar la cobertura de tu dirección.
+                      </div>
                     </div>
                   )}
 
@@ -567,7 +582,14 @@ export default function OrderCart({
             {cart.length > 0 && (
               <div className="cart-modal-footer">
                 <div className="cart-footer-summary">
-                  <span>{isInsideTable ? 'Total a enviar' : 'Total del pedido'}</span>
+                  <div>
+                    <span>{isInsideTable ? 'Total a enviar' : 'Total productos'}</span>
+                    {!isInsideTable && (
+                      <small style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>
+                        (Domicilio no incluido)
+                      </small>
+                    )}
+                  </div>
                   <strong>{formatCop(totalPrice)}</strong>
                 </div>
                 <button
