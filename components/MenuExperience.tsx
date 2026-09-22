@@ -576,13 +576,26 @@ export default function MenuExperience({
             <h2>Sabores de origen.</h2>
           </div>
           <div className="search-wrap">
-            <input
-              type="search"
-              placeholder="Buscar por nombre o ingrediente..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Buscar productos del menú"
-            />
+            <div className="search">
+              <span className="search-icon" aria-hidden="true">🔍</span>
+              <input
+                type="text"
+                placeholder="Buscar por nombre o ingrediente..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Buscar productos del menú"
+              />
+              {query && (
+                <button
+                  type="button"
+                  className="search-clear"
+                  onClick={() => setQuery('')}
+                  aria-label="Limpiar búsqueda"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
