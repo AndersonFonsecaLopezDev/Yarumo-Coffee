@@ -22,11 +22,12 @@ export default function HomeClientSection({
   const [mesaToken, setMesaToken] = useState<string | null>(null)
   const [toastMessage, setToastMessage] = useState<string>('')
 
-  // Si llega a la raíz un error o hash de autenticación OAuth de Supabase, redirigir inmediatamente a /staff
+  // Si llega a la raíz un error, token o código de autenticación (correo, enlace o OAuth), redirigir
   useEffect(() => {
     if (typeof window === 'undefined') return
     const search = window.location.search
     const hash = window.location.hash
+
     const hasAuthError =
       search.includes('error=') ||
       search.includes('error_code=') ||
@@ -35,6 +36,24 @@ export default function HomeClientSection({
 
     if (hasAuthError) {
       window.location.replace('/staff' + search + hash)
+      return
+    }
+
+    const hasAuthCode = search.includes('code=') || search.includes('token_hash=')
+    if (hasAuthCode) {
+      window.location.replace('/auth/callback' + search)
+      return
+    }
+
+    const hasAuthToken =
+      hash.includes('access_token=') ||
+      hash.includes('type=signup') ||
+      hash.includes('type=recovery') ||
+      hash.includes('type=invite') ||
+      hash.includes('type=magiclink')
+
+    if (hasAuthToken) {
+      window.location.replace('/staff' + hash)
     }
   }, [])
 

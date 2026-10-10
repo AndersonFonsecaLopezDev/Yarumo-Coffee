@@ -24,13 +24,24 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const origin = SITE_URL
   const code = requestUrl.searchParams.get('code')
+  const tokenHash = requestUrl.searchParams.get('token_hash')
+  const type = (requestUrl.searchParams.get('type') || 'email') as Parameters<Awaited<ReturnType<typeof createClient>>['auth']['verifyOtp']>[0]['type']
   const requestedNext = requestUrl.searchParams.get('next') ?? '/staff'
   const next = requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : '/staff'
 
-  if (code) {
+  if (code || tokenHash) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
+    let authError = null
+
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code)
+      authError = error
+    } else if (tokenHash && type) {
+      const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
+      authError = error
+    }
+
+    if (!authError) {
       // Verificar si el usuario autenticado tiene perfil en staff_profiles
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {

@@ -276,13 +276,16 @@ export default function StaffPage() {
     setError('')
     setAuthErrorNotice(null)
     setIsLoggingIn(true)
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password })
     setIsLoggingIn(false)
     if (authError) {
       const msg = 'Correo o contraseña incorrectos.'
       setError(msg)
       setAuthErrorNotice({ title: 'Usuario no identificado', message: msg })
     } else {
+      if (authData?.user) {
+        setUser(authData.user.email || 'Staff')
+      }
       await load()
     }
   }
