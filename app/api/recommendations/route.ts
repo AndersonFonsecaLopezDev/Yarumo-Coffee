@@ -1,36 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-
-// Rate limiter anti-spam: máximo 2 envíos por ventana de 60 segundos por IP
-const RATE_LIMIT_WINDOW_MS = 60 * 1000
-const MAX_SUBMISSIONS_PER_WINDOW = 2
-
-type RateLimitEntry = { count: number; windowStart: number }
-const rateLimitMap = new Map<string, RateLimitEntry>()
-
-function checkRateLimit(identifier: string): boolean {
-  const now = Date.now()
-  if (rateLimitMap.size > 1000) {
-    for (const [key, entry] of rateLimitMap.entries()) {
-      if (now - entry.windowStart > RATE_LIMIT_WINDOW_MS * 2) {
-        rateLimitMap.delete(key)
-      }
-    }
-  }
-
-  const current = rateLimitMap.get(identifier)
-  if (!current || now - current.windowStart > RATE_LIMIT_WINDOW_MS) {
-    rateLimitMap.set(identifier, { count: 1, windowStart: now })
-    return true
-  }
-
-  if (current.count >= MAX_SUBMISSIONS_PER_WINDOW) {
-    return false
-  }
-
-  current.count += 1
-  return true
-}
+import { checkPersistentRateLimit } from '@/lib/rate-limit'
 
 export async function GET() {
   try {
@@ -67,9 +37,10 @@ export async function POST(request: NextRequest) {
     const tableId = tableNumber ? String(tableNumber).trim() : 'general'
     const clientKey = `${ip}:${tableId}`
 
-    if (!checkRateLimit(clientKey)) {
+    const { allowed, retryAfter } = await checkPersistentRateLimit(clientKey, tableNumber)
+    if (!allowed) {
       return NextResponse.json(
-        { error: 'Has enviado varias opiniones recientemente. Por favor espera un minuto antes de enviar otra.' },
+        { error: `Has enviado varias opiniones recientemente. Por favor espera ${retryAfter || 60} segundos antes de enviar otra.` },
         { status: 429 },
       )
     }

@@ -1,13 +1,15 @@
-import Image from 'next/image'
-import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import MenuExperience, {
-  type MenuItem,
-  type MenuCategory,
-  type Promotion,
-} from '@/components/MenuExperience'
-import ThemeToggle from '@/components/ThemeToggle'
-import { SITE_URL, GOOGLE_REVIEWS_URL } from '@/lib/site-url'
+import Header from '@/components/Header'
+import HeroSection from '@/components/HeroSection'
+import HomeClientSection from '@/components/HomeClientSection'
+import VisitStrip from '@/components/VisitStrip'
+import Footer from '@/components/Footer'
+import { createPublicClient } from '@/lib/supabase/public'
+import { SITE_URL } from '@/lib/site-url'
+import type { MenuItem, MenuCategory } from '@/components/MenuCatalog'
+import type { Promotion } from '@/components/PromotionsSection'
+
+// Revalidación estática ISR cada 120 segundos
+export const revalidate = 120
 
 const cafeJsonLd = {
   '@context': 'https://schema.org',
@@ -15,6 +17,15 @@ const cafeJsonLd = {
   name: 'Yarumo Coffee',
   image: `${SITE_URL}/yarumo-cover-cafe-og.webp`,
   url: SITE_URL,
+  telephone: '+573192208938',
+  priceRange: '$$',
+  servesCuisine: ['Café de especialidad', 'Repostería artesanal', 'Bebidas calientes y frías'],
+  menu: `${SITE_URL}/#menu`,
+  geo: {
+    '@type': 'GeoCoordinates',
+    latitude: 4.5429,
+    longitude: -75.6668,
+  },
   address: {
     '@type': 'PostalAddress',
     streetAddress: 'Carrera 19 # 21 Norte-01 Local 1',
@@ -22,13 +33,26 @@ const cafeJsonLd = {
     addressRegion: 'Quindío',
     addressCountry: 'CO',
   },
+  openingHoursSpecification: [
+    {
+      '@type': 'OpeningHoursSpecification',
+      dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+      opens: '08:00',
+      closes: '20:00',
+    },
+    {
+      '@type': 'OpeningHoursSpecification',
+      dayOfWeek: ['Sunday'],
+      opens: '09:00',
+      closes: '19:00',
+    },
+  ],
   sameAs: [
     'https://www.instagram.com/yarumocafearmenia/',
     'https://maps.app.goo.gl/yr8DTNsgNKm6NQb6A?g_st=iw',
   ],
 }
 
-// Server Component: the menu, categories, and active promotions are fetched and rendered on the server
 async function getInitialData(): Promise<{
   menu: MenuItem[]
   categories: MenuCategory[]
@@ -36,7 +60,7 @@ async function getInitialData(): Promise<{
   heroImageUrl: string
   whatsappDeliveryNumber: string
 }> {
-  const supabase = await createClient()
+  const supabase = createPublicClient()
 
   const [menuRes, catRes, promoRes, settingsRes] = await Promise.all([
     supabase
@@ -86,71 +110,18 @@ export default async function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(cafeJsonLd) }}
       />
-      <header className="header">
-        <a className="brand" href="#inicio">
-          <Image src="/yarumo-logo.webp" alt="Yarumo Coffee" width={44} height={44} priority />
-          <span>
-            <strong>Yarumo</strong>
-            <small>COFFEE</small>
-          </span>
-        </a>
-        <nav className="nav-links">
-          <a href="#menu">Carta</a>
-          <Link href="/recomendaciones">Opiniones</Link>
-          <a href="#visitanos">Visítanos</a>
-        </nav>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <ThemeToggle />
-          <a className="instagram-link" href="https://www.instagram.com/yarumocafearmenia/" target="_blank" rel="noreferrer">
-            Instagram ↗
-          </a>
-        </div>
-      </header>
-
-      <main id="inicio">
-        <MenuExperience
+      <Header />
+      <main id="main-content">
+        <HeroSection heroImageUrl={heroImageUrl} />
+        <HomeClientSection
           initialMenu={menu}
           initialCategories={categories}
           initialPromotions={promotions}
-          heroImageUrl={heroImageUrl}
           whatsappDeliveryNumber={whatsappDeliveryNumber}
         />
-
-        <section className="visit-strip" id="visitanos">
-          <div>
-            <span className="eyebrow">Ven a vernos</span>
-            <h2>
-              Tu mesa<br />
-              <em>te espera.</em>
-            </h2>
-          </div>
-          <div>
-            <p>
-              Carrera 19 # 21 Norte-01 Local 1<br />
-              Armenia, Quindío
-            </p>
-            <a href="https://maps.app.goo.gl/yr8DTNsgNKm6NQb6A?g_st=iw" target="_blank" rel="noreferrer">
-              Abrir en Google Maps ↗
-            </a>
-          </div>
-        </section>
-
-        <footer className="footer">
-          <span>Yarumo Coffee · Donde cada taza cuenta una historia.</span>
-          <span>
-            <Link href="/recomendaciones">Dejar recomendación</Link>{' '}
-            ·{' '}
-            <a href={GOOGLE_REVIEWS_URL} target="_blank" rel="noreferrer">
-              Reseñas de Google ↗
-            </a>{' '}
-            ·{' '}
-            <a href="https://www.instagram.com/yarumocafearmenia/" target="_blank" rel="noreferrer">
-              Instagram ↗
-            </a>
-          </span>
-        </footer>
+        <VisitStrip />
       </main>
+      <Footer />
     </>
   )
 }
-

@@ -1,21 +1,30 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
-import './staff.css'
-import './visual.css'
+import { fontSerif, fontSans } from '@/app/fonts'
 import { SITE_URL } from '@/lib/site-url'
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f7f1e8' },
+    { media: '(prefers-color-scheme: dark)', color: '#12211c' },
+  ],
+  width: 'device-width',
+  initialScale: 1,
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: 'Yarumo Coffee · Atención en mesa',
-  description: 'Menú digital y atención en mesa de Yarumo Coffee Armenia.',
+  title: 'Yarumo Coffee · Menú Digital y Atención en Mesa',
+  description: 'Menú digital y atención en mesa de Yarumo Coffee en Armenia, Quindío. Pide a tu mesa o a domicilio con café especial de origen.',
+  manifest: '/manifest.webmanifest',
   icons: {
     icon: [{ url: '/icon-32.png', sizes: '32x32', type: 'image/png' }],
     shortcut: '/icon-32.png',
     apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
   openGraph: {
-    title: 'Yarumo Coffee · Atención en mesa',
+    title: 'Yarumo Coffee · Menú Digital y Atención en Mesa',
     description: 'Menú digital y atención en mesa de Yarumo Coffee Armenia. Pide la cuenta o llama al mesero desde tu celular.',
     url: SITE_URL,
     siteName: 'Yarumo Coffee',
@@ -25,7 +34,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Yarumo Coffee · Atención en mesa',
+    title: 'Yarumo Coffee · Menú Digital y Atención en Mesa',
     description: 'Menú digital y atención en mesa de Yarumo Coffee Armenia.',
     images: ['/yarumo-cover-cafe-og.webp'],
   },
@@ -42,11 +51,15 @@ const themeScript = `(function() {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" className={`${fontSerif.variable} ${fontSans.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body>{children}<Analytics /></body>
+      <body>
+        <a href="#menu" className="skip-link">Saltar a la carta</a>
+        {children}
+        <Analytics />
+      </body>
     </html>
   )
 }

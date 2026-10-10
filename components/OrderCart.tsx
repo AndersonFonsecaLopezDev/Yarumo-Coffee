@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { MenuItem } from './MenuExperience'
+import type { MenuItem } from './MenuCatalog'
 
 export type CartItem = {
   item: MenuItem

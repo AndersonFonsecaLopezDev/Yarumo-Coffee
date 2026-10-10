@@ -1,10 +1,16 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
-import ThemeToggle from '@/components/ThemeToggle'
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
+import RecommendationForm from '@/components/RecommendationForm'
+import { createPublicClient } from '@/lib/supabase/public'
 import { GOOGLE_REVIEWS_URL } from '@/lib/site-url'
+import type { Metadata } from 'next'
+
+export const revalidate = 60
+
+export const metadata: Metadata = {
+  title: 'Opiniones y Recomendaciones · Yarumo Coffee',
+  description: 'Lee las experiencias de nuestros clientes y déjanos tu opinión sobre el café y la atención en Yarumo Coffee Armenia.',
+}
 
 type Recommendation = {
   id: string
@@ -15,235 +21,100 @@ type Recommendation = {
   created_at: string
 }
 
-export default function RecomendacionesPage() {
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [successMsg, setSuccessMsg] = useState('')
-  const [errorMsg, setErrorMsg] = useState('')
+async function getPublishedRecommendations(): Promise<Recommendation[]> {
+  try {
+    const supabase = createPublicClient()
+    const { data } = await supabase
+      .from('recommendations')
+      .select('id, name, rating, comment, table_number, created_at')
+      .eq('status', 'published')
+      .order('created_at', { ascending: false })
+      .limit(50)
 
-  // Form state
-  const [name, setName] = useState('')
-  const [rating, setRating] = useState(5)
-  const [hoverRating, setHoverRating] = useState(0)
-  const [tableNumber, setTableNumber] = useState('')
-  const [comment, setComment] = useState('')
-
-  useEffect(() => {
-    async function fetchRecommendations() {
-      try {
-        const res = await fetch('/api/recommendations', { cache: 'no-store' })
-        if (res.ok) {
-          const data = await res.json()
-          setRecommendations(data)
-        }
-      } catch {
-        // Fallback silently if offline or database error
-      } finally {
-        setLoading(false)
-      }
-    }
-    void fetchRecommendations()
-  }, [])
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSubmitting(true)
-    setErrorMsg('')
-    setSuccessMsg('')
-
-    try {
-      const res = await fetch('/api/recommendations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          rating,
-          comment: comment.trim(),
-          tableNumber: tableNumber.trim() || undefined,
-        }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setErrorMsg(data.error || 'Ocurrió un error al enviar tu recomendación.')
-        setSubmitting(false)
-        return
-      }
-
-      setSuccessMsg('¡Muchas gracias por tu recomendación! Tu opinión ha sido recibida.')
-      setName('')
-      setRating(5)
-      setTableNumber('')
-      setComment('')
-
-    } catch {
-      setErrorMsg('No se pudo conectar con el servidor. Intenta de nuevo.')
-    } finally {
-      setSubmitting(false)
-    }
+    return (data || []) as Recommendation[]
+  } catch {
+    return []
   }
+}
+
+export default async function RecomendacionesPage() {
+  const recommendations = await getPublishedRecommendations()
 
   return (
     <>
-      <header className="header">
-        <Link className="brand" href="/">
-          <Image src="/yarumo-logo.webp" alt="Yarumo Coffee" width={44} height={44} priority />
-          <span>
-            <strong>Yarumo</strong>
-            <small>COFFEE</small>
-          </span>
-        </Link>
-        <nav className="nav-links">
-          <Link href="/">Carta</Link>
-          <Link href="/recomendaciones" className="active">Opiniones</Link>
-          <Link href="/#visitanos">Visítanos</Link>
-        </nav>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <ThemeToggle />
-          <a className="instagram-link" href="https://www.instagram.com/yarumocafearmenia/" target="_blank" rel="noreferrer">
-            Instagram ↗
-          </a>
+      <Header />
+      <main style={{ maxWidth: 1080, margin: '0 auto', padding: '40px 20px 80px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <span className="eyebrow">Comunidad Yarumo</span>
+          <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', margin: '8px 0 12px' }}>
+            Voces de nuestra mesa
+          </h1>
+          <p style={{ maxWidth: 560, margin: '0 auto', color: 'var(--text-muted)' }}>
+            Cada visita escribe un capítulo. Cuéntanos qué sentiste al probar nuestro café o explora las impresiones de otros amantes del café especial.
+          </p>
         </div>
-      </header>
 
-      <main className="recomendaciones-main">
-        <section className="hero">
-          <div className="hero-content">
-            <span className="eyebrow">Comunidad Yarumo</span>
-            <h1>
-              Déjanos tu<br />
-              <em>recomendación.</em>
-            </h1>
-            <p>Donde cada taza cuenta una historia. Tu experiencia u opinión nos ayuda a crecer.</p>
-          </div>
-        </section>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 36, alignItems: 'start' }}>
+          {/* Formulario interactivo en cliente */}
+          <RecommendationForm />
 
-        <section className="recomendaciones-container">
-          <form className="recomendacion-form" onSubmit={handleSubmit}>
-            <h2>Escribe tu opinión</h2>
-            <p className="form-sub">Comparte tu experiencia con nosotros y otros visitantes.</p>
-
-            {errorMsg && <div className="admin-error">{errorMsg}</div>}
-            {successMsg && <div className="notice-success">{successMsg}</div>}
-
-            <label className="form-label">
-              <span>Tu calificación</span>
-              <div className="stars-picker" onMouseLeave={() => setHoverRating(0)}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    className={`star-btn ${(hoverRating || rating) >= star ? 'filled' : ''}`}
-                    onClick={() => setRating(star)}
-                    onMouseEnter={() => setHoverRating(star)}
-                    aria-label={`${star} estrella${star > 1 ? 's' : ''}`}
-                  >
-                    ★
-                  </button>
-                ))}
-                <span className="rating-num">{hoverRating || rating} / 5</span>
-              </div>
-            </label>
-
-            <div className="form-row">
-              <label className="form-label flex-1">
-                <span>Tu nombre *</span>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ej. María Fernanda"
-                  required
-                  minLength={2}
-                  maxLength={80}
-                />
-              </label>
-
-              <label className="form-label min-w-120">
-                <span>Mesa (opcional)</span>
-                <input
-                  type="text"
-                  value={tableNumber}
-                  onChange={(e) => setTableNumber(e.target.value)}
-                  placeholder="Ej. 4"
-                />
-              </label>
+          {/* Lista de recomendaciones renderizada en servidor */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontSize: '1.4rem', margin: 0 }}>
+                Opiniones recientes ({recommendations.length})
+              </h2>
+              <a
+                href={GOOGLE_REVIEWS_URL}
+                target="_blank"
+                rel="noreferrer"
+                style={{ fontSize: '0.85rem', color: 'var(--orange)', fontWeight: 700 }}
+              >
+                Google Reviews ↗
+              </a>
             </div>
 
-            <label className="form-label">
-              <span>Tu recomendación o comentario *</span>
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="¿Qué fue lo que más te gustó? ¿Qué café o preparación nos recomiendas?"
-                required
-                minLength={5}
-                maxLength={1000}
-                rows={4}
-              />
-            </label>
-
-            <button type="submit" className="button submit-rec-btn" disabled={submitting}>
-              {submitting ? 'Enviando…' : 'Publicar recomendación'}
-            </button>
-          </form>
-
-          <div className="recomendaciones-list-wrap">
-            <h2>Recomendaciones recientes ({recommendations.length})</h2>
-
-            {loading ? (
-              <div className="skeleton-item" style={{ height: '180px' }} />
-            ) : recommendations.length === 0 ? (
-              <div className="empty-rec-box">
-                <p>Sé el primero en dejar una recomendación para Yarumo Coffee.</p>
+            {recommendations.length === 0 ? (
+              <div style={{ padding: 32, textAlign: 'center', background: 'var(--surface-card)', borderRadius: 16, border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                Sé el primero en dejarnos tu opinión en esta mesa.
               </div>
             ) : (
-              <div className="recomendaciones-grid">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {recommendations.map((rec) => (
-                  <article key={rec.id} className="rec-card">
-                    <div className="rec-card-header">
-                      <div className="rec-card-stars">
-                        {'★'.repeat(rec.rating)}
-                        <span className="empty-stars">{'★'.repeat(5 - rec.rating)}</span>
+                  <article
+                    key={rec.id}
+                    style={{
+                      background: 'var(--surface-card)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 16,
+                      padding: 18,
+                      boxShadow: 'var(--shadow-sm)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <div>
+                        <strong style={{ fontSize: '1rem', display: 'block' }}>{rec.name}</strong>
+                        {rec.table_number && (
+                          <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                            Mesa {rec.table_number}
+                          </small>
+                        )}
                       </div>
-                      <span className="rec-card-date">
-                        {new Date(rec.created_at).toLocaleDateString('es-CO', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
-                      </span>
+                      <div style={{ color: 'var(--orange)', fontSize: '0.9rem' }} aria-label={`${rec.rating} de 5 estrellas`}>
+                        {'★'.repeat(rec.rating)}{'☆'.repeat(5 - rec.rating)}
+                      </div>
                     </div>
-
-                    <p className="rec-card-comment">“{rec.comment}”</p>
-
-                    <div className="rec-card-author">
-                      <strong>{rec.name}</strong>
-                      {rec.table_number && <small>Mesa {rec.table_number}</small>}
-                    </div>
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                      {rec.comment}
+                    </p>
                   </article>
                 ))}
               </div>
             )}
           </div>
-        </section>
-
-        <footer className="footer">
-          <span>Yarumo Coffee · Donde cada taza cuenta una historia.</span>
-          <span>
-            <a href={GOOGLE_REVIEWS_URL} target="_blank" rel="noreferrer">
-              Reseñas de Google ↗
-            </a>{' '}
-            ·{' '}
-            <a href="https://www.instagram.com/yarumocafearmenia/" target="_blank" rel="noreferrer">
-              Instagram ↗
-            </a>
-          </span>
-        </footer>
-
+        </div>
       </main>
+      <Footer />
     </>
   )
 }
