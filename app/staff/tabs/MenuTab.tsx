@@ -32,7 +32,11 @@ export default function MenuTab({
 }: MenuTabProps) {
   const [supabase] = useState(() => createClient())
   const [editing, setEditing] = useState<MenuItem | null>(null)
-  const [form, setForm] = useState<MenuForm>(blankMenuForm)
+  const [form, setForm] = useState<MenuForm>(() => ({
+    ...blankMenuForm,
+    category: categories[0]?.name || 'Bebidas Calientes',
+    category_id: categories[0]?.id || undefined,
+  }))
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -42,13 +46,14 @@ export default function MenuTab({
 
   function editItem(item: MenuItem) {
     setEditing(item)
+    setImageFile(null)
     setForm({
       name: item.name,
       slug: item.slug || '',
       description: item.description || '',
       price_cop: item.price_cop || 0,
-      category: item.category || 'Bebidas Calientes',
-      category_id: item.category_id || undefined,
+      category: item.category || (categories[0]?.name || 'Bebidas Calientes'),
+      category_id: item.category_id || categories.find((c) => c.name === item.category)?.id || undefined,
       available: item.available,
       sort_order: item.sort_order || 0,
       image_url: item.image_url || '',
@@ -58,7 +63,11 @@ export default function MenuTab({
 
   function newItem() {
     setEditing(null)
-    setForm(blankMenuForm)
+    setForm({
+      ...blankMenuForm,
+      category: categories[0]?.name || 'Bebidas Calientes',
+      category_id: categories[0]?.id || undefined,
+    })
     setImageFile(null)
   }
 
@@ -186,16 +195,17 @@ export default function MenuTab({
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 0.8fr', gap: 10 }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Precio COP *</label>
               <input
                 type="number"
                 min="0"
                 required
-                value={form.price_cop}
+                value={form.price_cop || ''}
                 onChange={(e) => setForm({ ...form, price_cop: Number(e.target.value) })}
                 className="input"
+                placeholder="12000"
               />
             </div>
             <div>
@@ -219,6 +229,17 @@ export default function MenuTab({
                 ))}
               </select>
             </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Orden</label>
+              <input
+                type="number"
+                value={form.sort_order}
+                onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })}
+                className="input"
+                placeholder="0"
+                title="Número para ordenar dentro de la categoría"
+              />
+            </div>
           </div>
 
           <div>
@@ -233,12 +254,26 @@ export default function MenuTab({
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Foto (Archivo)</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-            />
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Foto Principal (Archivo o URL)</label>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+              />
+              {form.image_url && (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-danger"
+                  onClick={() => {
+                    setForm({ ...form, image_url: '' })
+                    setImageFile(null)
+                  }}
+                >
+                  Quitar foto
+                </button>
+              )}
+            </div>
             {form.image_url && !imageFile && (
               <div style={{ position: 'relative', width: 64, height: 64, borderRadius: 8, overflow: 'hidden', marginTop: 8 }}>
                 <Image
@@ -250,6 +285,17 @@ export default function MenuTab({
                 />
               </div>
             )}
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Fotos adicionales de galería (URLs opcionales, una por línea)</label>
+            <textarea
+              rows={2}
+              value={form.gallery_urls}
+              onChange={(e) => setForm({ ...form, gallery_urls: e.target.value })}
+              className="input"
+              placeholder="https://.../foto2.webp&#10;https://.../foto3.webp"
+            />
           </div>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>

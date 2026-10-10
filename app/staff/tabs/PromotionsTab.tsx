@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import type { Promotion, MenuItem, PromotionForm } from '../types'
 import { createClient } from '@/lib/supabase/client'
 import { revalidatePublicContent } from '@/app/actions/revalidate'
@@ -41,11 +42,13 @@ export default function PromotionsTab({
     ...blankPromotionForm,
     starts_at: toLocalDatetimeInput(new Date().toISOString()),
   })
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   function editPromo(promo: Promotion) {
     setEditingPromotion(promo)
+    setImageFile(null)
     setForm({
       title: promo.title,
       description: promo.description || '',
@@ -61,6 +64,7 @@ export default function PromotionsTab({
 
   function newPromo() {
     setEditingPromotion(null)
+    setImageFile(null)
     setForm({
       ...blankPromotionForm,
       starts_at: toLocalDatetimeInput(new Date().toISOString()),
@@ -76,10 +80,32 @@ export default function PromotionsTab({
     setError('')
     setSaving(true)
 
+    let imageUrl = form.image_url.trim() || null
+
+    if (imageFile) {
+      if (!imageFile.type.startsWith('image/') || imageFile.size > 5 * 1024 * 1024) {
+        setSaving(false)
+        setError('Las imágenes deben ser JPG, PNG o WebP y pesar máximo 5 MB.')
+        return
+      }
+      const extension = imageFile.name.split('.').pop()?.toLowerCase() || 'jpg'
+      const path = `promo-${crypto.randomUUID()}.${extension}`
+      const upload = await supabase.storage
+        .from('menu-images')
+        .upload(path, imageFile, { cacheControl: '31536000', contentType: imageFile.type, upsert: false })
+      if (upload.error) {
+        setSaving(false)
+        setError('No se pudo cargar la imagen de la promoción: ' + upload.error.message)
+        return
+      }
+      imageUrl = supabase.storage.from('menu-images').getPublicUrl(path).data.publicUrl
+    }
+
     const payload = {
       title: form.title.trim(),
       description: form.description.trim(),
       badge_text: form.badge_text.trim() || null,
+      image_url: imageUrl,
       linked_menu_item_id: form.linked_menu_item_id || null,
       starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : new Date().toISOString(),
       ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
@@ -179,20 +205,90 @@ export default function PromotionsTab({
             </div>
           </div>
 
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Producto Vinculado</label>
+              <select
+                value={form.linked_menu_item_id}
+                onChange={(e) => {
+                  const linkedId = e.target.value
+                  const linkedItem = items.find((it) => it.id === linkedId)
+                  setForm({
+                    ...form,
+                    linked_menu_item_id: linkedId,
+                    // Si no tiene imagen propia y el producto tiene imagen, sugerirla
+                    image_url: form.image_url || linkedItem?.image_url || '',
+                  })
+                }}
+                className="input"
+              >
+                <option value="">-- Ninguno (solo informativo) --</option>
+                {items.map((it) => (
+                  <option key={it.id} value={it.id}>
+                    {it.name} (${it.price_cop.toLocaleString('es-CO')})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Orden en Carrusel</label>
+              <input
+                type="number"
+                value={form.sort_order}
+                onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })}
+                className="input"
+                placeholder="0"
+              />
+            </div>
+          </div>
+
           <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Producto Vinculado</label>
-            <select
-              value={form.linked_menu_item_id}
-              onChange={(e) => setForm({ ...form, linked_menu_item_id: e.target.value })}
-              className="input"
-            >
-              <option value="">-- Ninguno (solo informativo) --</option>
-              {items.map((it) => (
-                <option key={it.id} value={it.id}>
-                  {it.name} (${it.price_cop.toLocaleString('es-CO')})
-                </option>
-              ))}
-            </select>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Imagen de la Promoción (Archivo o URL)</label>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+              />
+              {form.linked_menu_item_id && (() => {
+                const linked = items.find((it) => it.id === form.linked_menu_item_id)
+                if (linked?.image_url && linked.image_url !== form.image_url) {
+                  return (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline"
+                      onClick={() => setForm({ ...form, image_url: linked.image_url || '' })}
+                    >
+                      Usar foto de {linked.name}
+                    </button>
+                  )
+                }
+                return null
+              })()}
+              {form.image_url && (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-danger"
+                  onClick={() => {
+                    setForm({ ...form, image_url: '' })
+                    setImageFile(null)
+                  }}
+                >
+                  Quitar foto
+                </button>
+              )}
+            </div>
+            {form.image_url && !imageFile && (
+              <div style={{ position: 'relative', width: 72, height: 72, borderRadius: 10, overflow: 'hidden', marginTop: 8 }}>
+                <Image
+                  src={form.image_url}
+                  alt={form.title || 'Foto de promoción'}
+                  fill
+                  sizes="72px"
+                  style={{ objectFit: 'cover' }}
+                />
+              </div>
+            )}
           </div>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>

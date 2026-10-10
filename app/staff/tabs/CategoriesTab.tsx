@@ -53,14 +53,13 @@ export default function CategoriesTab({
     setError('')
     setSaving(true)
 
-    const slug =
-      form.slug.trim() ||
-      form.name
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '')
+    const rawSlug = form.slug.trim() || form.name.trim()
+    const slug = rawSlug
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
 
     const payload = {
       name: form.name.trim(),
