@@ -318,13 +318,6 @@ export default function MenuCatalog({
     setCart([])
   }, [])
 
-  const shareProductWhatsapp = useCallback((item: MenuItem) => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://yarumo-coffee.vercel.app'
-    const link = `${origin}/?item=${item.id}#menu`
-    const message = encodeURIComponent(`¡Mira este café de Yarumo Coffee! ☕ ${item.name}: ${link}`)
-    window.open(`https://api.whatsapp.com/send?text=${message}`, '_blank')
-  }, [])
-
   const handleSelectCategory = (catId: string, event: React.MouseEvent<HTMLButtonElement>) => {
     setSelectedCategoryId(catId)
     event.currentTarget.scrollIntoView({
@@ -534,8 +527,20 @@ export default function MenuCatalog({
                       className={`item-fav-btn ${isFav ? 'is-favorite' : ''}`}
                       onClick={() => toggleFavorite(item.id)}
                       aria-label={isFav ? `Quitar ${item.name} de favoritos` : `Guardar ${item.name} en favoritos`}
+                      title={isFav ? 'Quitar de favoritos' : 'Guardar en favoritos'}
                     >
-                      {isFav ? '♥' : '♡'}
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill={isFav ? '#e53e3e' : 'none'}
+                        stroke={isFav ? '#e53e3e' : 'currentColor'}
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="fav-heart-icon"
+                        aria-hidden="true"
+                      >
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </svg>
                     </button>
 
                     <div className="item-body">
@@ -598,16 +603,6 @@ export default function MenuCatalog({
                               <span>Pedir</span>
                             </button>
                           )}
-
-                          <button
-                            type="button"
-                            className="item-share-btn"
-                            onClick={() => shareProductWhatsapp(item)}
-                            aria-label={`Compartir ${item.name} por WhatsApp`}
-                            title="Compartir por WhatsApp"
-                          >
-                            💬
-                          </button>
                         </div>
                       </div>
                     </div>
