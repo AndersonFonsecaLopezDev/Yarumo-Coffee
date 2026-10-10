@@ -509,7 +509,14 @@ export default function StaffPage() {
 
       <main className="staff-main">
         {tab === 'activity' && (
-          <ActivityTab orders={orders} requests={requests} onRefresh={load} />
+          <ActivityTab
+            orders={orders}
+            requests={requests}
+            tables={tables}
+            items={items}
+            categories={categories}
+            onRefresh={load}
+          />
         )}
         {tab === 'menu' && (
           <MenuTab items={items} categories={categories} onRefresh={load} />
