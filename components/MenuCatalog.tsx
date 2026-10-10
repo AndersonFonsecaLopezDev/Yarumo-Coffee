@@ -61,6 +61,48 @@ function normalizeText(text: string): string {
     .trim()
 }
 
+// Componente para resaltar coincidencias en la búsqueda
+function HighlightMatch({ text, query }: { text: string; query: string }) {
+  if (!query.trim()) return <>{text}</>
+  const normQuery = normalizeText(query)
+  const normText = normalizeText(text)
+  const matchIndex = normText.indexOf(normQuery)
+  if (matchIndex === -1) return <>{text}</>
+
+  const before = text.slice(0, matchIndex)
+  const matched = text.slice(matchIndex, matchIndex + query.length)
+  const after = text.slice(matchIndex + query.length)
+
+  return (
+    <>
+      {before}
+      <mark style={{ background: 'rgba(217, 232, 106, 0.45)', color: 'inherit', borderRadius: 3, padding: '0 2px' }}>
+        {matched}
+      </mark>
+      {after}
+    </>
+  )
+}
+
+// Extrae o infiere etiquetas de producto (Nuevo, Recomendado del barista, Vegano, Sin azúcar)
+function getProductTags(item: MenuItem): string[] {
+  if (item.tags && item.tags.length > 0) return item.tags
+  const tags: string[] = []
+  const descLower = (item.description || '').toLowerCase()
+  const nameLower = item.name.toLowerCase()
+
+  if (descLower.includes('vegano') || nameLower.includes('vegano')) {
+    tags.push('Vegano')
+  }
+  if (descLower.includes('sin azúcar') || descLower.includes('sin azucar')) {
+    tags.push('Sin azúcar añadida')
+  }
+  if (item.sort_order <= 1) {
+    tags.push('Recomendado del barista')
+  }
+  return tags
+}
+
 export default function MenuCatalog({
   initialMenu,
   initialCategories,
@@ -85,10 +127,10 @@ export default function MenuCatalog({
   const [tableOrders, setTableOrders] = useState<TableOrder[]>([])
   const [toastMessage, setToastMessage] = useState<string>('')
 
-  // Referencia al contenedor de pestañas para scrollIntoView
+  // Referencia a las pestañas para navegación por teclado ARIA
   const tabsContainerRef = useRef<HTMLDivElement>(null)
 
-  // 1. Carrito con persistencia en localStorage (con versión y caducidad de 24h)
+  // 1. Carrito con persistencia en localStorage (versión 1 y caducidad de 24h)
   const [cart, setCart] = useState<CartItem[]>(() => {
     if (typeof window === 'undefined') return []
     try {
@@ -96,7 +138,6 @@ export default function MenuCatalog({
       if (!raw) return []
       const parsed = JSON.parse(raw)
       const now = Date.now()
-      // Si el carrito guardado tiene más de 24 horas, expirar
       if (parsed.savedAt && now - parsed.savedAt > 24 * 60 * 60 * 1000) {
         localStorage.removeItem(CART_STORAGE_KEY)
         return []
@@ -107,7 +148,6 @@ export default function MenuCatalog({
     }
   })
 
-  // Guardar en localStorage cada vez que cambie el carrito
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -118,10 +158,27 @@ export default function MenuCatalog({
           items: cart,
         }),
       )
-    } catch {
-      // Ignorar quota errors
-    }
+    } catch {}
   }, [cart])
+
+  // 2. Deep link ?item=id o ?item=slug al cargar
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const targetItemId = params.get('item')
+    if (targetItemId) {
+      setTimeout(() => {
+        const el = document.getElementById(`item-${targetItemId}`)
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          el.style.outline = '3px solid var(--lime)'
+          setTimeout(() => {
+            el.style.outline = 'none'
+          }, 3000)
+        }
+      }, 300)
+    }
+  }, [])
 
   const toggleFavorite = useCallback((itemId: string) => {
     setFavorites((prev) => {
@@ -178,7 +235,6 @@ export default function MenuCatalog({
     }
   }, [table, mesaToken, fetchTableOrders, supabase])
 
-  // Pedido activo más reciente
   const latestOrder = useMemo(() => {
     if (!tableOrders.length) return null
     const inFlight = tableOrders.find(
@@ -187,12 +243,11 @@ export default function MenuCatalog({
     return inFlight || tableOrders[0]
   }, [tableOrders])
 
-  // 4. Filtrado del menú por categoría y búsqueda insensible a tildes
+  // 4. Filtrado del menú por category_id y búsqueda insensible a tildes
   const filteredMenu = useMemo(() => {
     const normalizedQuery = normalizeText(deferredQuery)
 
     return initialMenu.filter((item) => {
-      // Filtro por category_id o fallback por nombre
       if (selectedCategoryId !== 'all') {
         const matchesCategoryId = item.category_id === selectedCategoryId
         const matchesCategoryName = item.category === selectedCategoryId
@@ -211,7 +266,6 @@ export default function MenuCatalog({
     })
   }, [initialMenu, deferredQuery, selectedCategoryId])
 
-  // Handlers del carrito
   const addToCart = useCallback((item: MenuItem) => {
     setCart((prev) => {
       const idx = prev.findIndex((entry) => entry.item.id === item.id)
@@ -254,7 +308,6 @@ export default function MenuCatalog({
     setCart([])
   }, [])
 
-  // Compartir producto por WhatsApp con enlace profundo
   const shareProductWhatsapp = useCallback((item: MenuItem) => {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://yarumo-coffee.vercel.app'
     const link = `${origin}/?item=${item.id}#menu`
@@ -262,7 +315,6 @@ export default function MenuCatalog({
     window.open(`https://api.whatsapp.com/send?text=${message}`, '_blank')
   }, [])
 
-  // Scroll suave al seleccionar categoría
   const handleSelectCategory = (catId: string, event: React.MouseEvent<HTMLButtonElement>) => {
     setSelectedCategoryId(catId)
     event.currentTarget.scrollIntoView({
@@ -272,9 +324,32 @@ export default function MenuCatalog({
     })
   }
 
+  // Navegación por teclado accesible en pestañas (patrón WAI-ARIA tablist)
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const tabs = Array.from(tabsContainerRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]') || [])
+    const currentIndex = tabs.findIndex((t) => t === document.activeElement)
+    if (currentIndex === -1) return
+
+    let nextIndex = currentIndex
+    if (event.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % tabs.length
+    } else if (event.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length
+    } else if (event.key === 'Home') {
+      nextIndex = 0
+    } else if (event.key === 'End') {
+      nextIndex = tabs.length - 1
+    } else {
+      return
+    }
+
+    event.preventDefault()
+    tabs[nextIndex]?.focus()
+    tabs[nextIndex]?.click()
+  }
+
   return (
     <>
-      {/* Seguimiento de pedido en mesa (si aplica) */}
       {table && mesaToken && latestOrder && (
         <CustomerOrderTracker
           latestOrder={latestOrder}
@@ -282,7 +357,6 @@ export default function MenuCatalog({
         />
       )}
 
-      {/* Sección principal del catálogo */}
       <section className="catalog-section" id="menu" aria-label="Carta digital de productos">
         <div className="catalog-header">
           <div>
@@ -302,7 +376,7 @@ export default function MenuCatalog({
                   placeholder="Buscar café, postres, bebidas..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  aria-label="Buscar en la carta"
+                  aria-label="Buscar productos en la carta"
                 />
                 {query && (
                   <button
@@ -317,12 +391,21 @@ export default function MenuCatalog({
               </div>
             </div>
 
-            <div className="category-scroll-container" ref={tabsContainerRef}>
-              <div className="category-tabs" role="tablist" aria-label="Categorías de la carta">
+            <div className="category-scroll-container">
+              <div
+                className="category-tabs"
+                role="tablist"
+                aria-label="Categorías de la carta"
+                ref={tabsContainerRef}
+                onKeyDown={handleTabKeyDown}
+              >
                 <button
                   type="button"
                   role="tab"
+                  id="tab-all"
                   aria-selected={selectedCategoryId === 'all'}
+                  aria-controls="panel-menu"
+                  tabIndex={selectedCategoryId === 'all' ? 0 : -1}
                   className={`category-tab ${selectedCategoryId === 'all' ? 'active' : ''}`}
                   onClick={(e) => handleSelectCategory('all', e)}
                 >
@@ -334,7 +417,10 @@ export default function MenuCatalog({
                     key={cat.id}
                     type="button"
                     role="tab"
+                    id={`tab-${cat.id}`}
                     aria-selected={selectedCategoryId === cat.id}
+                    aria-controls="panel-menu"
+                    tabIndex={selectedCategoryId === cat.id ? 0 : -1}
                     className={`category-tab ${selectedCategoryId === cat.id ? 'active' : ''}`}
                     onClick={(e) => handleSelectCategory(cat.id, e)}
                   >
@@ -348,107 +434,124 @@ export default function MenuCatalog({
         </div>
 
         {/* Cuadrícula de productos */}
-        {filteredMenu.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-            <p style={{ fontSize: '1.1rem', marginBottom: 8 }}>
-              No encontramos productos que coincidan con tu búsqueda.
-            </p>
-            <button
-              type="button"
-              className="service-btn"
-              onClick={() => {
-                setQuery('')
-                setSelectedCategoryId('all')
-              }}
-            >
-              Ver todos los productos
-            </button>
-          </div>
-        ) : (
-          <div className="menu-grid">
-            {filteredMenu.map((item) => {
-              const isFav = favorites.has(item.id)
-              const hasGallery = (item.gallery_urls?.length ?? 0) > 0
+        <div id="panel-menu" role="tabpanel" aria-labelledby={selectedCategoryId === 'all' ? 'tab-all' : `tab-${selectedCategoryId}`}>
+          {filteredMenu.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+              <p style={{ fontSize: '1.1rem', marginBottom: 8 }}>
+                No encontramos productos que coincidan con tu búsqueda.
+              </p>
+              <button
+                type="button"
+                className="service-btn"
+                onClick={() => {
+                  setQuery('')
+                  setSelectedCategoryId('all')
+                }}
+              >
+                Ver todos los productos
+              </button>
+            </div>
+          ) : (
+            <div className="menu-grid">
+              {filteredMenu.map((item) => {
+                const isFav = favorites.has(item.id)
+                const hasGallery = (item.gallery_urls?.length ?? 0) > 0
+                const tags = getProductTags(item)
 
-              return (
-                <article key={item.id} className="item-card" id={`item-${item.id}`}>
-                  {item.image_url ? (
-                    <div
-                      className="item-media"
-                      onClick={() => setGalleryItem(item)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') setGalleryItem(item)
-                      }}
-                      aria-label={`Ver detalles y fotos de ${item.name}`}
-                    >
-                      <Image
-                        src={item.image_url}
-                        alt={item.name}
-                        fill
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px"
-                        loading="lazy"
-                        placeholder="blur"
-                        blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOCIgaGVpZ2h0PSI2IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjYiIGZpbGw9IiMxODM2MmYiLz48L3N2Zz4="
-                      />
-                      <span className="item-badge-category">{item.category}</span>
-                      {hasGallery && (
-                        <span className="item-gallery-badge">
-                          📷 +{item.gallery_urls.length}
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div style={{ height: 16 }} />
-                  )}
-
-                  <button
-                    type="button"
-                    className={`item-fav-btn ${isFav ? 'is-favorite' : ''}`}
-                    onClick={() => toggleFavorite(item.id)}
-                    aria-label={isFav ? `Quitar ${item.name} de favoritos` : `Guardar ${item.name} en favoritos`}
-                  >
-                    {isFav ? '♥' : '♡'}
-                  </button>
-
-                  <div className="item-body">
-                    <div className="item-title-row">
-                      <h3 className="item-title">{item.name}</h3>
-                      <span className="item-price">{formatCop(item.price_cop)}</span>
-                    </div>
-
-                    {item.description && (
-                      <p className="item-description">{item.description}</p>
+                return (
+                  <article key={item.id} className="item-card" id={`item-${item.id}`}>
+                    {item.image_url ? (
+                      <div
+                        className="item-media"
+                        onClick={() => setGalleryItem(item)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') setGalleryItem(item)
+                        }}
+                        aria-label={`Ver detalles y fotos de ${item.name}`}
+                      >
+                        <Image
+                          src={item.image_url}
+                          alt={item.name}
+                          fill
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px"
+                          loading="lazy"
+                          placeholder="blur"
+                          blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOCIgaGVpZ2h0PSI2IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjYiIGZpbGw9IiMxODM2MmYiLz48L3N2Zz4="
+                        />
+                        <span className="item-badge-category">{item.category}</span>
+                        {hasGallery && (
+                          <span className="item-gallery-badge">
+                            📷 +{item.gallery_urls.length}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ height: 16 }} />
                     )}
 
-                    <div className="item-footer">
-                      <button
-                        type="button"
-                        className="item-add-btn add-to-cart-btn"
-                        onClick={() => addToCart(item)}
-                        aria-label={`Pedir ${item.name}`}
-                      >
-                        <span>+</span>
-                        <span>Pedir</span>
-                      </button>
+                    <button
+                      type="button"
+                      className={`item-fav-btn ${isFav ? 'is-favorite' : ''}`}
+                      onClick={() => toggleFavorite(item.id)}
+                      aria-label={isFav ? `Quitar ${item.name} de favoritos` : `Guardar ${item.name} en favoritos`}
+                    >
+                      {isFav ? '♥' : '♡'}
+                    </button>
 
-                      <button
-                        type="button"
-                        className="item-share-btn"
-                        onClick={() => shareProductWhatsapp(item)}
-                        aria-label={`Compartir ${item.name} por WhatsApp`}
-                        title="Compartir por WhatsApp"
-                      >
-                        💬
-                      </button>
+                    <div className="item-body">
+                      {tags.length > 0 && (
+                        <div className="item-tag-list">
+                          {tags.map((tag) => (
+                            <span key={tag} className="item-tag">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="item-title-row">
+                        <h3 className="item-title">
+                          <HighlightMatch text={item.name} query={deferredQuery} />
+                        </h3>
+                        <span className="item-price">{formatCop(item.price_cop)}</span>
+                      </div>
+
+                      {item.description && (
+                        <p className="item-description">
+                          <HighlightMatch text={item.description} query={deferredQuery} />
+                        </p>
+                      )}
+
+                      <div className="item-footer">
+                        <button
+                          type="button"
+                          className="item-add-btn add-to-cart-btn"
+                          onClick={() => addToCart(item)}
+                          aria-label={`Pedir ${item.name}`}
+                        >
+                          <span>+</span>
+                          <span>Pedir</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="item-share-btn"
+                          onClick={() => shareProductWhatsapp(item)}
+                          aria-label={`Compartir ${item.name} por WhatsApp`}
+                          title="Compartir por WhatsApp"
+                        >
+                          💬
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </article>
-              )
-            })}
-          </div>
-        )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Carrito flotante cargado dinámicamente */}
@@ -480,7 +583,7 @@ export default function MenuCatalog({
         />
       )}
 
-      {/* Toast de confirmación accesible */}
+      {/* Toast de confirmación con aria-live */}
       {toastMessage && (
         <div className="toast-notice" role="status" aria-live="polite">
           <span>{toastMessage}</span>

@@ -94,6 +94,17 @@ export default function OrderCart({
 
   const isInsideTable = Boolean(table && mesaToken)
 
+  useEffect(() => {
+    if (!isOpen) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen])
+
   function openCartDrawer() {
     try {
       const saved = typeof window !== 'undefined' ? localStorage.getItem('yarumo_delivery_customer') : null

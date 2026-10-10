@@ -49,6 +49,8 @@ const themeScript = `(function() {
   } catch (e) {}
 })();`
 
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es" className={`${fontSerif.variable} ${fontSans.variable}`} suppressHydrationWarning>
@@ -59,6 +61,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <a href="#menu" className="skip-link">Saltar a la carta</a>
         {children}
         <Analytics />
+        <ServiceWorkerRegister />
       </body>
     </html>
   )

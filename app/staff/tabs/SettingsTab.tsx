@@ -184,6 +184,43 @@ export default function SettingsTab({
             </button>
           </form>
         </div>
+
+        {/* Tiempo estimado de espera */}
+        <div className="card" style={{ padding: 24, background: 'var(--surface-card)', borderRadius: 16, border: '1px solid var(--border)' }}>
+          <h3>Tiempo Estimado de Espera</h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            Visible para los clientes al hacer sus pedidos en mesa o barra.
+          </p>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault()
+              const target = e.currentTarget.elements.namedItem('waitTime') as HTMLInputElement
+              const val = target.value.trim()
+              await supabase.from('site_settings').upsert({
+                key: 'estimated_wait_time',
+                value: val,
+                updated_at: new Date().toISOString(),
+              })
+              void revalidatePublicContent(['settings'])
+              alert('Tiempo estimado actualizado')
+            }}
+            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+          >
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Tiempo estimado (minutos)</label>
+              <input
+                name="waitTime"
+                type="text"
+                defaultValue="10–15"
+                placeholder="Ej: 15–20"
+                className="input"
+              />
+            </div>
+            <button type="submit" className="btn btn-primary">
+              Guardar Tiempo
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )
