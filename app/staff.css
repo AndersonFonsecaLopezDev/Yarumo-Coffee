@@ -344,6 +344,71 @@
   color: var(--text-muted);
 }
 
+/* Badges y Pastillas de Estado (Status Pills) */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1.2;
+  border: 1px solid transparent;
+}
+
+.status-pill.status-pending {
+  background: rgba(239, 128, 91, 0.15);
+  color: var(--orange);
+  border-color: rgba(239, 128, 91, 0.35);
+}
+
+.status-pill.status-acknowledged {
+  background: rgba(43, 127, 255, 0.14);
+  color: #2b7fff;
+  border-color: rgba(43, 127, 255, 0.3);
+}
+
+.status-pill.status-preparing {
+  background: rgba(217, 232, 106, 0.22);
+  color: var(--ink);
+  border-color: rgba(217, 232, 106, 0.45);
+}
+
+:root[data-theme="dark"] .status-pill.status-preparing {
+  background: rgba(217, 232, 106, 0.18);
+  color: var(--lime);
+  border-color: rgba(217, 232, 106, 0.35);
+}
+
+.status-pill.status-delivered,
+.status-pill.status-completed {
+  background: rgba(72, 187, 120, 0.15);
+  color: #2f855a;
+  border-color: rgba(72, 187, 120, 0.35);
+}
+
+:root[data-theme="dark"] .status-pill.status-delivered,
+:root[data-theme="dark"] .status-pill.status-completed {
+  background: rgba(72, 187, 120, 0.18);
+  color: #68d391;
+  border-color: rgba(72, 187, 120, 0.35);
+}
+
+.status-pill.status-cancelled {
+  background: rgba(229, 62, 62, 0.14);
+  color: #c53030;
+  border-color: rgba(229, 62, 62, 0.3);
+}
+
+:root[data-theme="dark"] .status-pill.status-cancelled {
+  background: rgba(229, 62, 62, 0.16);
+  color: #fc8181;
+  border-color: rgba(229, 62, 62, 0.3);
+}
+
 .login-page {
   min-height: 100vh;
   display: grid;

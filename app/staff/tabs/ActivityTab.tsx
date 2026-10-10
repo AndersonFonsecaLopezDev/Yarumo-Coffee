@@ -19,6 +19,23 @@ function formatCop(value?: number | null) {
   }).format(safe)
 }
 
+function getOrderStatusText(status: string): string {
+  switch (status) {
+    case 'pending':
+      return 'Pendiente'
+    case 'acknowledged':
+      return 'Recibido'
+    case 'preparing':
+      return 'En preparación'
+    case 'delivered':
+      return 'Entregado'
+    case 'cancelled':
+      return 'Cancelado'
+    default:
+      return status
+  }
+}
+
 export default function ActivityTab({
   orders,
   requests,
@@ -173,7 +190,7 @@ export default function ActivityTab({
                           </span>
                         </div>
                         <span className={`status-pill status-${ord.status}`}>
-                          {ord.status}
+                          {getOrderStatusText(ord.status)}
                         </span>
                       </div>
 
@@ -212,7 +229,7 @@ export default function ActivityTab({
                               disabled={updatingId === ord.id}
                               onClick={() => updateOrderStatus(ord.id, 'preparing')}
                             >
-                              En barra ☕
+                              A preparación ☕
                             </button>
                           )}
                           {ord.status === 'preparing' && (
