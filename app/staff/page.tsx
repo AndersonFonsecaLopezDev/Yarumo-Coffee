@@ -440,57 +440,72 @@ export default function StaffPage() {
   }
 
   return (
-    <div className="staff-container">
+    <div className="staff">
       <StaffAlerts alerts={alerts} onAlertClick={() => setTab('activity')} onDismiss={(id) => setAlerts((prev) => prev.filter((a) => a.id !== id))} />
 
-      <header className="staff-header">
-        <div className="staff-header-brand">
-          <Image src="/yarumo-logo.webp" alt="Yarumo Coffee" width={38} height={38} />
+      <header className="staff-head">
+        <div className="staff-brand-identity">
+          <Image
+            src="/yarumo-logo.webp"
+            alt="Yarumo Coffee"
+            width={48}
+            height={48}
+            className="staff-logo-img"
+          />
           <div>
-            <strong>Yarumo Coffee</strong>
-            <span className="badge">Staff: {role || 'miembro'}</span>
+            <span className="staff-role-badge">
+              <span className="role-dot" />
+              Rol: {role || 'Staff'}
+            </span>
+            <h1>Yarumo Coffee</h1>
           </div>
         </div>
 
-        <nav className="staff-tabs" role="tablist">
-          <button type="button" role="tab" aria-selected={tab === 'activity'} className={tab === 'activity' ? 'active' : ''} onClick={() => setTab('activity')}>
-            Actividad ({orders.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').length})
-          </button>
-          <button type="button" role="tab" aria-selected={tab === 'menu'} className={tab === 'menu' ? 'active' : ''} onClick={() => setTab('menu')}>
-            Menú ({items.length})
-          </button>
-          <button type="button" role="tab" aria-selected={tab === 'categories'} className={tab === 'categories' ? 'active' : ''} onClick={() => setTab('categories')}>
-            Categorías ({categories.length})
-          </button>
-          <button type="button" role="tab" aria-selected={tab === 'promotions'} className={tab === 'promotions' ? 'active' : ''} onClick={() => setTab('promotions')}>
-            Promociones ({promotions.length})
-          </button>
-          <button type="button" role="tab" aria-selected={tab === 'qr'} className={tab === 'qr' ? 'active' : ''} onClick={() => setTab('qr')}>
-            Mesas y QR ({tables.length})
-          </button>
-          <button type="button" role="tab" aria-selected={tab === 'recommendations'} className={tab === 'recommendations' ? 'active' : ''} onClick={() => setTab('recommendations')}>
-            Opiniones ({recommendations.length})
-          </button>
-          <button type="button" role="tab" aria-selected={tab === 'settings'} className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>
-            Ajustes
-          </button>
-          <button type="button" role="tab" aria-selected={tab === 'help'} className={tab === 'help' ? 'active' : ''} onClick={() => setTab('help')}>
-            📖 Ayuda
-          </button>
-          {(role === 'owner' || role === 'manager') && (
-            <button type="button" role="tab" aria-selected={tab === 'users'} className={tab === 'users' ? 'active' : ''} onClick={() => setTab('users')}>
-              Usuarios
-            </button>
-          )}
-        </nav>
-
         <div className="staff-header-actions">
+          {user && (
+            <div className="staff-user-chip">
+              <small>Sesión activa</small>
+              <strong>{user}</strong>
+            </div>
+          )}
           <ThemeToggle />
-          <button type="button" className="btn btn-outline btn-sm" onClick={logout}>
-            Salir
+          <button type="button" className="button-logout" onClick={logout}>
+            Salir ↗
           </button>
         </div>
       </header>
+
+      <nav className="staff-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={tab === 'activity'} className={tab === 'activity' ? 'active' : ''} onClick={() => setTab('activity')}>
+          Actividad ({orders.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').length})
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'menu'} className={tab === 'menu' ? 'active' : ''} onClick={() => setTab('menu')}>
+          Menú ({items.length})
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'categories'} className={tab === 'categories' ? 'active' : ''} onClick={() => setTab('categories')}>
+          Categorías ({categories.length})
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'promotions'} className={tab === 'promotions' ? 'active' : ''} onClick={() => setTab('promotions')}>
+          Promociones ({promotions.length})
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'qr'} className={tab === 'qr' ? 'active' : ''} onClick={() => setTab('qr')}>
+          Mesas y QR ({tables.length})
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'recommendations'} className={tab === 'recommendations' ? 'active' : ''} onClick={() => setTab('recommendations')}>
+          Opiniones ({recommendations.length})
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'settings'} className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>
+          Ajustes
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'help'} className={tab === 'help' ? 'active' : ''} onClick={() => setTab('help')}>
+          📖 Ayuda
+        </button>
+        {(role === 'owner' || role === 'manager') && (
+          <button type="button" role="tab" aria-selected={tab === 'users'} className={tab === 'users' ? 'active' : ''} onClick={() => setTab('users')}>
+            Usuarios
+          </button>
+        )}
+      </nav>
 
       <main className="staff-main">
         {tab === 'activity' && (

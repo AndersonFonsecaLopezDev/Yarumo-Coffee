@@ -2023,8 +2023,9 @@
 }
 
 :root[data-theme="dark"] .staff-tabs button.active {
-  color: var(--lime);
-  border-bottom-color: var(--lime);
+  color: var(--ink) !important;
+  background: var(--lime) !important;
+  border-color: var(--lime) !important;
 }
 
 :root[data-theme="dark"] .card,
