@@ -154,12 +154,12 @@ export default function UserAdmin() {
             <option value="manager">Manager</option>
             <option value="owner">Owner</option>
           </select>
-          <div>
-            <button className="button" type="submit" disabled={saving}>
+          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            <button className="btn btn-primary" type="submit" disabled={saving}>
               {saving ? 'Guardando…' : 'Guardar usuario'}
             </button>
             {editing && (
-              <button type="button" onClick={reset}>
+              <button type="button" className="btn btn-secondary" onClick={reset}>
                 Cancelar
               </button>
             )}
