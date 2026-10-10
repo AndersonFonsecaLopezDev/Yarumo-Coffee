@@ -247,8 +247,19 @@ export default function StaffPage() {
                 />
               </div>
 
-              <button type="submit" className="btn btn-primary" disabled={isLoggingIn}>
-                {isLoggingIn ? 'Iniciando sesión…' : 'Ingresar al Panel'}
+              <button
+                type="submit"
+                className="login-submit-button btn btn-primary btn-lg"
+                disabled={isLoggingIn}
+              >
+                {isLoggingIn ? (
+                  'Iniciando sesión…'
+                ) : (
+                  <>
+                    <span>Ingresar al Panel</span>
+                    <span className="submit-arrow" aria-hidden="true">→</span>
+                  </>
+                )}
               </button>
             </form>
           </div>

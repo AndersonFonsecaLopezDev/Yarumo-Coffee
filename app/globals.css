@@ -152,6 +152,92 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* ==========================================================================
+   BUTTON DESIGN SYSTEM UTILITIES
+   ========================================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: var(--text-sm);
+  padding: 10px 18px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  line-height: 1.25;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-primary {
+  background: var(--ink);
+  color: var(--lime);
+  border-color: var(--ink);
+  box-shadow: 0 4px 14px rgba(24, 54, 47, 0.18);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--ink-light);
+  border-color: var(--ink-light);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(24, 54, 47, 0.28);
+}
+
+.btn-secondary {
+  background: var(--surface-card-warm);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--border);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--text);
+  background: rgba(24, 54, 47, 0.05);
+}
+
+.btn-danger {
+  background: rgba(239, 128, 91, 0.15);
+  color: var(--orange);
+  border-color: rgba(239, 128, 91, 0.35);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--orange);
+  color: #ffffff;
+  border-color: var(--orange);
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: var(--text-xs);
+  border-radius: var(--radius-sm);
+}
+
+.btn-lg {
+  padding: 14px 24px;
+  font-size: var(--text-base);
+  border-radius: var(--radius-lg);
+}
+
 /* Accessibility: Skip Link */
 .skip-link {
   position: absolute;
