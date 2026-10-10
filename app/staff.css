@@ -2087,4 +2087,449 @@
   color: var(--text-muted);
 }
 
+/* ==========================================================================
+   HORIZONTAL PRINT MENU MODAL & LANDSCAPE PRINT STYLES
+   ========================================================================== */
+.print-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(12, 28, 23, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  overflow-y: auto;
+  animation: printBackdropIn 0.2s ease-out;
+}
+
+@keyframes printBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.print-modal-container {
+  width: min(1200px, 100%);
+  margin: 0 auto;
+  background: var(--surface-card);
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.print-modal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-wrap: wrap;
+}
+
+.toolbar-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toolbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.toolbar-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.toolbar-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.print-modal-preview-wrapper {
+  padding: 30px;
+  background: #2b302e;
+  overflow-x: auto;
+  display: flex;
+  justify-content: center;
+}
+
+/* Hoja física del menú apaisado (Landscape Preview & Print) */
+.printable-menu-sheet {
+  width: 100%;
+  max-width: 1100px;
+  min-height: 720px;
+  background: #ffffff;
+  color: #18362f;
+  padding: 36px 42px;
+  border-radius: 8px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.25);
+  font-family: var(--font-family-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  box-sizing: border-box;
+}
+
+.print-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #18362f;
+  padding-bottom: 16px;
+  gap: 20px;
+}
+
+.print-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.print-logo-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #18362f;
+  background: #18362f;
+  flex-shrink: 0;
+}
+
+.print-logo-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.print-brand-title {
+  margin: 0;
+  font-family: var(--font-family-serif, 'Playfair Display', Georgia, serif);
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  color: #18362f;
+  line-height: 1;
+}
+
+.print-brand-tagline {
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.print-header-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  gap: 4px;
+}
+
+.print-slogan {
+  font-family: var(--font-family-serif, 'Playfair Display', Georgia, serif);
+  font-style: italic;
+  font-size: 14px;
+  color: #18362f;
+}
+
+.print-contact {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* Cuadrícula horizontal por columnas */
+.print-categories-grid {
+  flex: 1;
+  column-gap: 32px;
+  column-fill: balance;
+}
+
+.printable-menu-sheet.cols-3 .print-categories-grid {
+  column-count: 3;
+}
+
+.printable-menu-sheet.cols-4 .print-categories-grid {
+  column-count: 4;
+}
+
+.print-category-block {
+  break-inside: avoid-column;
+  page-break-inside: avoid;
+  margin-bottom: 22px;
+}
+
+.print-category-title {
+  margin: 0 0 10px;
+  font-family: var(--font-family-serif, 'Playfair Display', Georgia, serif);
+  font-size: 17px;
+  color: #18362f;
+  border-bottom: 1.5px solid rgba(24, 54, 47, 0.25);
+  padding-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.print-cat-icon {
+  font-size: 15px;
+}
+
+.print-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.print-menu-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-item-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.print-item-name {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.print-leader-dots {
+  flex: 1;
+  border-bottom: 1.5px dotted #9ca3af;
+  margin: 0 4px 3px;
+  min-width: 14px;
+}
+
+.print-item-price {
+  font-weight: 800;
+  font-size: 13.5px;
+  color: #18362f;
+  white-space: nowrap;
+}
+
+.print-item-desc {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #4b5563;
+}
+
+/* Modificadores de tamaño de texto */
+.printable-menu-sheet.font-size-compact .print-item-name,
+.printable-menu-sheet.font-size-compact .print-item-price {
+  font-size: 12px;
+}
+.printable-menu-sheet.font-size-compact .print-item-desc {
+  font-size: 10px;
+}
+.printable-menu-sheet.font-size-compact .print-category-title {
+  font-size: 15px;
+}
+
+.printable-menu-sheet.font-size-large .print-item-name,
+.printable-menu-sheet.font-size-large .print-item-price {
+  font-size: 15px;
+}
+.printable-menu-sheet.font-size-large .print-item-desc {
+  font-size: 12px;
+}
+.printable-menu-sheet.font-size-large .print-category-title {
+  font-size: 19px;
+}
+
+/* Pie de página de la carta impresa */
+.print-sheet-footer {
+  border-top: 2px solid #18362f;
+  padding-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-footer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.print-footer-info strong {
+  font-size: 12.5px;
+  color: #18362f;
+}
+
+.print-footer-info span {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.print-footer-qr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f8fafc;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.print-qr-img {
+  width: 44px;
+  height: 44px;
+  display: block;
+}
+
+.print-qr-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.print-qr-text small {
+  font-size: 9.5px;
+  color: #64748b;
+}
+
+.print-qr-text strong {
+  font-size: 11.5px;
+  color: #18362f;
+}
+
+/* ==========================================================================
+   MEDIA PRINT RULES: FORZAR FORMATO HORIZONTAL Y AISLAR CARTA
+   ========================================================================== */
+@media print {
+  @page {
+    size: landscape;
+    margin: 8mm 10mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ocultar interfaz del panel y controles del modal */
+  .staff-layout-root > *:not(.print-modal-overlay),
+  .sidebar,
+  .staff-header,
+  .no-print,
+  .no-print-backdrop {
+    display: none !important;
+  }
+
+  .print-modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  .print-modal-container {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  .print-modal-preview-wrapper {
+    background: transparent !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  .printable-menu-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    background: #ffffff !important;
+    color: #18362f !important;
+  }
+
+  .print-sheet-header {
+    border-bottom: 2px solid #18362f !important;
+  }
+
+  .print-category-title {
+    color: #18362f !important;
+    border-bottom: 1.5px solid #18362f !important;
+  }
+
+  .print-item-name,
+  .print-item-price {
+    color: #18362f !important;
+  }
+
+  .print-leader-dots {
+    border-bottom: 1.5px dotted #6b7280 !important;
+  }
+
+  .print-item-desc {
+    color: #374151 !important;
+  }
+
+  .print-sheet-footer {
+    border-top: 2px solid #18362f !important;
+  }
+}
+
+
 

@@ -5,6 +5,7 @@ import Image from 'next/image'
 import type { MenuItem, MenuCategory, MenuForm } from '../types'
 import { createClient } from '@/lib/supabase/client'
 import { revalidatePublicContent } from '@/app/actions/revalidate'
+import PrintMenuModal from './PrintMenuModal'
 
 type MenuTabProps = {
   items: MenuItem[]
@@ -37,6 +38,7 @@ export default function MenuTab({
   const [error, setError] = useState('')
   const [filterQuery, setFilterQuery] = useState('')
   const [filterCategory, setFilterCategory] = useState('Todas')
+  const [showPrintModal, setShowPrintModal] = useState(false)
 
   function editItem(item: MenuItem) {
     setEditing(item)
@@ -148,11 +150,21 @@ export default function MenuTab({
 
   return (
     <div className="tab-pane">
-      <div className="section-header">
+      <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
         <div>
           <h2>Productos del Menú</h2>
           <p>Gestiona los platos, bebidas y postres de la carta.</p>
         </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => setShowPrintModal(true)}
+          id="btn-open-print-menu"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+        >
+          <span>🖨️</span>
+          <span>Imprimir Carta (Horizontal)</span>
+        </button>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
@@ -330,6 +342,14 @@ export default function MenuTab({
           </div>
         </div>
       </div>
+
+      {showPrintModal && (
+        <PrintMenuModal
+          items={items}
+          categories={categories}
+          onClose={() => setShowPrintModal(false)}
+        />
+      )}
     </div>
   )
 }
