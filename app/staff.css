@@ -1914,3 +1914,91 @@
   cursor: not-allowed;
 }
 
+/* ==========================================================================
+   STAFF PANEL · MODO OSCURO (WCAG AA)
+   ========================================================================== */
+:root[data-theme="dark"] .staff-layout-root,
+:root[data-theme="dark"] .staff-container {
+  background: var(--surface);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .staff-header {
+  background: var(--surface-card);
+  border-bottom: 1px solid var(--border);
+}
+
+:root[data-theme="dark"] .staff-tabs button {
+  color: var(--text-muted);
+}
+
+:root[data-theme="dark"] .staff-tabs button.active {
+  color: var(--lime);
+  border-bottom-color: var(--lime);
+}
+
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .qr-card,
+:root[data-theme="dark"] .table-card {
+  background: var(--surface-card);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .input,
+:root[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  background: var(--surface-card-warm);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+:root[data-theme="dark"] .btn-outline {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .btn-outline:hover {
+  background: rgba(247, 241, 232, 0.08);
+  border-color: var(--text);
+}
+
+:root[data-theme="dark"] .btn-primary {
+  background: var(--lime);
+  color: var(--ink);
+  border-color: var(--lime);
+  font-weight: 800;
+}
+
+:root[data-theme="dark"] .btn-primary:hover:not(:disabled) {
+  background: #eaf58a;
+}
+
+:root[data-theme="dark"] .btn-danger {
+  background: rgba(239, 128, 91, 0.2);
+  color: #ff9b7d;
+  border-color: rgba(239, 128, 91, 0.4);
+}
+
+:root[data-theme="dark"] .login-card {
+  background: var(--surface-card);
+  border-color: var(--border);
+}
+
+:root[data-theme="dark"] .login-form-panel {
+  background: var(--surface-card);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .badge {
+  background: rgba(217, 232, 106, 0.16);
+  color: var(--lime);
+  border-color: rgba(217, 232, 106, 0.3);
+}
+
+:root[data-theme="dark"] .tab-loading-skeleton {
+  color: var(--text-muted);
+}
+
+
