@@ -1,8 +1,14 @@
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import ThemeToggle from '@/components/ThemeToggle'
 
 export default function Header() {
+  const pathname = usePathname()
+  const isHome = pathname === '/'
+
   return (
     <header className="header">
       <Link className="brand" href="/" aria-label="Yarumo Coffee Inicio">
@@ -19,9 +25,23 @@ export default function Header() {
         </span>
       </Link>
       <nav className="nav-links" aria-label="Navegación principal">
-        <a href="#menu">Carta</a>
-        <Link href="/recomendaciones">Opiniones</Link>
-        <a href="#visitanos">Visítanos</a>
+        <Link
+          href={isHome ? '#menu' : '/#menu'}
+          className={isHome ? 'active' : ''}
+        >
+          Carta
+        </Link>
+        <Link
+          href="/recomendaciones"
+          className={pathname === '/recomendaciones' ? 'active' : ''}
+        >
+          Opiniones
+        </Link>
+        <Link
+          href={isHome ? '#visitanos' : '/#visitanos'}
+        >
+          Visítanos
+        </Link>
       </nav>
       <div className="header-actions">
         <ThemeToggle />
