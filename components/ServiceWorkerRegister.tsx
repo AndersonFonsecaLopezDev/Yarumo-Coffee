@@ -12,6 +12,9 @@ export default function ServiceWorkerRegister() {
       window.addEventListener('load', () => {
         navigator.serviceWorker
           .register('/sw.js')
+          .then((registration) => {
+            registration.update().catch(() => {})
+          })
           .catch((err) => {
             console.debug('Service Worker no registrado:', err)
           })

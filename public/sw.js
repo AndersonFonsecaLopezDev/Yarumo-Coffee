@@ -1,5 +1,5 @@
 // Service Worker para Yarumo Coffee (Stale-While-Revalidate)
-const CACHE_NAME = 'yarumo-cache-v1'
+const CACHE_NAME = 'yarumo-cache-v2'
 
 const PRECACHE_URLS = [
   '/',
