@@ -275,32 +275,32 @@ export default function OrderCart({
       )
     } catch {}
 
-    // Construir mensaje legible para WhatsApp
+    // Construir mensaje legible para WhatsApp (sin emojis para evitar que wa.me o WhatsApp Web muestren rombos con signo de interrogación '?')
     const lines = [
-      '🛵 *¡Hola Yarumo Coffee! Quiero hacer un pedido a domicilio:*',
+      '*¡Hola Yarumo Coffee! Quiero hacer un pedido a domicilio:*',
       '',
-      `👤 *Cliente:* ${customerName.trim()}`,
-      `📍 *Dirección:* ${deliveryAddress.trim()}`,
-      `📞 *Teléfono:* ${customerPhone.trim()}`,
-      `💳 *Forma de pago:* ${paymentMethod}`,
+      `*Cliente:* ${customerName.trim()}`,
+      `*Dirección:* ${deliveryAddress.trim()}`,
+      `*Teléfono:* ${customerPhone.trim()}`,
+      `*Forma de pago:* ${paymentMethod}`,
       '',
-      '📋 *PRODUCTOS:*',
+      '*PRODUCTOS:*',
     ]
 
     cart.forEach((ci) => {
       const itemTotal = ci.item.price_cop * ci.quantity
       const notePart = ci.notes.trim() ? ` _(${ci.notes.trim()})_` : ''
-      lines.push(`• ${ci.quantity}x ${ci.item.name}${notePart} — ${formatCop(itemTotal)}`)
+      lines.push(`- ${ci.quantity}x ${ci.item.name}${notePart} — ${formatCop(itemTotal)}`)
     })
 
     if (orderNotes.trim()) {
       lines.push('')
-      lines.push(`📝 *Notas / Instrucciones:* ${orderNotes.trim()}`)
+      lines.push(`*Notas / Instrucciones:* ${orderNotes.trim()}`)
     }
 
     lines.push('')
-    lines.push(`💰 *TOTAL PRODUCTOS:* ${formatCop(totalPrice)}`)
-    lines.push('🛵 _(Nota: El costo de domicilio aún no está incluido. Quedo atento a que me confirmen el valor de la entrega y el total final)_')
+    lines.push(`*TOTAL PRODUCTOS:* ${formatCop(totalPrice)}`)
+    lines.push('_(Nota: El costo de domicilio aún no está incluido. Quedo atento a que me confirmen el valor de la entrega y el total final)_')
     lines.push('')
     lines.push('_Pedido generado desde yarumocoffee.com_')
 

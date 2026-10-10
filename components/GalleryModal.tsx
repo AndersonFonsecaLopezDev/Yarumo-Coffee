@@ -67,7 +67,7 @@ export default function GalleryModal({
     if (!item) return
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://yarumo-coffee.vercel.app'
     const link = `${origin}/?item=${item.id}#menu`
-    const message = encodeURIComponent(`¡Mira este café de Yarumo Coffee! ☕ ${item.name}: ${link}`)
+    const message = encodeURIComponent(`¡Mira este café de Yarumo Coffee! ${item.name}: ${link}`)
     window.open(`https://api.whatsapp.com/send?text=${message}`, '_blank')
   }
 
