@@ -41,6 +41,9 @@ const SettingsTab = dynamic(() => import('./tabs/SettingsTab'), {
 const UserAdmin = dynamic(() => import('@/components/UserAdmin'), {
   loading: () => <div className="tab-loading-skeleton">Cargando usuarios...</div>,
 })
+const HelpTab = dynamic(() => import('./tabs/HelpTab'), {
+  loading: () => <div className="tab-loading-skeleton">Cargando centro de ayuda...</div>,
+})
 
 export default function StaffPage() {
   const supabase = useMemo(() => createClient(), [])
@@ -64,7 +67,7 @@ export default function StaffPage() {
 
   // Pestaña activa
   const [tab, setTab] = useState<
-    'activity' | 'menu' | 'categories' | 'promotions' | 'qr' | 'users' | 'recommendations' | 'settings'
+    'activity' | 'menu' | 'categories' | 'promotions' | 'qr' | 'users' | 'recommendations' | 'settings' | 'help'
   >('activity')
 
   // Alertas / Toasts
@@ -289,6 +292,9 @@ export default function StaffPage() {
           <button type="button" role="tab" aria-selected={tab === 'settings'} className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>
             Ajustes
           </button>
+          <button type="button" role="tab" aria-selected={tab === 'help'} className={tab === 'help' ? 'active' : ''} onClick={() => setTab('help')}>
+            📖 Ayuda
+          </button>
           {(role === 'owner' || role === 'manager') && (
             <button type="button" role="tab" aria-selected={tab === 'users'} className={tab === 'users' ? 'active' : ''} onClick={() => setTab('users')}>
               Usuarios
@@ -325,6 +331,9 @@ export default function StaffPage() {
         )}
         {tab === 'settings' && (
           <SettingsTab heroImageUrl={heroImageUrl} whatsappDeliveryNumber={whatsappDeliveryNumber} onRefresh={load} />
+        )}
+        {tab === 'help' && (
+          <HelpTab />
         )}
         {tab === 'users' && (role === 'owner' || role === 'manager') && (
           <UserAdmin />

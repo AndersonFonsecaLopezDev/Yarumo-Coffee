@@ -248,7 +248,9 @@ export default function MenuCatalog({
     const normalizedQuery = normalizeText(deferredQuery)
 
     return initialMenu.filter((item) => {
-      if (selectedCategoryId !== 'all') {
+      if (selectedCategoryId === 'favorites') {
+        if (!favorites.has(item.id)) return false
+      } else if (selectedCategoryId !== 'all') {
         const matchesCategoryId = item.category_id === selectedCategoryId
         const matchesCategoryName = item.category === selectedCategoryId
         if (!matchesCategoryId && !matchesCategoryName) {
@@ -264,7 +266,7 @@ export default function MenuCatalog({
 
       return nameNorm.includes(normalizedQuery) || descNorm.includes(normalizedQuery) || catNorm.includes(normalizedQuery)
     })
-  }, [initialMenu, deferredQuery, selectedCategoryId])
+  }, [initialMenu, deferredQuery, selectedCategoryId, favorites])
 
   const addToCart = useCallback((item: MenuItem) => {
     setCart((prev) => {
@@ -412,6 +414,21 @@ export default function MenuCatalog({
                   <span>✨</span>
                   <span>Todos</span>
                 </button>
+                {favorites.size > 0 && (
+                  <button
+                    type="button"
+                    role="tab"
+                    id="tab-favorites"
+                    aria-selected={selectedCategoryId === 'favorites'}
+                    aria-controls="panel-menu"
+                    tabIndex={selectedCategoryId === 'favorites' ? 0 : -1}
+                    className={`category-tab ${selectedCategoryId === 'favorites' ? 'active' : ''}`}
+                    onClick={(e) => handleSelectCategory('favorites', e)}
+                  >
+                    <span>❤️</span>
+                    <span>Favoritos ({favorites.size})</span>
+                  </button>
+                )}
                 {initialCategories.map((cat) => (
                   <button
                     key={cat.id}
@@ -438,7 +455,9 @@ export default function MenuCatalog({
           {filteredMenu.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
               <p style={{ fontSize: '1.1rem', marginBottom: 8 }}>
-                No encontramos productos que coincidan con tu búsqueda.
+                {selectedCategoryId === 'favorites'
+                  ? 'Aún no tienes productos guardados en favoritos.'
+                  : 'No encontramos productos que coincidan con tu búsqueda.'}
               </p>
               <button
                 type="button"
@@ -515,7 +534,6 @@ export default function MenuCatalog({
                         <h3 className="item-title">
                           <HighlightMatch text={item.name} query={deferredQuery} />
                         </h3>
-                        <span className="item-price">{formatCop(item.price_cop)}</span>
                       </div>
 
                       {item.description && (
@@ -525,25 +543,29 @@ export default function MenuCatalog({
                       )}
 
                       <div className="item-footer">
-                        <button
-                          type="button"
-                          className="item-add-btn add-to-cart-btn"
-                          onClick={() => addToCart(item)}
-                          aria-label={`Pedir ${item.name}`}
-                        >
-                          <span>+</span>
-                          <span>Pedir</span>
-                        </button>
+                        <span className="item-price">{formatCop(item.price_cop)}</span>
 
-                        <button
-                          type="button"
-                          className="item-share-btn"
-                          onClick={() => shareProductWhatsapp(item)}
-                          aria-label={`Compartir ${item.name} por WhatsApp`}
-                          title="Compartir por WhatsApp"
-                        >
-                          💬
-                        </button>
+                        <div className="item-footer-actions">
+                          <button
+                            type="button"
+                            className="item-add-btn add-to-cart-btn"
+                            onClick={() => addToCart(item)}
+                            aria-label={`Pedir ${item.name}`}
+                          >
+                            <span>+</span>
+                            <span>Pedir</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            className="item-share-btn"
+                            onClick={() => shareProductWhatsapp(item)}
+                            aria-label={`Compartir ${item.name} por WhatsApp`}
+                            title="Compartir por WhatsApp"
+                          >
+                            💬
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </article>
