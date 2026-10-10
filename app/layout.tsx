@@ -46,8 +46,11 @@ export const metadata: Metadata = {
 const themeScript = `(function() {
   try {
     var stored = localStorage.getItem('yarumo-theme');
-    if (stored && (stored === 'light' || stored === 'dark')) {
+    if (stored === 'light' || stored === 'dark') {
       document.documentElement.setAttribute('data-theme', stored);
+    } else {
+      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
     }
   } catch (e) {}
 })();`
