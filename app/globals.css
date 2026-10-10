@@ -785,32 +785,11 @@ h1 em, h2 em, h3 em {
   opacity: 0.8;
 }
 
-/* Category Tabs with Edge Fade and Smooth Scroll */
+/* Category Tabs with Smooth Scroll */
 .category-scroll-container {
   position: relative;
   display: flex;
   align-items: center;
-}
-
-.category-scroll-container::before,
-.category-scroll-container::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 20px;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.category-scroll-container::before {
-  left: 0;
-  background: linear-gradient(90deg, var(--surface) 0%, transparent 100%);
-}
-
-.category-scroll-container::after {
-  right: 0;
-  background: linear-gradient(270deg, var(--surface) 0%, transparent 100%);
 }
 
 .category-tabs {
