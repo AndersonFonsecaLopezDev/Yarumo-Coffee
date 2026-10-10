@@ -286,7 +286,52 @@ h1 em, h2 em, h3 em {
   gap: 10px;
 }
 
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: var(--text-xs);
+  padding: 7px 13px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--text);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.theme-toggle-btn svg {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  transition: transform var(--transition-fast);
+}
+
+.theme-toggle-btn:hover {
+  background: var(--ink);
+  color: var(--cream);
+  transform: translateY(-1px);
+}
+
+.theme-toggle-btn:hover svg {
+  transform: rotate(20deg);
+}
+
+:root[data-theme="dark"] .theme-toggle-btn:hover {
+  background: var(--lime);
+  color: var(--ink);
+  border-color: var(--lime);
+}
+
 .instagram-link {
+  display: inline-flex;
+  align-items: center;
   font-weight: 700;
   font-size: var(--text-xs);
   padding: 7px 14px;
@@ -295,6 +340,7 @@ h1 em, h2 em, h3 em {
   color: var(--text);
   transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
   white-space: nowrap;
+  line-height: 1;
 }
 
 .instagram-link:hover {
