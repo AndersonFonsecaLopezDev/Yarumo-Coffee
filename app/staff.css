@@ -1861,6 +1861,10 @@
   border-left-color: #d9a84e;
 }
 
+.staff-toast-item.toast-type-error {
+  border-left-color: #e53e3e;
+}
+
 .toast-icon {
   font-size: 24px;
   flex-shrink: 0;

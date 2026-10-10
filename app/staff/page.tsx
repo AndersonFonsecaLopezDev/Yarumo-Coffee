@@ -45,6 +45,66 @@ const HelpTab = dynamic(() => import('./tabs/HelpTab'), {
   loading: () => <div className="tab-loading-skeleton">Cargando centro de ayuda...</div>,
 })
 
+type AuthErrorNotice = {
+  title: string
+  message: string
+}
+
+function parseAuthError(): AuthErrorNotice | null {
+  if (typeof window === 'undefined') return null
+
+  const searchParams = new URLSearchParams(window.location.search)
+  let errorParam = searchParams.get('error')
+  let errorCode = searchParams.get('error_code')
+  let errorDesc = searchParams.get('error_description')
+
+  // Si no está en searchParams, buscar en el fragmento hash (#error=...)
+  if (!errorParam && !errorCode && window.location.hash) {
+    const hash = window.location.hash.replace(/^#/, '')
+    const hashParams = new URLSearchParams(hash)
+    errorParam = hashParams.get('error')
+    errorCode = hashParams.get('error_code')
+    errorDesc = hashParams.get('error_description')
+  }
+
+  if (!errorParam && !errorCode) return null
+
+  if (
+    errorCode === 'signup_disabled' ||
+    errorDesc?.toLowerCase().includes('signup') ||
+    errorDesc?.toLowerCase().includes('not allowed')
+  ) {
+    return {
+      title: 'Usuario no identificado',
+      message: 'Tu cuenta de Google no está registrada en el sistema de Yarumo Coffee. El administrador debe dar de alta tu correo antes de poder ingresar.',
+    }
+  }
+  if (errorParam === 'not_authorized') {
+    return {
+      title: 'Usuario no autorizado',
+      message: 'Tu correo de Google no tiene permisos de staff asignados en este panel.',
+    }
+  }
+  if (errorParam === 'access_denied') {
+    return {
+      title: 'Usuario no identificado',
+      message: 'Acceso denegado o no autorizado para esta cuenta. Consulta con el administrador.',
+    }
+  }
+  if (errorParam === 'oauth_error') {
+    return {
+      title: 'Error de autenticación',
+      message: 'No se pudo completar la conexión con Google. Intenta nuevamente.',
+    }
+  }
+
+  const clean = errorDesc ? decodeURIComponent(errorDesc.replace(/\+/g, ' ')) : 'Usuario no identificado o sin permisos de acceso.'
+  return {
+    title: 'Usuario no identificado',
+    message: clean,
+  }
+}
+
 export default function StaffPage() {
   const supabase = useMemo(() => createClient(), [])
   const [user, setUser] = useState<string | null>(null)
@@ -53,17 +113,32 @@ export default function StaffPage() {
   const [password, setPassword] = useState('')
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [isGoogleLoggingIn, setIsGoogleLoggingIn] = useState(false)
-  const [error, setError] = useState(() => {
-    if (typeof window === 'undefined') return ''
-    const errorParam = new URLSearchParams(window.location.search).get('error')
-    if (errorParam === 'oauth_error') {
-      return 'Error en la autenticación con Google. Intenta nuevamente.'
-    }
-    if (errorParam === 'not_authorized') {
-      return 'Tu cuenta de Google no tiene permisos de staff para acceder a este panel.'
-    }
-    return ''
+  const [authErrorNotice, setAuthErrorNotice] = useState<AuthErrorNotice | null>(parseAuthError)
+  const [error, setError] = useState<string>(() => {
+    const initial = parseAuthError()
+    return initial ? initial.message : ''
   })
+
+  // Limpiar parámetros de error de la barra de direcciones
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hasError =
+        window.location.search.includes('error') ||
+        window.location.hash.includes('error')
+      if (hasError) {
+        window.history.replaceState({}, '', '/staff')
+      }
+    }
+  }, [])
+
+  // Auto-descartar alerta flotante tras 14 segundos
+  useEffect(() => {
+    if (!authErrorNotice) return
+    const timer = setTimeout(() => {
+      setAuthErrorNotice(null)
+    }, 14000)
+    return () => clearTimeout(timer)
+  }, [authErrorNotice])
 
   // Listas de datos
   const [requests, setRequests] = useState<Request[]>([])
@@ -199,15 +274,22 @@ export default function StaffPage() {
   async function login(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    setAuthErrorNotice(null)
     setIsLoggingIn(true)
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
     setIsLoggingIn(false)
-    if (authError) setError('Correo o contraseña incorrectos.')
-    else await load()
+    if (authError) {
+      const msg = 'Correo o contraseña incorrectos.'
+      setError(msg)
+      setAuthErrorNotice({ title: 'Usuario no identificado', message: msg })
+    } else {
+      await load()
+    }
   }
 
   async function loginWithGoogle() {
     setError('')
+    setAuthErrorNotice(null)
     setIsGoogleLoggingIn(true)
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -217,7 +299,12 @@ export default function StaffPage() {
     })
     if (oauthError) {
       setIsGoogleLoggingIn(false)
-      setError('No se pudo iniciar sesión con Google. Asegúrate de que el proveedor Google esté activo en Supabase.')
+      const notice = {
+        title: 'Error de conexión',
+        message: 'No se pudo iniciar sesión con Google. Asegúrate de que el proveedor Google esté activo en Supabase.',
+      }
+      setError(notice.message)
+      setAuthErrorNotice(notice)
     }
   }
 
@@ -230,6 +317,30 @@ export default function StaffPage() {
   if (!user) {
     return (
       <main className="login-page">
+        {authErrorNotice && (
+          <aside className="staff-alerts-container" style={{ zIndex: 999 }} aria-label="Notificaciones del sistema">
+            <div
+              className="staff-toast-item toast-type-error"
+              role="alert"
+              aria-live="assertive"
+            >
+              <div className="toast-icon">⚠️</div>
+              <div className="toast-content">
+                <strong className="toast-title">{authErrorNotice.title}</strong>
+                <span className="toast-subtitle">{authErrorNotice.message}</span>
+              </div>
+              <button
+                type="button"
+                className="toast-close-btn"
+                onClick={() => setAuthErrorNotice(null)}
+                aria-label="Cerrar notificación"
+              >
+                ✕
+              </button>
+            </div>
+          </aside>
+        )}
+
         <section className="login-card">
           <div className="login-brand">
             <div className="login-logo-wrap">

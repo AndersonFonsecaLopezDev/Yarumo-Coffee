@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import TableServiceSection from './TableServiceSection'
 import PromotionsSection, { type Promotion } from './PromotionsSection'
 import MenuCatalog, { type MenuItem, type MenuCategory } from './MenuCatalog'
@@ -21,6 +21,22 @@ export default function HomeClientSection({
   const [table, setTable] = useState<{ id: string; label: string } | null>(null)
   const [mesaToken, setMesaToken] = useState<string | null>(null)
   const [toastMessage, setToastMessage] = useState<string>('')
+
+  // Si llega a la raíz un error o hash de autenticación OAuth de Supabase, redirigir inmediatamente a /staff
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const search = window.location.search
+    const hash = window.location.hash
+    const hasAuthError =
+      search.includes('error=') ||
+      search.includes('error_code=') ||
+      hash.includes('error=') ||
+      hash.includes('error_code=')
+
+    if (hasAuthError) {
+      window.location.replace('/staff' + search + hash)
+    }
+  }, [])
 
   return (
     <>
