@@ -54,6 +54,14 @@ export default function PrintMenuModal({
     }
   }, [])
 
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   // Organizar productos por categoría respetando sort_order
   const sortedCategories = [...categories]
     .filter((c) => c.active !== false)

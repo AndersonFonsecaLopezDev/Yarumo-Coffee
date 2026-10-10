@@ -2433,17 +2433,22 @@
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .print-modal-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--surface-card);
+  backdrop-filter: blur(12px);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
   flex-wrap: wrap;
 }
 
@@ -2487,11 +2492,13 @@
 }
 
 .print-modal-preview-wrapper {
-  padding: 30px;
-  background: #2b302e;
+  padding: 36px 24px;
+  background: #232826;
   overflow-x: auto;
   display: flex;
   justify-content: center;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
 }
 
 /* Hoja física del menú apaisado (Landscape Preview & Print) */
@@ -2499,15 +2506,15 @@
   width: 100%;
   max-width: 1100px;
   min-height: 720px;
+  height: auto;
   background: #ffffff;
   color: #18362f;
   padding: 36px 42px;
-  border-radius: 8px;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.25);
+  border-radius: 12px;
+  box-shadow: 0 14px 45px rgba(0, 0, 0, 0.28);
   font-family: var(--font-family-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
   display: flex;
   flex-direction: column;
-  gap: 22px;
   box-sizing: border-box;
 }
 
@@ -2518,6 +2525,7 @@
   border-bottom: 2px solid #18362f;
   padding-bottom: 16px;
   gap: 20px;
+  margin-bottom: 20px;
 }
 
 .print-header-brand {
@@ -2583,9 +2591,10 @@
 
 /* Cuadrícula horizontal por columnas */
 .print-categories-grid {
-  flex: 1;
+  width: 100%;
   column-gap: 32px;
   column-fill: balance;
+  margin-bottom: 24px;
 }
 
 .printable-menu-sheet.cols-3 .print-categories-grid {
@@ -2597,9 +2606,8 @@
 }
 
 .print-category-block {
-  break-inside: avoid-column;
-  page-break-inside: avoid;
-  margin-bottom: 22px;
+  margin-bottom: 20px;
+  break-inside: auto;
 }
 
 .print-category-title {
@@ -2612,6 +2620,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  break-after: avoid;
+  page-break-after: avoid;
 }
 
 .print-cat-icon {
@@ -2636,21 +2646,22 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 4px;
+  gap: 6px;
 }
 
 .print-item-name {
   font-weight: 700;
   font-size: 13.5px;
   color: #111827;
-  white-space: nowrap;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .print-leader-dots {
   flex: 1;
   border-bottom: 1.5px dotted #9ca3af;
   margin: 0 4px 3px;
-  min-width: 14px;
+  min-width: 12px;
 }
 
 .print-item-price {
@@ -2658,6 +2669,7 @@
   font-size: 13.5px;
   color: #18362f;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .print-item-desc {
@@ -2692,6 +2704,7 @@
 
 /* Pie de página de la carta impresa */
 .print-sheet-footer {
+  margin-top: auto;
   border-top: 2px solid #18362f;
   padding-top: 14px;
   display: flex;
@@ -2815,17 +2828,34 @@
     width: 100% !important;
     max-width: 100% !important;
     min-height: auto !important;
+    height: auto !important;
     background: #ffffff !important;
     color: #18362f !important;
+    overflow: visible !important;
+  }
+
+  .print-categories-grid {
+    column-gap: 24px !important;
+    break-inside: auto !important;
+    page-break-inside: auto !important;
   }
 
   .print-sheet-header {
     border-bottom: 2px solid #18362f !important;
+    margin-bottom: 14px !important;
+    padding-bottom: 12px !important;
   }
 
   .print-category-title {
     color: #18362f !important;
     border-bottom: 1.5px solid #18362f !important;
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  .print-menu-item {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   .print-item-name,
@@ -2843,6 +2873,10 @@
 
   .print-sheet-footer {
     border-top: 2px solid #18362f !important;
+    margin-top: 18px !important;
+    padding-top: 10px !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 }
 
