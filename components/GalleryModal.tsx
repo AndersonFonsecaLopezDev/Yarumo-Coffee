@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import type { MenuItem } from '@/components/MenuCatalog'
 
 type GalleryModalProps = {
   item: MenuItem | null
-  initialIndex?: number
+  cartQty?: number
+  onAddToCart?: (item: MenuItem) => void
+  onUpdateQuantity?: (delta: number) => void
   onClose: () => void
 }
 
@@ -21,13 +23,18 @@ function formatCop(value?: number | null) {
 
 export default function GalleryModal({
   item,
-  initialIndex = 0,
+  cartQty = 0,
+  onAddToCart,
+  onUpdateQuantity,
   onClose,
 }: GalleryModalProps) {
+  const [activeImageIndex, setActiveImageIndex] = useState(0)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
 
-  const images = item ? [item.image_url, ...(item.gallery_urls || [])].filter(Boolean) as string[] : []
+  const images = item
+    ? [item.image_url, ...(item.gallery_urls || [])].filter(Boolean) as string[]
+    : []
 
   useEffect(() => {
     if (!item) return
@@ -38,6 +45,10 @@ export default function GalleryModal({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         onClose()
+      } else if (event.key === 'ArrowRight' && images.length > 1) {
+        setActiveImageIndex((prev) => (prev + 1) % images.length)
+      } else if (event.key === 'ArrowLeft' && images.length > 1) {
+        setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length)
       }
     }
 
@@ -46,59 +57,178 @@ export default function GalleryModal({
       document.removeEventListener('keydown', handleKeyDown)
       previousFocusRef.current?.focus()
     }
-  }, [item, onClose])
+  }, [item, images.length, onClose])
 
   if (!item || images.length === 0) return null
 
-  const currentImage = images[initialIndex] || images[0]
+  const currentImage = images[activeImageIndex] || images[0]
+
+  function shareProductWhatsapp() {
+    if (!item) return
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://yarumo-coffee.vercel.app'
+    const link = `${origin}/?item=${item.id}#menu`
+    const message = encodeURIComponent(`¡Mira este café de Yarumo Coffee! ☕ ${item.name}: ${link}`)
+    window.open(`https://api.whatsapp.com/send?text=${message}`, '_blank')
+  }
 
   return (
     <div
-      className="modal-backdrop"
+      className="gallery-modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="gallery-item-title"
       onClick={onClose}
     >
       <div
-        className="modal-dialog"
-        style={{ maxWidth: 640 }}
+        className="gallery-modal-card"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="modal-header">
-          <div>
-            <span className="eyebrow">{item.category}</span>
-            <h2 id="gallery-item-title">{item.name}</h2>
-          </div>
-          <button
-            ref={closeButtonRef}
-            type="button"
-            className="modal-close-btn"
-            onClick={onClose}
-            aria-label="Cerrar galería de imágenes"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div style={{ position: 'relative', width: '100%', aspectRatio: '4/3', borderRadius: 16, overflow: 'hidden', background: 'var(--surface-card-warm)' }}>
+        {/* Visor de Imagen Principal */}
+        <div className="gallery-viewport">
           <Image
             src={currentImage}
-            alt={`${item.name} - Imagen de presentación`}
+            alt={`${item.name} - Foto ${activeImageIndex + 1}`}
             fill
-            sizes="(max-width: 768px) 100vw, 600px"
+            sizes="(max-width: 768px) 100vw, 640px"
             style={{ objectFit: 'cover' }}
             priority
           />
+
+          {/* Botón flotante para cerrar */}
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className="gallery-close-btn"
+            onClick={onClose}
+            aria-label="Cerrar modal"
+          >
+            ✕
+          </button>
+
+          {/* Badge de Categoría */}
+          <span className="gallery-category-pill">
+            {item.category}
+          </span>
+
+          {/* Controles de navegación si hay múltiples imágenes */}
+          {images.length > 1 && (
+            <>
+              <button
+                type="button"
+                className="gallery-nav-btn gallery-nav-prev"
+                onClick={() => setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length)}
+                aria-label="Foto anterior"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                className="gallery-nav-btn gallery-nav-next"
+                onClick={() => setActiveImageIndex((prev) => (prev + 1) % images.length)}
+                aria-label="Foto siguiente"
+              >
+                ›
+              </button>
+              <span className="gallery-counter-pill">
+                {activeImageIndex + 1} / {images.length}
+              </span>
+            </>
+          )}
         </div>
 
-        <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-            {item.description}
-          </p>
-          <strong style={{ fontSize: '1.2rem', color: 'var(--orange)', whiteSpace: 'nowrap', marginLeft: 16 }}>
-            {formatCop(item.price_cop)}
-          </strong>
+        {/* Miniaturas de la galería si hay más de 1 imagen */}
+        {images.length > 1 && (
+          <div className="gallery-thumbnails-strip">
+            {images.map((imgUrl, idx) => (
+              <button
+                key={imgUrl}
+                type="button"
+                className={`gallery-thumb-btn ${idx === activeImageIndex ? 'active' : ''}`}
+                onClick={() => setActiveImageIndex(idx)}
+                aria-label={`Ver foto ${idx + 1}`}
+              >
+                <Image
+                  src={imgUrl}
+                  alt={`Miniatura ${idx + 1}`}
+                  fill
+                  sizes="64px"
+                  style={{ objectFit: 'cover' }}
+                />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Información y detalles del producto */}
+        <div className="gallery-details-body">
+          <div className="gallery-title-row">
+            <h2 id="gallery-item-title" className="gallery-title">
+              {item.name}
+            </h2>
+          </div>
+
+          {item.description && (
+            <p className="gallery-description">
+              {item.description}
+            </p>
+          )}
+        </div>
+
+        {/* Footer de acción comercial */}
+        <div className="gallery-modal-footer">
+          <div className="gallery-price-wrap">
+            <span className="gallery-price-label">Precio</span>
+            <strong className="gallery-price-value">
+              {formatCop(item.price_cop)}
+            </strong>
+          </div>
+
+          <div className="gallery-footer-actions">
+            {onAddToCart && onUpdateQuantity && (
+              cartQty > 0 ? (
+                <div className="item-stepper" role="group" aria-label={`Modificar cantidad de ${item.name}`}>
+                  <button
+                    type="button"
+                    className="stepper-btn stepper-btn-minus"
+                    onClick={() => onUpdateQuantity(-1)}
+                    aria-label={`Quitar uno de ${item.name}`}
+                  >
+                    −
+                  </button>
+                  <span className="stepper-qty" aria-live="polite">
+                    {cartQty}
+                  </span>
+                  <button
+                    type="button"
+                    className="stepper-btn stepper-btn-plus"
+                    onClick={() => onUpdateQuantity(1)}
+                    aria-label={`Agregar otro ${item.name}`}
+                  >
+                    +
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="gallery-add-btn"
+                  onClick={() => onAddToCart(item)}
+                >
+                  <span>+</span>
+                  <span>Pedir</span>
+                </button>
+              )
+            )}
+
+            <button
+              type="button"
+              className="item-share-btn"
+              onClick={shareProductWhatsapp}
+              aria-label={`Compartir ${item.name} por WhatsApp`}
+              title="Compartir por WhatsApp"
+            >
+              💬
+            </button>
+          </div>
         </div>
       </div>
     </div>

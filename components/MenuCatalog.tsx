@@ -643,7 +643,11 @@ export default function MenuCatalog({
       {/* Modal de galería cargado dinámicamente */}
       {galleryItem && (
         <GalleryModal
+          key={galleryItem.id}
           item={galleryItem}
+          cartQty={cartQuantityMap.get(galleryItem.id) || 0}
+          onAddToCart={(it) => addToCart(it)}
+          onUpdateQuantity={(delta) => updateCartQuantity(galleryItem.id, delta)}
           onClose={() => setGalleryItem(null)}
         />
       )}

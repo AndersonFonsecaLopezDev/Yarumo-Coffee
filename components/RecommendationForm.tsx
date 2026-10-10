@@ -72,7 +72,7 @@ export default function RecommendationForm() {
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
           <label htmlFor="rec-name" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6 }}>
-            Tu Nombre *
+            Tu nombre *
           </label>
           <input
             id="rec-name"
@@ -113,7 +113,7 @@ export default function RecommendationForm() {
 
         <div>
           <label htmlFor="rec-table" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6 }}>
-            Número de Mesa (Opcional)
+            Número de mesa (opcional)
           </label>
           <input
             id="rec-table"
@@ -127,7 +127,7 @@ export default function RecommendationForm() {
 
         <div>
           <label htmlFor="rec-comment" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6 }}>
-            Tu Comentario *
+            Tu comentario *
           </label>
           <textarea
             id="rec-comment"
