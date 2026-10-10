@@ -161,6 +161,14 @@ export default function MenuCatalog({
     } catch {}
   }, [cart])
 
+  const cartQuantityMap = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const entry of cart) {
+      map.set(entry.item.id, entry.quantity)
+    }
+    return map
+  }, [cart])
+
   // 2. Deep link ?item=id o ?item=slug al cargar
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -476,9 +484,20 @@ export default function MenuCatalog({
                 const isFav = favorites.has(item.id)
                 const hasGallery = (item.gallery_urls?.length ?? 0) > 0
                 const tags = getProductTags(item)
+                const cartQty = cartQuantityMap.get(item.id) || 0
 
                 return (
-                  <article key={item.id} className="item-card" id={`item-${item.id}`}>
+                  <article
+                    key={item.id}
+                    className={`item-card ${cartQty > 0 ? 'is-in-cart' : ''}`}
+                    id={`item-${item.id}`}
+                  >
+                    {cartQty > 0 && (
+                      <span className="item-in-cart-pill" aria-label={`${cartQty} en tu pedido`}>
+                        ✓ {cartQty} en pedido
+                      </span>
+                    )}
+
                     {item.image_url ? (
                       <div
                         className="item-media"
@@ -546,15 +565,39 @@ export default function MenuCatalog({
                         <span className="item-price">{formatCop(item.price_cop)}</span>
 
                         <div className="item-footer-actions">
-                          <button
-                            type="button"
-                            className="item-add-btn add-to-cart-btn"
-                            onClick={() => addToCart(item)}
-                            aria-label={`Pedir ${item.name}`}
-                          >
-                            <span>+</span>
-                            <span>Pedir</span>
-                          </button>
+                          {cartQty > 0 ? (
+                            <div className="item-stepper" role="group" aria-label={`Modificar cantidad de ${item.name}`}>
+                              <button
+                                type="button"
+                                className="stepper-btn stepper-btn-minus"
+                                onClick={() => updateCartQuantity(item.id, -1)}
+                                aria-label={`Quitar uno de ${item.name}`}
+                              >
+                                −
+                              </button>
+                              <span className="stepper-qty" aria-live="polite">
+                                {cartQty}
+                              </span>
+                              <button
+                                type="button"
+                                className="stepper-btn stepper-btn-plus"
+                                onClick={() => updateCartQuantity(item.id, 1)}
+                                aria-label={`Agregar otro ${item.name}`}
+                              >
+                                +
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="item-add-btn add-to-cart-btn"
+                              onClick={() => addToCart(item)}
+                              aria-label={`Pedir ${item.name}`}
+                            >
+                              <span>+</span>
+                              <span>Pedir</span>
+                            </button>
+                          )}
 
                           <button
                             type="button"
