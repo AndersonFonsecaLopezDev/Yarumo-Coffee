@@ -7,7 +7,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: SITE_URL,
       lastModified: new Date(),
       changeFrequency: 'weekly',
-      priority: 1,
+      priority: 1.0,
+    },
+    {
+      url: `${SITE_URL}/recomendaciones`,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 0.8,
     },
   ]
 }

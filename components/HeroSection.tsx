@@ -33,7 +33,8 @@ export default function HeroSection({ heroImageUrl }: HeroSectionProps) {
           width={680}
           height={880}
           priority
-          sizes="(max-width: 768px) 90vw, 340px"
+          sizes="(max-width: 640px) 300px, 360px"
+          quality={70}
         />
         <figcaption className="hero-photo-caption">
           <span>Café de Origen</span>

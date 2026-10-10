@@ -10,6 +10,9 @@ export const revalidate = 60
 export const metadata: Metadata = {
   title: 'Opiniones y Recomendaciones · Yarumo Coffee',
   description: 'Lee las experiencias de nuestros clientes y déjanos tu opinión sobre el café y la atención en Yarumo Coffee Armenia.',
+  alternates: {
+    canonical: '/recomendaciones',
+  },
 }
 
 type Recommendation = {

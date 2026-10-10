@@ -15,6 +15,9 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  alternates: {
+    canonical: '/',
+  },
   title: 'Yarumo Coffee · Menú Digital y Atención en Mesa',
   description: 'Menú digital y atención en mesa de Yarumo Coffee en Armenia, Quindío. Pide a tu mesa o a domicilio con café especial de origen.',
   manifest: '/manifest.webmanifest',
