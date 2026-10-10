@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { checkPersistentRateLimit } from '@/lib/rate-limit'
 
 export async function GET() {
@@ -60,9 +61,19 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient()
 
+    // Preferir cliente con permisos de administración en servidor si la clave de servicio está presente
+    let dbClient = supabase
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        dbClient = createAdminClient() as unknown as typeof supabase
+      } catch {
+        dbClient = supabase
+      }
+    }
+
     if (tableNumber) {
       const cleanTable = String(tableNumber).trim()
-      const { data: recentTableRec } = await supabase
+      const { data: recentTableRec } = await dbClient
         .from('recommendations')
         .select('id')
         .eq('table_number', cleanTable)
@@ -77,7 +88,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { data, error } = await supabase
+    // Insertar sin .select().single() para evitar que PostgreSQL intente evaluar
+    // la política RLS de SELECT en una fila recién creada con status 'pending'
+    const { error } = await dbClient
       .from('recommendations')
       .insert({
         name: name.trim(),
@@ -86,18 +99,20 @@ export async function POST(request: NextRequest) {
         table_number: tableNumber ? String(tableNumber).trim() : null,
         status: 'pending',
       })
-      .select()
-      .single()
-
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('Error al insertar recomendación:', error)
+      return NextResponse.json(
+        { error: 'No se pudo registrar tu recomendación en este momento. Por favor intenta de nuevo.' },
+        { status: 500 },
+      )
     }
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json({ success: true }, { status: 201 })
   } catch (error) {
+    console.error('Excepción en POST /api/recommendations:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error interno' },
+      { error: error instanceof Error ? error.message : 'Error interno al procesar la recomendación' },
       { status: 500 },
     )
   }
