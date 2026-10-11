@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { normalizeText } from '@/lib/filters'
+import { useConfirm } from '@/components/ConfirmModal'
 
 type User = { id: string; email?: string; lastSignInAt?: string | null; profile: { display_name: string; role: string } | null }
 const empty = { email: '', password: '', displayName: '', role: 'staff' }
@@ -89,8 +90,16 @@ export default function UserAdmin() {
     await load()
   }
 
+  const { confirm, ConfirmDialog } = useConfirm()
+
   async function remove(user: User) {
-    if (!confirm(`¿Eliminar el usuario ${user.email || ''}?`)) return
+    const ok = await confirm({
+      title: '¿Eliminar usuario?',
+      message: `¿Estás seguro de que deseas eliminar permanentemente la cuenta de ${user.email || 'este usuario'}?`,
+      confirmText: 'Eliminar usuario',
+      danger: true,
+    })
+    if (!ok) return
     const response = await fetch(`/api/admin/users?id=${encodeURIComponent(user.id)}`, { method: 'DELETE' })
     const data = await response.json()
     if (!response.ok) setMessage(data.error || 'No se pudo eliminar')
@@ -213,6 +222,7 @@ export default function UserAdmin() {
           </div>
         </form>
       </div>
+      <ConfirmDialog />
     </section>
   )
 }

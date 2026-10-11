@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { revalidatePublicContent } from '@/app/actions/revalidate'
 import { normalizeText, useUrlFilters, useDebouncedValue } from '@/lib/filters'
 import PrintMenuModal from './PrintMenuModal'
+import { useConfirm } from '@/components/ConfirmModal'
 
 type MenuTabProps = {
   items: MenuItem[]
@@ -43,6 +44,7 @@ export default function MenuTab({
   onRefresh,
 }: MenuTabProps) {
   const [supabase] = useState(() => createClient())
+  const { confirm, ConfirmDialog } = useConfirm()
   const [editing, setEditing] = useState<MenuItem | null>(null)
   const [form, setForm] = useState<MenuForm>(() => ({
     ...blankMenuForm,
@@ -175,7 +177,13 @@ export default function MenuTab({
   }
 
   async function removeItem(item: MenuItem) {
-    if (!confirm(`¿Eliminar definitivamente ${item.name}?`)) return
+    const ok = await confirm({
+      title: '¿Eliminar producto?',
+      message: `¿Estás seguro de que deseas eliminar permanentemente el producto "${item.name}"?`,
+      confirmText: 'Eliminar producto',
+      danger: true,
+    })
+    if (!ok) return
     const { error: delError } = await supabase.from('menu_items').delete().eq('id', item.id)
     if (delError) setError('Error al eliminar: ' + delError.message)
     else {
@@ -324,9 +332,12 @@ export default function MenuTab({
     const percent = parseFloat(bulkPercent)
     if (Number.isNaN(percent) || selectedIds.length === 0) return
 
-    if (!confirm(`¿Ajustar el precio de ${selectedIds.length} productos en un ${percent > 0 ? '+' : ''}${percent}%?`)) {
-      return
-    }
+    const ok = await confirm({
+      title: '¿Ajustar precios en lote?',
+      message: `¿Confirmas ajustar el precio de ${selectedIds.length} productos seleccionados en un ${percent > 0 ? '+' : ''}${percent}%?`,
+      confirmText: 'Aplicar ajuste',
+    })
+    if (!ok) return
 
     setBulkActionLoading(true)
     const itemsToUpdate = items.filter((it) => selectedIds.includes(it.id))
@@ -1127,6 +1138,7 @@ export default function MenuTab({
           onClose={() => setShowPrintModal(false)}
         />
       )}
+      <ConfirmDialog />
     </div>
   )
 }

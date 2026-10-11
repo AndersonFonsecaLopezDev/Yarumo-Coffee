@@ -28,6 +28,7 @@ export default function SettingsTab({
   const [whatsappInput, setWhatsappInput] = useState(initialWhatsapp.replace(/^57/, ''))
   const [whatsappSaving, setWhatsappSaving] = useState(false)
   const [whatsappSuccess, setWhatsappSuccess] = useState('')
+  const [waitTimeSuccess, setWaitTimeSuccess] = useState('')
 
   async function saveHeroImage(e: React.FormEvent) {
     e.preventDefault()
@@ -202,10 +203,12 @@ export default function SettingsTab({
                 updated_at: new Date().toISOString(),
               })
               void revalidatePublicContent(['settings'])
-              alert('Tiempo estimado actualizado')
+              setWaitTimeSuccess('Tiempo estimado guardado con éxito.')
+              setTimeout(() => setWaitTimeSuccess(''), 4000)
             }}
             style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
           >
+            {waitTimeSuccess && <div className="alert alert-success">{waitTimeSuccess}</div>}
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Tiempo estimado (minutos)</label>
               <input

@@ -6,6 +6,7 @@ import type { Promotion, MenuItem, PromotionForm } from '../types'
 import { createClient } from '@/lib/supabase/client'
 import { revalidatePublicContent } from '@/app/actions/revalidate'
 import { normalizeText } from '@/lib/filters'
+import { useConfirm } from '@/components/ConfirmModal'
 
 type PromotionsTabProps = {
   promotions: Promotion[]
@@ -147,8 +148,16 @@ export default function PromotionsTab({
     onRefresh()
   }
 
+  const { confirm, ConfirmDialog } = useConfirm()
+
   async function removePromotion(promo: Promotion) {
-    if (!confirm(`¿Eliminar la promoción "${promo.title}"?`)) return
+    const ok = await confirm({
+      title: '¿Eliminar promoción?',
+      message: `¿Estás seguro de que deseas eliminar la promoción "${promo.title}"?`,
+      confirmText: 'Eliminar',
+      danger: true,
+    })
+    if (!ok) return
     await supabase.from('promotions').delete().eq('id', promo.id)
     void revalidatePublicContent(['promotions'])
     onRefresh()
@@ -390,6 +399,7 @@ export default function PromotionsTab({
           )}
         </div>
       </div>
+      <ConfirmDialog />
     </div>
   )
 }

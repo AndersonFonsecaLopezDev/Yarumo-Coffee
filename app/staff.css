@@ -3268,3 +3268,83 @@
     transform: rotate(360deg);
   }
 }
+
+/* Modo oscuro adicional para panel de staff, tablas, filtros y modales */
+:root[data-theme="dark"] .staff-layout-root,
+:root[data-theme="dark"] .staff,
+:root[data-theme="dark"] .staff-container {
+  background: var(--surface);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .staff-head,
+:root[data-theme="dark"] .staff-header {
+  background: var(--surface-card);
+  border-bottom: 1px solid var(--border);
+}
+
+:root[data-theme="dark"] .staff-filter-card,
+:root[data-theme="dark"] .bulk-actions-floating-bar,
+:root[data-theme="dark"] .bottom-sheet-content {
+  background: var(--surface-card);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .filter-chip {
+  background: rgba(217, 232, 106, 0.15);
+  color: var(--lime);
+  border-color: rgba(217, 232, 106, 0.3);
+}
+
+:root[data-theme="dark"] .staff-table th {
+  background: var(--surface-card-warm);
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+:root[data-theme="dark"] .staff-table td {
+  border-color: var(--border);
+}
+
+:root[data-theme="dark"] .staff-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+:root[data-theme="dark"] .staff-table tbody tr.row-selected {
+  background: rgba(217, 232, 106, 0.1);
+}
+
+:root[data-theme="dark"] .staff-connection-badge {
+  background: var(--surface-card-warm);
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+:root[data-theme="dark"] .btn-refresh-data,
+:root[data-theme="dark"] .btn-sound-toggle {
+  background: var(--surface-card-warm);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .btn-refresh-data:hover,
+:root[data-theme="dark"] .btn-sound-toggle:hover {
+  background: var(--border);
+}
+
+:root[data-theme="dark"] .confirm-modal-content {
+  background: var(--surface-card);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .confirm-modal-icon-wrap {
+  background: rgba(217, 232, 106, 0.15);
+  color: var(--lime);
+}
+
+:root[data-theme="dark"] .confirm-modal-icon-wrap[data-danger="true"] {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}

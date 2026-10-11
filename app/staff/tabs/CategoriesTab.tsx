@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { MenuCategory, CategoryForm } from '../types'
 import { createClient } from '@/lib/supabase/client'
 import { revalidatePublicContent } from '@/app/actions/revalidate'
+import { useConfirm } from '@/components/ConfirmModal'
 
 type CategoriesTabProps = {
   categories: MenuCategory[]
@@ -83,8 +84,16 @@ export default function CategoriesTab({
     onRefresh()
   }
 
+  const { confirm, ConfirmDialog } = useConfirm()
+
   async function removeCategory(cat: MenuCategory) {
-    if (!confirm(`¿Eliminar la categoría "${cat.name}"?`)) return
+    const ok = await confirm({
+      title: '¿Eliminar categoría?',
+      message: `¿Estás seguro de que deseas eliminar la categoría "${cat.name}"?`,
+      confirmText: 'Eliminar',
+      danger: true,
+    })
+    if (!ok) return
     await supabase.from('menu_categories').delete().eq('id', cat.id)
     void revalidatePublicContent(['categories'])
     onRefresh()
@@ -200,6 +209,7 @@ export default function CategoriesTab({
           ))}
         </div>
       </div>
+      <ConfirmDialog />
     </div>
   )
 }

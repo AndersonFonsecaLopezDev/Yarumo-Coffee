@@ -5,6 +5,7 @@ import type { RecommendationItem } from '../types'
 import { createClient } from '@/lib/supabase/client'
 import { revalidatePublicContent } from '@/app/actions/revalidate'
 import { normalizeText } from '@/lib/filters'
+import { useConfirm } from '@/components/ConfirmModal'
 
 type RecommendationsTabProps = {
   recommendations: RecommendationItem[]
@@ -38,6 +39,8 @@ export default function RecommendationsTab({
     })
   }, [recommendations, searchQuery, statusFilter, ratingFilter])
 
+  const { confirm, ConfirmDialog } = useConfirm()
+
   async function updateStatus(id: string, status: 'published' | 'hidden') {
     setLoadingId(id)
     await supabase.from('recommendations').update({ status }).eq('id', id)
@@ -47,7 +50,13 @@ export default function RecommendationsTab({
   }
 
   async function removeRecommendation(id: string) {
-    if (!confirm('¿Eliminar definitivamente esta opinión?')) return
+    const ok = await confirm({
+      title: '¿Eliminar opinión?',
+      message: '¿Estás seguro de que deseas eliminar permanentemente esta opinión de cliente?',
+      confirmText: 'Eliminar',
+      danger: true,
+    })
+    if (!ok) return
     setLoadingId(id)
     await supabase.from('recommendations').delete().eq('id', id)
     void revalidatePublicContent(['recommendations'])
@@ -169,6 +178,7 @@ export default function RecommendationsTab({
           ))
         )}
       </div>
+      <ConfirmDialog />
     </div>
   )
 }

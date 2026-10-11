@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { CafeTable, MenuCategory, MenuItem, OrderRequest, Request } from '../types'
 import { createClient } from '@/lib/supabase/client'
 import { useUrlFilters, useDebouncedValue, normalizeText } from '@/lib/filters'
+import { useConfirm } from '@/components/ConfirmModal'
 
 type ActivityTabProps = {
   orders: OrderRequest[]
@@ -51,6 +52,7 @@ export default function ActivityTab({
   const [supabase] = useState(() => createClient())
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
+  const { confirm, ConfirmDialog } = useConfirm()
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -665,8 +667,14 @@ export default function ActivityTab({
                               type="button"
                               className="btn btn-sm btn-danger"
                               disabled={updatingId === ord.id}
-                              onClick={() => {
-                                if (confirm('¿Cancelar este pedido?')) {
+                              onClick={async () => {
+                                const ok = await confirm({
+                                  title: '¿Cancelar comanda?',
+                                  message: `¿Estás seguro de que deseas cancelar la comanda #${ord.id.slice(0, 5).toUpperCase()} de la Mesa ${ord.table?.label || 'General'}?`,
+                                  confirmText: 'Cancelar pedido',
+                                  danger: true,
+                                })
+                                if (ok) {
                                   updateOrderStatus(ord.id, 'cancelled')
                                 }
                               }}
@@ -968,6 +976,7 @@ export default function ActivityTab({
           </div>
         </div>
       )}
+      <ConfirmDialog />
     </div>
   )
 }

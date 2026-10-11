@@ -10,6 +10,8 @@ import { createClient } from '@/lib/supabase/client'
 const OrderCart = dynamic(() => import('./OrderCart'), { ssr: false })
 const GalleryModal = dynamic(() => import('./GalleryModal'), { ssr: false })
 const CustomerOrderTracker = dynamic(() => import('./CustomerOrderTracker'), { ssr: false })
+import { CategoryIcon } from '@/components/icons/CategoryIcons'
+import { ProductPlaceholder } from '@/components/ProductPlaceholder'
 
 export type MenuItem = {
   id: string
@@ -405,7 +407,7 @@ export default function MenuCatalog({
                   className={`category-tab ${selectedCategoryId === 'all' ? 'active' : ''}`}
                   onClick={(e) => handleSelectCategory('all', e)}
                 >
-                  <span>✨</span>
+                  <CategoryIcon category="Todos" size={17} />
                   <span>Todos</span>
                 </button>
                 {favorites.size > 0 && (
@@ -419,7 +421,7 @@ export default function MenuCatalog({
                     className={`category-tab ${selectedCategoryId === 'favorites' ? 'active' : ''}`}
                     onClick={(e) => handleSelectCategory('favorites', e)}
                   >
-                    <span>❤️</span>
+                    <CategoryIcon category="Favoritos" size={17} />
                     <span>Favoritos ({favorites.size})</span>
                   </button>
                 )}
@@ -435,7 +437,7 @@ export default function MenuCatalog({
                     className={`category-tab ${selectedCategoryId === cat.id ? 'active' : ''}`}
                     onClick={(e) => handleSelectCategory(cat.id, e)}
                   >
-                    <span>{cat.icon || '☕'}</span>
+                    <CategoryIcon category={cat.name} slug={cat.slug} icon={cat.icon} size={17} />
                     <span>{cat.name}</span>
                   </button>
                 ))}
@@ -512,7 +514,19 @@ export default function MenuCatalog({
                         )}
                       </div>
                     ) : (
-                      <div style={{ height: 16 }} />
+                      <div
+                        className="item-media"
+                        onClick={() => setGalleryItem(item)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') setGalleryItem(item)
+                        }}
+                        aria-label={`Ver detalles de ${item.name}`}
+                      >
+                        <ProductPlaceholder category={item.category} />
+                        <span className="item-badge-category">{item.category}</span>
+                      </div>
                     )}
 
                     <button
