@@ -103,41 +103,69 @@ La monitorización en producción y la analítica están completamente integrada
 ### Reseñas directas de Google
 - Constante centralizada `GOOGLE_REVIEWS_URL` en `lib/site-url.ts` con el identificador de lugar (CID) para abrir directamente la ficha y opiniones de Yarumo Coffee en Google Maps / Search.
 
-## Backlog de mejoras sugeridas (Roadmap UX)
+## Nuevas Funcionalidades y Mejoras Operativas (Versión 2.0)
 
-### Alto impacto / bajo esfuerzo:
-1. **Favoritos del cliente (♥)**: Guardado en `localStorage` del navegador móvil para encontrar cafés y postres recurrentes sin registro de cuenta.
-2. **Etiquetas de producto**: Badges como "Nuevo", "Recomendado del barista", "Vegano", "Sin azúcar añadida" (`tags text[]` en `menu_items`).
-3. **Tiempo estimado de espera**: Indicador visible al ordenar ("~10 min"), ajustable por el staff según el flujo del local.
-4. **Moderación de reseñas en `/recomendaciones`**: Bandeja de aprobación en `/staff` (estado `pending` por defecto) antes de publicarse en la vista pública.
+### 1. Impresión Aislada de Carta de Menú Física (`/staff`)
+- Botón **Imprimir Carta** con renderizado aislado mediante React Portal en `#print-root`.
+- Maquetación de alta fidelidad: tipografía serif editorial, paleta de colores de marca, separación automática por categorías, control de salto de página (`break-inside: avoid; page-break-after: always`) y eliminación total de sidebars, botones y elementos web durante la impresión (`@media print`).
 
-### Medio impacto:
-5. **Combos y Menú del día armables**: Bebida + antojito panadero con descuento automático al ordenar juntos.
-6. **Fidelidad y sellos por QR**: Registro anónimo en `localStorage` de visitas por QR para premiar la 5ª o 10ª visita.
-7. **Compartir producto por WhatsApp**: Deep-link directo al producto (`?item=slug`).
-8. **Modo bilingüe (Español / English)**: Especialmente útil para turistas y visitantes en Armenia.
+### 2. Filtros Unificados y Búsqueda Avanzada en Panel de Staff
+- Sistema modular en `lib/filters.ts` con normalización de caracteres, diacríticos y tildes.
+- Búsqueda en tiempo real con debounce y sincronización bidireccional con URL query parameters (`/staff?tab=menu&q=cappuccino&category=...`).
+- Filtros por categoría, estado (activo/inactivo) y fecha.
+- Acciones en lote en la pestaña Menú: activación y desactivación masiva de productos seleccionados.
 
-## Pruebas end-to-end
+### 3. Rendimiento y Robustez en Tiempo Real
+- Sincronización incremental debounced para canales Supabase Realtime, reduciendo re-renders y peticiones redundantes.
+- Notificaciones sonoras sintéticas para nuevas comandas mediante **Web Audio API** (sin depender de archivos de audio externos) con vibración háptica para dispositivos móviles y toggle de silencio accesible.
+- Aislamiento estricto del Service Worker (`/public/sw.js`): bypass de `/staff`, `/api/*`, `/auth/*` y llamadas directas a Supabase REST para evitar desincronizaciones de caché en el panel operativo.
+- Optimización de imágenes Hero con atributo `sizes` adaptativo para maximizar el Largest Contentful Paint (LCP).
 
-Se cuenta con suite de pruebas Playwright (`@playwright/test`):
+### 4. Sistema de Diseño, Marca y Accesibilidad
+- Tokens de diseño refinados para la paleta Yarumo (naranja tostado, verde bosque, crema y carbón).
+- Iconografía SVG de especialidad en `components/icons/CategoryIcons.tsx` (V60, Chemex, espresso, repostería).
+- Arte vectorial de marca `ProductPlaceholder` para productos sin fotografía comercial cargada.
+- Sistema de modales de confirmación accesibles (`components/ConfirmModal.tsx`, hook `useConfirm()`) con foco atrapado, navegación con teclado (ESC/Enter) y cumplimiento WCAG AA, reemplazando `confirm()` y `alert()` nativos del navegador.
 
-- `e2e/customer-menu.spec.ts`: un cliente abre `/?mesa=TOKEN`, ve la carta, pide la cuenta y prueba la adición de productos al carrito y comanda.
-- `e2e/staff-menu-crud.spec.ts`: un `owner`/`manager` inicia sesión en `/staff`, navega entre pestañas (Pedidos, Solicitudes, Categorías, Menú) y crea un producto.
+### 5. Experiencia del Cliente y Pedidos
+- **Internacionalización (i18n)**: Soporte bilingüe Español / Inglés con selector en el encabezado (`#btn-language-toggle`), autodetección de idioma del navegador y persistencia en `localStorage`.
+- **Personalización de Bebidas**: Selector de variantes en modal de producto (tipo de leche entera/deslactosada/avena/almendras, temperatura caliente/fría, tamaño estándar/doble) y notas especiales para el barista, calculando precios adicionales y reflejándolos en el carrito, comanda de barra y WhatsApp.
+- **Aviso de Mesa**: Badge indicador de mesa activa y aviso visual amigable cuando el QR escaneado no existe o ha expirado, permitiendo continuar en barra o para llevar.
+- **Protección Antispam Honeypot**: Campo invisible trampa en `/recomendaciones` y límite de caracteres visible (0 / 500).
 
-Para ejecutar las pruebas:
-1. `npm run test:e2e` (o `npm run dev` en paralelo).
+### 6. Curaduría de Datos y Seguridad Reforzada
+- Script SQL de curaduría de catálogo y auditoría de fotografías pendientes en `supabase/migrations/20261011_curacion_catalogo.sql`.
+- Validación estricta con **Zod** y paginación (`page`, `perPage`) en `/api/admin/users`.
+- Rate limiting reforzado con función segura `extractClientIp` contra spoofing de cabeceras y política de fallback.
+- Cabeceras **Content Security Policy (CSP)** reforzadas en `next.config.ts`.
+- Guía de configuración de **Autenticación Multifactor (MFA / TOTP)** en `docs/supabase-mfa-guide.md`.
+
+## Pruebas End-to-End (Playwright)
+
+El repositorio cuenta con una suite integral de pruebas automatizadas en `e2e/`:
+
+- `e2e/print-menu.spec.ts`: Verifica la apertura del modal de impresión, aislamiento en `#print-root` y reglas `@media print`.
+- `e2e/staff-filters.spec.ts`: Verifica búsqueda, filtros, sincronización de query params en URL y acciones en lote.
+- `e2e/staff-realtime-controls.spec.ts`: Verifica el indicador de conexión realtime, botón de refresco y toggle sonoro.
+- `e2e/design-system.spec.ts`: Verifica iconos SVG, placeholders de marca para productos sin foto y modales accesibles con ESC.
+- `e2e/customer-experience.spec.ts`: Verifica selector de idioma ES/EN, badge de mesa y honeypot antispam.
+- `e2e/usability-features.spec.ts`: Verifica persistencia del carrito, búsqueda insensible a tildes y navegación por teclado en pestañas.
+
+Para ejecutar todas las pruebas:
+```bash
+npm run test:e2e
+```
 
 ## Continuous Deployment
 
-- Vercel: conecta este repositorio desde Vercel. Cada Pull Request tendrá un Preview Deployment y cada push/merge a `main` generará producción.
-- GitHub Actions: `.github/workflows/ci.yml` ejecuta instalación, lint y build.
+- Vercel: conecta este repositorio desde Vercel. Cada Pull Request tendrá un Preview Deployment y cada push a `main` generará producción.
+- GitHub Actions: `.github/workflows/ci.yml` ejecuta instalación, lint, typecheck y build.
 - Supabase: `.github/workflows/supabase-deploy.yml` aplica automáticamente las migraciones cuando cambia `supabase/` en `main`.
 
-Configura estos GitHub Secrets:
+Variables de entorno requeridas en Vercel:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (solo servidor)
+- `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` (opcionales para rate limiting distribuido)
 
-- `SUPABASE_ACCESS_TOKEN`
-- `SUPABASE_PROJECT_ID`
-- `SUPABASE_DB_PASSWORD`
-
-En Vercel configura además `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY`. La service role key solo debe existir en Vercel/GitHub Secrets y nunca en el navegador.
 

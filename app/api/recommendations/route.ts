@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { checkPersistentRateLimit } from '@/lib/rate-limit'
+import { checkPersistentRateLimit, extractClientIp } from '@/lib/rate-limit'
 
 export async function GET() {
   try {
@@ -28,9 +28,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const forwardedFor = request.headers.get('x-forwarded-for')
-    const realIp = request.headers.get('x-real-ip')
-    const ip = forwardedFor ? forwardedFor.split(',')[0].trim() : realIp || 'anon-client'
+    const ip = extractClientIp(request.headers)
 
     const body = await request.json()
     const { name, rating, comment, tableNumber, website, honeypot } = body

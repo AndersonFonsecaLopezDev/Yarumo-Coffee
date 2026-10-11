@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
         { key: 'X-Frame-Options', value: 'DENY' },
         { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
         { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
-        { key: 'Content-Security-Policy', value: `default-src 'self'; img-src 'self' data: https://*.supabase.co; style-src 'self' 'unsafe-inline'; script-src ${scriptSrc}; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://va.vercel-scripts.com https://*.vercel-insights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` },
+        { key: 'Content-Security-Policy', value: `default-src 'self'; font-src 'self' data:; object-src 'none'; worker-src 'self'; manifest-src 'self'; img-src 'self' data: https://*.supabase.co; style-src 'self' 'unsafe-inline'; script-src ${scriptSrc}; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://va.vercel-scripts.com https://*.vercel-insights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` },
       ],
     }]
   },
