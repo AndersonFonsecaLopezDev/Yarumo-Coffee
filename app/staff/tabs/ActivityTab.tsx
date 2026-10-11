@@ -358,28 +358,28 @@ export default function ActivityTab({
               placeholder="Buscar por mesa, producto o nota..."
               value={filters.q}
               onChange={(e) => setFilter('q', e.target.value)}
-              className="input"
+              className="filter-control-input"
             />
           </div>
 
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div className="segmented-type-control" role="group" aria-label="Filtrar por tipo">
             <button
               type="button"
-              className={`btn btn-sm ${filters.type === 'all' ? 'btn-primary' : 'btn-outline'}`}
+              className={`segmented-btn ${filters.type === 'all' ? 'active' : ''}`}
               onClick={() => setFilter('type', 'all')}
             >
               Todos ({filteredOrders.length + filteredRequests.length})
             </button>
             <button
               type="button"
-              className={`btn btn-sm ${filters.type === 'orders' ? 'btn-primary' : 'btn-outline'}`}
+              className={`segmented-btn ${filters.type === 'orders' ? 'active' : ''}`}
               onClick={() => setFilter('type', 'orders')}
             >
               Comandas ({filteredOrders.length})
             </button>
             <button
               type="button"
-              className={`btn btn-sm ${filters.type === 'requests' ? 'btn-primary' : 'btn-outline'}`}
+              className={`segmented-btn ${filters.type === 'requests' ? 'active' : ''}`}
               onClick={() => setFilter('type', 'requests')}
             >
               Llamados ({filteredRequests.length})
@@ -390,8 +390,8 @@ export default function ActivityTab({
             id="activity-status-select"
             value={filters.status}
             onChange={(e) => setFilter('status', e.target.value)}
-            className="input"
-            style={{ minWidth: 160 }}
+            className="filter-control-select"
+            style={{ minWidth: 165 }}
           >
             <option value="active">Activos en cocina</option>
             <option value="pending">Solo pendientes</option>
@@ -405,8 +405,8 @@ export default function ActivityTab({
             id="activity-table-select"
             value={filters.table}
             onChange={(e) => setFilter('table', e.target.value)}
-            className="input"
-            style={{ minWidth: 130 }}
+            className="filter-control-select"
+            style={{ minWidth: 140 }}
           >
             <option value="all">Todas las mesas</option>
             {tables.map((t) => (
@@ -783,19 +783,23 @@ export default function ActivityTab({
 
                 {/* Buscador y filtro de categoría */}
                 <div className="manual-search-filter-row">
-                  <input
-                    type="text"
-                    placeholder="Buscar producto en la carta..."
-                    value={manualQuery}
-                    onChange={(e) => setManualQuery(e.target.value)}
-                    className="manual-search-input"
-                  />
+                  <div className="manual-search-input-wrap">
+                    <span className="manual-search-icon" aria-hidden="true">🔍</span>
+                    <input
+                      type="text"
+                      placeholder="Buscar producto en la carta..."
+                      value={manualQuery}
+                      onChange={(e) => setManualQuery(e.target.value)}
+                      className="manual-search-input"
+                    />
+                  </div>
                   <select
                     value={manualCategory}
                     onChange={(e) => setManualCategory(e.target.value)}
                     className="manual-category-select"
+                    aria-label="Filtrar por categoría"
                   >
-                    <option value="Todas">Todas</option>
+                    <option value="Todas">Todas las categorías</option>
                     {categoryNames.map((c) => (
                       <option key={c} value={c}>
                         {c}

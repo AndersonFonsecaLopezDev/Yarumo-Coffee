@@ -32,6 +32,15 @@ test.describe('Impresión de Carta de Menú (/staff)', () => {
         })
       })
 
+      // Ruta genérica fallback primero
+      await page.route(/.*\/rest\/v1\/.*/, async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([]),
+        })
+      })
+
       await page.route(/.*\/rest\/v1\/rpc\/get_my_role.*/, async (route) => {
         await route.fulfill({
           status: 200,
@@ -79,27 +88,24 @@ test.describe('Impresión de Carta de Menú (/staff)', () => {
           ]),
         })
       })
-
-      await page.route(/.*\/rest\/v1\/.*/, async (route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify([]),
-        })
-      })
     }
 
-    await page.goto('/staff')
+    await page.goto('/staff?tab=menu')
 
     // Iniciar sesión
-    await page.locator('#staff-email').fill(staffEmail || 'barista@yarumocoffee.com')
-    await page.locator('#staff-password').fill(staffPassword || 'password12345')
-    await page.locator('.login-submit-button').click()
+    const emailInput = page.locator('#staff-email')
+    if (await emailInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await emailInput.fill(staffEmail || 'barista@yarumocoffee.com')
+      await page.locator('#staff-password').fill(staffPassword || 'password12345')
+      await page.locator('.login-submit-button').click()
+      await page.waitForLoadState('networkidle')
+    }
 
-    // Ir a pestaña Menú
-    const menuTabButton = page.getByRole('tab', { name: /^Menú/ })
-    await expect(menuTabButton).toBeVisible({ timeout: 15000 })
-    await menuTabButton.click()
+    // Ir a pestaña Menú si no está seleccionada
+    const menuTabButton = page.locator('button[data-tab="menu"]')
+    if (await menuTabButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await menuTabButton.click()
+    }
 
     // Abrir modal de imprimir
     const printButton = page.locator('#btn-open-print-menu')

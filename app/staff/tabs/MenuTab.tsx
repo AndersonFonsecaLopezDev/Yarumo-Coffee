@@ -73,7 +73,6 @@ export default function MenuTab({
     setFilter,
     resetFilters,
     hasActiveFilters,
-    activeCount,
   } = useUrlFilters('menu', defaultFilters)
 
   // Búsqueda con debounce
@@ -367,14 +366,6 @@ export default function MenuTab({
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button
             type="button"
-            className="btn btn-outline"
-            onClick={() => setShowMobileFilters(true)}
-            id="btn-open-mobile-filters"
-          >
-            <span>⚙️ Filtros {activeCount > 0 ? `(${activeCount})` : ''}</span>
-          </button>
-          <button
-            type="button"
             className="btn btn-primary"
             onClick={() => setShowPrintModal(true)}
             id="btn-open-print-menu"
@@ -526,7 +517,7 @@ export default function MenuTab({
                     setFilter('q', e.target.value)
                     setCurrentPage(1)
                   }}
-                  className="input"
+                  className="filter-control-input"
                 />
               </div>
 
@@ -537,8 +528,8 @@ export default function MenuTab({
                   setFilter('cat', e.target.value)
                   setCurrentPage(1)
                 }}
-                className="input"
-                style={{ minWidth: 150 }}
+                className="filter-control-select"
+                style={{ minWidth: 155 }}
               >
                 <option value="all">Todas las categorías</option>
                 {categories.map((c) => (
@@ -555,8 +546,8 @@ export default function MenuTab({
                   setFilter('avail', e.target.value)
                   setCurrentPage(1)
                 }}
-                className="input"
-                style={{ minWidth: 140 }}
+                className="filter-control-select"
+                style={{ minWidth: 145 }}
               >
                 <option value="all">Todos los estados</option>
                 <option value="available">Solo disponibles</option>
@@ -567,8 +558,8 @@ export default function MenuTab({
                 id="menu-sort-select"
                 value={filters.sort}
                 onChange={(e) => setFilter('sort', e.target.value)}
-                className="input"
-                style={{ minWidth: 140 }}
+                className="filter-control-select"
+                style={{ minWidth: 145 }}
               >
                 <option value="sort_order">Orden de carta</option>
                 <option value="name_asc">Nombre (A-Z)</option>
@@ -578,10 +569,10 @@ export default function MenuTab({
                 <option value="category">Por categoría</option>
               </select>
 
-              <div style={{ display: 'flex', gap: 4 }}>
+              <div className="segmented-type-control" role="group" aria-label="Cambiar vista">
                 <button
                   type="button"
-                  className={`btn btn-sm ${filters.view === 'cards' ? 'btn-primary' : 'btn-outline'}`}
+                  className={`segmented-btn ${filters.view === 'cards' ? 'active' : ''}`}
                   onClick={() => setFilter('view', 'cards')}
                   title="Vista en tarjetas"
                 >
@@ -589,11 +580,11 @@ export default function MenuTab({
                 </button>
                 <button
                   type="button"
-                  className={`btn btn-sm ${filters.view === 'table' ? 'btn-primary' : 'btn-outline'}`}
+                  className={`segmented-btn ${filters.view === 'table' ? 'active' : ''}`}
                   onClick={() => setFilter('view', 'table')}
                   title="Vista en tabla"
                 >
-                  ☰ Tabla
+                  ▤ Tabla
                 </button>
               </div>
             </div>

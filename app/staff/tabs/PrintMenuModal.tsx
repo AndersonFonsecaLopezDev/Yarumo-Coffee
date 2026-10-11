@@ -208,7 +208,7 @@ export default function PrintMenuModal({
       <style>{`
         @page {
           size: ${paperSize === 'a4' ? 'A4' : 'letter'} ${orientation};
-          margin: 8mm 10mm;
+          margin: 6mm 8mm;
         }
       `}</style>
 

@@ -235,7 +235,10 @@ export default function StaffPage() {
 
     // 1. Rol
     const roleRes = await supabase.rpc('get_my_role')
-    if (roleRes.data) setRole(roleRes.data)
+    if (roleRes.data) {
+      const roleStr = typeof roleRes.data === 'string' ? roleRes.data : Array.isArray(roleRes.data) ? (roleRes.data[0] || '') : (roleRes.data as { role?: string })?.role || ''
+      setRole(String(roleStr || ''))
+    }
 
     // 2. Solicitudes de servicio
     const reqRes = await supabase
@@ -606,24 +609,28 @@ export default function StaffPage() {
           <Image
             src="/yarumo-logo.webp"
             alt="Yarumo Coffee"
-            width={48}
-            height={48}
+            width={46}
+            height={46}
             className="staff-logo-img"
+            priority
           />
-          <div>
-            <span className="staff-role-badge">
-              <span className="role-dot" />
-              Rol: {role || 'Staff'}
-            </span>
-            <h1>Yarumo Coffee</h1>
+          <div className="staff-brand-text">
+            <div className="staff-brand-badges">
+              <span className="staff-role-badge">
+                <span className="role-dot" />
+                {typeof role === 'string' && role ? role.toUpperCase() : 'STAFF'}
+              </span>
+              <span className="staff-city-badge">Armenia · Quindío</span>
+            </div>
+            <h1 className="staff-brand-title">Yarumo Coffee</h1>
           </div>
         </div>
 
         <div className="staff-header-actions">
           {user && (
-            <div className="staff-user-chip">
-              <small>Sesión activa</small>
-              <strong>{user}</strong>
+            <div className="staff-user-chip" title={`Sesión activa: ${user}`}>
+              <small>Usuario</small>
+              <strong>{user.split('@')[0]}</strong>
             </div>
           )}
 
@@ -650,18 +657,18 @@ export default function StaffPage() {
 
           <button
             type="button"
-            className="btn-sound-toggle"
+            className="staff-header-btn btn-sound-toggle"
             onClick={toggleSound}
             title={soundEnabled ? 'Silenciar alertas sonoras' : 'Activar alertas sonoras'}
             aria-label={soundEnabled ? 'Silenciar alertas sonoras' : 'Activar alertas sonoras'}
             id="btn-staff-sound-toggle"
           >
-            {soundEnabled ? '🔔' : '🔕'}
+            <span>{soundEnabled ? '🔔' : '🔕'}</span>
           </button>
 
           <button
             type="button"
-            className="btn-refresh-data"
+            className="staff-header-btn btn-refresh-data"
             onClick={async () => {
               setIsManualRefreshing(true)
               await load()
@@ -676,8 +683,16 @@ export default function StaffPage() {
           </button>
 
           <ThemeToggle />
-          <button type="button" className="button-logout" onClick={logout}>
-            Salir ↗
+
+          <button
+            type="button"
+            className="staff-header-btn button-logout"
+            onClick={logout}
+            title="Cerrar sesión de staff"
+            aria-label="Cerrar sesión de staff"
+          >
+            <span>Salir</span>
+            <span>↗</span>
           </button>
         </div>
       </header>

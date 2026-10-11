@@ -221,33 +221,51 @@ export function CategoryIcon({
   size?: number
   className?: string
 }) {
-  const norm = `${category || ''} ${slug || ''} ${icon || ''}`.toLowerCase()
-
-  if (norm.includes('favorito') || norm.includes('heart') || norm.includes('❤️')) {
+  // 1. Categoría virtual de Favoritos
+  if (category === 'Favoritos' || slug === 'favorites') {
     return <HeartIcon size={size} className={className} />
   }
-  if (norm.includes('todo') || norm.includes('all') || norm.includes('✨') || norm.includes('destacado')) {
+
+  // 2. Si la categoría tiene un emoji o icono personalizado guardado en BD, usarlo directamente
+  const trimmedIcon = (icon || '').trim()
+  if (trimmedIcon && trimmedIcon !== '✨') {
+    return (
+      <span
+        className={`category-tab-emoji ${className}`}
+        style={{ fontSize: `${size}px`, lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+        aria-hidden="true"
+      >
+        {trimmedIcon}
+      </span>
+    )
+  }
+
+  // 3. Categoría Todos (sin icono específico)
+  if (category === 'Todos' || slug === 'all' || trimmedIcon === '✨') {
     return <SparkleIcon size={size} className={className} />
   }
-  if (norm.includes('frí') || norm.includes('fria') || norm.includes('cold') || norm.includes('iced') || norm.includes('granizado') || norm.includes('🥤') || norm.includes('🧊')) {
+
+  // 4. Fallback SVG si la categoría no tiene emoji asignado
+  const norm = `${category || ''} ${slug || ''}`.toLowerCase()
+
+  if (norm.includes('frí') || norm.includes('fria') || norm.includes('cold') || norm.includes('iced') || norm.includes('granizado')) {
     return <ColdDrinkIcon size={size} className={className} />
   }
-  if (norm.includes('pastel') || norm.includes('panad') || norm.includes('croissant') || norm.includes('bakery') || norm.includes('🥐') || norm.includes('🍞')) {
+  if (norm.includes('pastel') || norm.includes('panad') || norm.includes('croissant') || norm.includes('bakery')) {
     return <BakeryCroissantIcon size={size} className={className} />
   }
-  if (norm.includes('filtr') || norm.includes('metodo') || norm.includes('chemex') || norm.includes('v60') || norm.includes('prensa') || norm.includes('aeropress')) {
+  if (norm.includes('filtr') || norm.includes('metodo') || norm.includes('chemex') || norm.includes('v60') || norm.includes('prensa')) {
     return <PourOverIcon size={size} className={className} />
   }
-  if (norm.includes('desayun') || norm.includes('brunch') || norm.includes('huevo') || norm.includes('tostad') || norm.includes('🍳') || norm.includes('🥪')) {
+  if (norm.includes('desayun') || norm.includes('brunch') || norm.includes('huevo') || norm.includes('tostad') || norm.includes('sandw')) {
     return <BreakfastIcon size={size} className={className} />
   }
-  if (norm.includes('postre') || norm.includes('torta') || norm.includes('tarta') || norm.includes('dulce') || norm.includes('cake') || norm.includes('🍰')) {
+  if (norm.includes('postre') || norm.includes('torta') || norm.includes('tarta') || norm.includes('dulce') || norm.includes('cake')) {
     return <DessertCakeIcon size={size} className={className} />
   }
-  if (norm.includes('té') || norm.includes('te') || norm.includes('infus') || norm.includes('aromática') || norm.includes('herbal') || norm.includes('🫖') || norm.includes('🍃')) {
+  if (norm.includes('té') || norm.includes('te') || norm.includes('infus') || norm.includes('aromática') || norm.includes('herbal')) {
     return <TeaLeafIcon size={size} className={className} />
   }
 
-  // Por defecto: Taza de café humeante
   return <HotCoffeeIcon size={size} className={className} />
 }
