@@ -33,7 +33,12 @@ export async function POST(request: NextRequest) {
     const ip = forwardedFor ? forwardedFor.split(',')[0].trim() : realIp || 'anon-client'
 
     const body = await request.json()
-    const { name, rating, comment, tableNumber } = body
+    const { name, rating, comment, tableNumber, website, honeypot } = body
+
+    // Protección antispam: si un bot llena el campo trampa oculto, descartar silenciosamente
+    if (website || honeypot) {
+      return NextResponse.json({ success: true, message: 'Recomendación recibida.' }, { status: 200 })
+    }
 
     const tableId = tableNumber ? String(tableNumber).trim() : 'general'
     const clientKey = `${ip}:${tableId}`

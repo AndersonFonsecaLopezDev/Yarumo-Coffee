@@ -24,7 +24,7 @@ export default function TableServiceSection({
     void Promise.resolve().then(() => {
       if (!active) return
       const params = new URLSearchParams(window.location.search)
-      const token = params.get('mesa')
+      const token = params.get('mesa') || params.get('token')
 
       if (!token) {
         setTableChecked(true)
@@ -99,6 +99,31 @@ export default function TableServiceSection({
           <div className="service-actions">
             <div className="sk-btn skeleton-pulse" />
             <div className="sk-btn skeleton-pulse" />
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  // Si el token es inválido o no existe la mesa, mostrar aviso amigable para pedir en barra
+  if (mesaToken && !table) {
+    return (
+      <section className="service" id="servicio-mesa" aria-label="Aviso de mesa">
+        <div className="service-card" style={{ borderLeft: '4px solid var(--amber, #f59e0b)' }}>
+          <div className="service-info">
+            <span className="eyebrow" style={{ color: 'var(--amber, #f59e0b)' }}>
+              ⚠️ Código QR no encontrado o caducado
+            </span>
+            <h2>Atención en Barra o Para Llevar</h2>
+            <p>
+              El código escaneado no corresponde a una mesa activa en este momento. Puedes explorar la carta para pedir en barra, solicitar domicilio o consultar a nuestro equipo.
+            </p>
+          </div>
+          <div className="service-actions">
+            <a href="#menu" className="service-btn primary" id="btn-continuar-barra">
+              <span>☕</span>
+              <span>Continuar en barra / Para llevar</span>
+            </a>
           </div>
         </div>
       </section>

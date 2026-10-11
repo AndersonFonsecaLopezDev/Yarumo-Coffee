@@ -8,15 +8,25 @@ export default function RecommendationForm() {
   const [hoverRating, setHoverRating] = useState(0)
   const [tableNumber, setTableNumber] = useState('')
   const [comment, setComment] = useState('')
+  const [website, setWebsite] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSubmitting(true)
     setErrorMsg('')
     setSuccessMsg('')
+
+    // Detección inmediata de bot en cliente
+    if (website.trim()) {
+      setSuccessMsg('¡Muchas gracias por tu recomendación! Tu opinión ha sido recibida.')
+      setName('')
+      setComment('')
+      return
+    }
+
+    setSubmitting(true)
 
     try {
       const res = await fetch('/api/recommendations', {
@@ -27,6 +37,7 @@ export default function RecommendationForm() {
           rating,
           comment: comment.trim(),
           tableNumber: tableNumber.trim() || undefined,
+          website: website.trim(),
         }),
       })
 
@@ -126,17 +137,36 @@ export default function RecommendationForm() {
         </div>
 
         <div>
-          <label htmlFor="rec-comment" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6 }}>
-            Tu comentario *
-          </label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <label htmlFor="rec-comment" style={{ fontSize: '0.85rem', fontWeight: 700 }}>
+              Tu comentario *
+            </label>
+            <span style={{ fontSize: '0.78rem', color: comment.length > 450 ? 'var(--orange)' : 'var(--text-muted)' }}>
+              {comment.length} / 500
+            </span>
+          </div>
           <textarea
             id="rec-comment"
             required
             rows={3}
+            maxLength={500}
             placeholder="¿Qué te pareció el café, la atención y el espacio?"
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: '0.95rem', resize: 'vertical' }}
+          />
+        </div>
+
+        {/* Campo Honeypot Oculto (trampa para bots antispam) */}
+        <div style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', height: 0, width: 0, overflow: 'hidden' }} aria-hidden="true">
+          <label htmlFor="rec-website">Website (dejar vacío)</label>
+          <input
+            id="rec-website"
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
           />
         </div>
 

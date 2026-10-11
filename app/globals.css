@@ -373,6 +373,56 @@ h1 em, h2 em, h3 em {
   gap: 10px;
 }
 
+.header-table-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(224, 90, 43, 0.12);
+  border: 1px solid rgba(224, 90, 43, 0.35);
+  color: var(--orange);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: var(--radius-full);
+}
+
+.header-table-badge .table-indicator-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 0 2px rgba(224, 90, 43, 0.25);
+  animation: pulse-ring 2s infinite ease-out;
+}
+
+.lang-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: var(--text-xs);
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.lang-toggle-btn:hover {
+  background: var(--ink);
+  color: var(--cream);
+  border-color: var(--ink);
+}
+
+:root[data-theme="dark"] .lang-toggle-btn:hover {
+  background: var(--lime);
+  color: var(--ink);
+  border-color: var(--lime);
+}
+
 .theme-toggle-btn {
   display: inline-flex;
   align-items: center;

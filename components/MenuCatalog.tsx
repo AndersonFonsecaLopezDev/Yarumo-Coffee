@@ -271,25 +271,28 @@ export default function MenuCatalog({
     })
   }, [initialMenu, deferredQuery, selectedCategoryId, favorites])
 
-  const addToCart = useCallback((item: MenuItem) => {
+  const addToCart = useCallback((item: MenuItem, customNotes = '', extraPrice = 0) => {
     setCart((prev) => {
-      const idx = prev.findIndex((entry) => entry.item.id === item.id)
+      const targetNotes = customNotes.trim()
+      const idx = prev.findIndex((entry) => entry.item.id === item.id && (entry.notes || '').trim() === targetNotes)
       if (idx >= 0) {
         const copy = [...prev]
         copy[idx] = { ...copy[idx], quantity: copy[idx].quantity + 1 }
         return copy
       }
-      return [...prev, { item, quantity: 1, notes: '' }]
+      const itemWithCustomPrice = extraPrice > 0 ? { ...item, price_cop: item.price_cop + extraPrice } : item
+      return [...prev, { item: itemWithCustomPrice, quantity: 1, notes: targetNotes }]
     })
     setToastMessage(`✓ ${item.name} agregado al pedido`)
     setTimeout(() => setToastMessage(''), 2400)
   }, [])
 
-  const updateCartQuantity = useCallback((itemId: string, delta: number) => {
+  const updateCartQuantity = useCallback((indexOrId: number | string, delta: number) => {
     setCart((prev) =>
       prev
-        .map((entry) => {
-          if (entry.item.id === itemId) {
+        .map((entry, idx) => {
+          const matches = typeof indexOrId === 'number' ? idx === indexOrId : entry.item.id === indexOrId
+          if (matches) {
             const nextQty = entry.quantity + delta
             return nextQty > 0 ? { ...entry, quantity: nextQty } : null
           }
@@ -299,14 +302,21 @@ export default function MenuCatalog({
     )
   }, [])
 
-  const updateCartItemNotes = useCallback((itemId: string, notes: string) => {
+  const updateCartItemNotes = useCallback((indexOrId: number | string, notes: string) => {
     setCart((prev) =>
-      prev.map((entry) => (entry.item.id === itemId ? { ...entry, notes } : entry)),
+      prev.map((entry, idx) => {
+        const matches = typeof indexOrId === 'number' ? idx === indexOrId : entry.item.id === indexOrId
+        return matches ? { ...entry, notes } : entry
+      }),
     )
   }, [])
 
-  const removeCartItem = useCallback((itemId: string) => {
-    setCart((prev) => prev.filter((entry) => entry.item.id !== itemId))
+  const removeCartItem = useCallback((indexOrId: number | string) => {
+    setCart((prev) =>
+      prev.filter((entry, idx) => {
+        return typeof indexOrId === 'number' ? idx !== indexOrId : entry.item.id !== indexOrId
+      }),
+    )
   }, [])
 
   const clearCart = useCallback(() => {
@@ -642,13 +652,13 @@ export default function MenuCatalog({
         }}
       />
 
-      {/* Modal de galería cargado dinámicamente */}
+      {/* Modal de galería y personalización cargado dinámicamente */}
       {galleryItem && (
         <GalleryModal
           key={galleryItem.id}
           item={galleryItem}
           cartQty={cartQuantityMap.get(galleryItem.id) || 0}
-          onAddToCart={(it) => addToCart(it)}
+          onAddToCart={(it, notes, extra) => addToCart(it, notes, extra)}
           onUpdateQuantity={(delta) => updateCartQuantity(galleryItem.id, delta)}
           onClose={() => setGalleryItem(null)}
         />

@@ -56,6 +56,7 @@ const themeScript = `(function() {
 })();`
 
 import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
+import { I18nProvider } from '@/lib/i18n'
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -64,10 +65,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
-        <a href="#menu" className="skip-link">Saltar a la carta</a>
-        {children}
-        <Analytics />
-        <ServiceWorkerRegister />
+        <I18nProvider>
+          <a href="#menu" className="skip-link">Saltar a la carta</a>
+          {children}
+          <Analytics />
+          <ServiceWorkerRegister />
+        </I18nProvider>
       </body>
     </html>
   )

@@ -36,9 +36,9 @@ type OrderCartProps = {
   tableOrders?: TableOrder[]
   whatsappNumber?: string
   onOrdersRefresh?: () => void
-  onUpdateQuantity: (itemId: string, delta: number) => void
-  onUpdateItemNotes: (itemId: string, notes: string) => void
-  onRemoveItem: (itemId: string) => void
+  onUpdateQuantity: (indexOrId: number | string, delta: number) => void
+  onUpdateItemNotes: (indexOrId: number | string, notes: string) => void
+  onRemoveItem: (indexOrId: number | string) => void
   onClearCart: () => void
   onOrderSuccess: (orderId: string) => void
 }
@@ -386,12 +386,29 @@ export default function OrderCart({
                 </div>
               ) : (
                 <div className="cart-items-list">
-                  {cart.map(({ item, quantity, notes }) => (
-                    <div className="cart-item-row" key={item.id}>
+                  {cart.map(({ item, quantity, notes }, index) => (
+                    <div className="cart-item-row" key={`${item.id}-${index}`}>
                       <div className="cart-item-main">
                         <div>
                           <strong className="cart-item-name">{item.name}</strong>
                           <span className="cart-item-unit-price">{formatCop(item.price_cop)} c/u</span>
+                          {notes && (
+                            <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  background: 'rgba(224, 90, 43, 0.12)',
+                                  color: 'var(--orange)',
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                }}
+                              >
+                                ☕ {notes}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         <strong className="cart-item-total-price">
                           {formatCop(item.price_cop * quantity)}
@@ -402,7 +419,7 @@ export default function OrderCart({
                         <div className="cart-qty-picker">
                           <button
                             type="button"
-                            onClick={() => onUpdateQuantity(item.id, -1)}
+                            onClick={() => onUpdateQuantity(index, -1)}
                             aria-label={`Disminuir cantidad de ${item.name}`}
                           >
                             −
@@ -410,7 +427,7 @@ export default function OrderCart({
                           <span>{quantity}</span>
                           <button
                             type="button"
-                            onClick={() => onUpdateQuantity(item.id, 1)}
+                            onClick={() => onUpdateQuantity(index, 1)}
                             disabled={quantity >= 20}
                             aria-label={`Aumentar cantidad de ${item.name}`}
                           >
@@ -420,7 +437,7 @@ export default function OrderCart({
                         <button
                           type="button"
                           className="cart-remove-btn"
-                          onClick={() => onRemoveItem(item.id)}
+                          onClick={() => onRemoveItem(index)}
                           aria-label={`Eliminar ${item.name} del pedido`}
                         >
                           Quitar
@@ -432,7 +449,7 @@ export default function OrderCart({
                           type="text"
                           placeholder="Nota para este producto (ej. sin azúcar, leche deslactosada)"
                           value={notes}
-                          onChange={(e) => onUpdateItemNotes(item.id, e.target.value)}
+                          onChange={(e) => onUpdateItemNotes(index, e.target.value)}
                           maxLength={150}
                           aria-label={`Nota adicional para ${item.name}`}
                         />
