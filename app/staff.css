@@ -2589,12 +2589,16 @@
   color: #64748b;
 }
 
-/* Cuadrícula horizontal por columnas */
+/* Cuadrícula por columnas */
 .print-categories-grid {
   width: 100%;
-  column-gap: 32px;
+  column-gap: 30px;
   column-fill: balance;
   margin-bottom: 24px;
+}
+
+.printable-menu-sheet.cols-2 .print-categories-grid {
+  column-count: 2;
 }
 
 .printable-menu-sheet.cols-3 .print-categories-grid {
@@ -2605,15 +2609,26 @@
   column-count: 4;
 }
 
+.printable-menu-sheet.orientation-portrait {
+  max-width: 820px;
+  min-height: 1080px;
+}
+
+.printable-menu-sheet.orientation-landscape {
+  max-width: 1140px;
+  min-height: 760px;
+}
+
 .print-category-block {
-  margin-bottom: 20px;
-  break-inside: auto;
+  margin-bottom: 18px;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .print-category-title {
-  margin: 0 0 10px;
+  margin: 0 0 9px;
   font-family: var(--font-family-serif, 'Playfair Display', Georgia, serif);
-  font-size: 17px;
+  font-size: 16.5px;
   color: #18362f;
   border-bottom: 1.5px solid rgba(24, 54, 47, 0.25);
   padding-bottom: 4px;
@@ -2622,6 +2637,8 @@
   gap: 8px;
   break-after: avoid;
   page-break-after: avoid;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .print-cat-icon {
@@ -2631,7 +2648,7 @@
 .print-items-list {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 8px;
 }
 
 .print-menu-item {
@@ -2640,6 +2657,21 @@
   gap: 2px;
   break-inside: avoid;
   page-break-inside: avoid;
+}
+
+.print-item-content {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.print-item-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(24, 54, 47, 0.15);
 }
 
 .print-item-header {
@@ -2673,8 +2705,8 @@
 }
 
 .print-item-desc {
-  margin: 0;
-  font-size: 11px;
+  margin: 1px 0 0;
+  font-size: 10.5px;
   line-height: 1.35;
   color: #4b5563;
 }
@@ -2685,10 +2717,10 @@
   font-size: 12px;
 }
 .printable-menu-sheet.font-size-compact .print-item-desc {
-  font-size: 10px;
+  font-size: 9.5px;
 }
 .printable-menu-sheet.font-size-compact .print-category-title {
-  font-size: 15px;
+  font-size: 14.5px;
 }
 
 .printable-menu-sheet.font-size-large .print-item-name,
@@ -2699,14 +2731,14 @@
   font-size: 12px;
 }
 .printable-menu-sheet.font-size-large .print-category-title {
-  font-size: 19px;
+  font-size: 18.5px;
 }
 
 /* Pie de página de la carta impresa */
 .print-sheet-footer {
   margin-top: auto;
   border-top: 2px solid #18362f;
-  padding-top: 14px;
+  padding-top: 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2722,12 +2754,12 @@
 }
 
 .print-footer-info strong {
-  font-size: 12.5px;
+  font-size: 12px;
   color: #18362f;
 }
 
 .print-footer-info span {
-  font-size: 11px;
+  font-size: 10.5px;
   color: #64748b;
 }
 
@@ -2764,30 +2796,41 @@
 }
 
 /* ==========================================================================
-   MEDIA PRINT RULES: FORZAR FORMATO HORIZONTAL Y AISLAR CARTA
+   MEDIA PRINT RULES: AISLAR #print-root Y FORZAR TEMA CLARO
    ========================================================================== */
 @media print {
-  @page {
-    size: landscape;
-    margin: 8mm 10mm;
-  }
-
   html, body {
     background: #ffffff !important;
-    color: #000000 !important;
+    color: #18362f !important;
     margin: 0 !important;
     padding: 0 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    color-scheme: light !important;
   }
 
-  /* Ocultar interfaz del panel y controles del modal */
-  .staff-layout-root > *:not(.print-modal-overlay),
+  /* Ocultar absolutamente todo excepto el portal de impresión */
+  body > *:not(#print-root),
+  .staff-layout-root,
   .sidebar,
   .staff-header,
   .no-print,
   .no-print-backdrop {
     display: none !important;
+  }
+
+  #print-root {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color-scheme: light !important;
+  }
+
+  #print-root, #print-root * {
+    color-scheme: light !important;
   }
 
   .print-modal-overlay {
@@ -2799,6 +2842,8 @@
     margin: 0 !important;
     display: block !important;
     overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   .print-modal-container {
@@ -2815,6 +2860,7 @@
   .print-modal-preview-wrapper {
     background: transparent !important;
     padding: 0 !important;
+    margin: 0 !important;
     overflow: visible !important;
     display: block !important;
   }
@@ -2836,14 +2882,23 @@
 
   .print-categories-grid {
     column-gap: 24px !important;
+    column-fill: auto !important;
     break-inside: auto !important;
     page-break-inside: auto !important;
   }
 
+  .print-category-block {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 14px !important;
+  }
+
   .print-sheet-header {
     border-bottom: 2px solid #18362f !important;
-    margin-bottom: 14px !important;
-    padding-bottom: 12px !important;
+    margin-bottom: 12px !important;
+    padding-bottom: 10px !important;
+    break-after: avoid !important;
+    page-break-after: avoid !important;
   }
 
   .print-category-title {
@@ -2851,6 +2906,8 @@
     border-bottom: 1.5px solid #18362f !important;
     break-after: avoid !important;
     page-break-after: avoid !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   .print-menu-item {
@@ -2873,12 +2930,13 @@
 
   .print-sheet-footer {
     border-top: 2px solid #18362f !important;
-    margin-top: 18px !important;
-    padding-top: 10px !important;
+    margin-top: 14px !important;
+    padding-top: 8px !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
 }
+
 
 
 
