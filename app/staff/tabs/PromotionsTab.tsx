@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Image from 'next/image'
 import type { Promotion, MenuItem, PromotionForm } from '../types'
 import { createClient } from '@/lib/supabase/client'
 import { revalidatePublicContent } from '@/app/actions/revalidate'
+import { normalizeText } from '@/lib/filters'
 
 type PromotionsTabProps = {
   promotions: Promotion[]
@@ -45,6 +46,25 @@ export default function PromotionsTab({
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+
+  const filteredPromotions = useMemo(() => {
+    const q = normalizeText(searchQuery)
+    return promotions.filter((p) => {
+      if (statusFilter === 'active' && !p.active) return false
+      if (statusFilter === 'inactive' && p.active) return false
+      if (q) {
+        const titleNorm = normalizeText(p.title)
+        const descNorm = normalizeText(p.description)
+        const badgeNorm = normalizeText(p.badge_text)
+        if (!titleNorm.includes(q) && !descNorm.includes(q) && !badgeNorm.includes(q)) {
+          return false
+        }
+      }
+      return true
+    })
+  }, [promotions, searchQuery, statusFilter])
 
   function editPromo(promo: Promotion) {
     setEditingPromotion(promo)
@@ -312,34 +332,62 @@ export default function PromotionsTab({
           </div>
         </form>
 
-        {/* Lista */}
+        {/* Lista con Filtros */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {promotions.map((promo) => (
-            <div
-              key={promo.id}
-              className="card"
-              style={{ padding: 18, background: 'var(--surface-card)', borderRadius: 14, border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              type="search"
+              placeholder="Buscar promoción..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input"
+              style={{ flex: 1, minWidth: 200 }}
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
+              className="input"
+              style={{ minWidth: 140 }}
             >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <strong>{promo.title}</strong>
-                  {promo.badge_text && <span className="badge">{promo.badge_text}</span>}
-                  <span className={`status-pill ${promo.active ? 'status-delivered' : 'status-cancelled'}`}>
-                    {promo.active ? 'Activa' : 'Pausada'}
-                  </span>
+              <option value="all">Todos los estados</option>
+              <option value="active">Activas</option>
+              <option value="inactive">Pausadas</option>
+            </select>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              Mostrando {filteredPromotions.length} de {promotions.length}
+            </span>
+          </div>
+
+          {filteredPromotions.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)', padding: 12 }}>No se encontraron promociones coincidentes.</p>
+          ) : (
+            filteredPromotions.map((promo) => (
+              <div
+                key={promo.id}
+                className="card"
+                style={{ padding: 18, background: 'var(--surface-card)', borderRadius: 14, border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <strong>{promo.title}</strong>
+                    {promo.badge_text && <span className="badge">{promo.badge_text}</span>}
+                    <span className={`status-pill ${promo.active ? 'status-delivered' : 'status-cancelled'}`}>
+                      {promo.active ? 'Activa' : 'Pausada'}
+                    </span>
+                  </div>
+                  {promo.description && <p style={{ margin: '6px 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>{promo.description}</p>}
                 </div>
-                {promo.description && <p style={{ margin: '6px 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>{promo.description}</p>}
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button type="button" className="btn btn-sm btn-outline" onClick={() => editPromo(promo)}>
+                    Editar
+                  </button>
+                  <button type="button" className="btn btn-sm btn-danger" onClick={() => removePromotion(promo)}>
+                    Eliminar
+                  </button>
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button type="button" className="btn btn-sm btn-outline" onClick={() => editPromo(promo)}>
-                  Editar
-                </button>
-                <button type="button" className="btn btn-sm btn-danger" onClick={() => removePromotion(promo)}>
-                  Eliminar
-                </button>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>

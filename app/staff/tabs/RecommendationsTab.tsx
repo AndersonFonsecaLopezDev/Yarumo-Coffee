@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { RecommendationItem } from '../types'
 import { createClient } from '@/lib/supabase/client'
 import { revalidatePublicContent } from '@/app/actions/revalidate'
+import { normalizeText } from '@/lib/filters'
 
 type RecommendationsTabProps = {
   recommendations: RecommendationItem[]
@@ -16,6 +17,26 @@ export default function RecommendationsTab({
 }: RecommendationsTabProps) {
   const [supabase] = useState(() => createClient())
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'hidden'>('all')
+  const [ratingFilter, setRatingFilter] = useState<string>('all')
+
+  const filteredRecommendations = useMemo(() => {
+    const q = normalizeText(searchQuery)
+    return recommendations.filter((r) => {
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false
+      if (ratingFilter !== 'all' && String(r.rating) !== ratingFilter) return false
+      if (q) {
+        const nameNorm = normalizeText(r.name)
+        const commentNorm = normalizeText(r.comment)
+        const tableNorm = normalizeText(r.table_number ? `mesa ${r.table_number}` : '')
+        if (!nameNorm.includes(q) && !commentNorm.includes(q) && !tableNorm.includes(q)) {
+          return false
+        }
+      }
+      return true
+    })
+  }, [recommendations, searchQuery, statusFilter, ratingFilter])
 
   async function updateStatus(id: string, status: 'published' | 'hidden') {
     setLoadingId(id)
@@ -43,11 +64,49 @@ export default function RecommendationsTab({
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 20 }}>
-        {recommendations.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)' }}>No hay recomendaciones registradas.</p>
+      {/* Barra de Filtros */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 18, marginBottom: 14 }}>
+        <input
+          type="search"
+          placeholder="Buscar por cliente, comentario o mesa..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="input"
+          style={{ flex: 1, minWidth: 220 }}
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as 'all' | 'published' | 'hidden')}
+          className="input"
+          style={{ minWidth: 140 }}
+        >
+          <option value="all">Todos los estados</option>
+          <option value="published">Publicadas</option>
+          <option value="hidden">Ocultas</option>
+        </select>
+        <select
+          value={ratingFilter}
+          onChange={(e) => setRatingFilter(e.target.value)}
+          className="input"
+          style={{ minWidth: 130 }}
+        >
+          <option value="all">Todas las estrellas</option>
+          <option value="5">⭐⭐⭐⭐⭐ (5)</option>
+          <option value="4">⭐⭐⭐⭐ (4)</option>
+          <option value="3">⭐⭐⭐ (3)</option>
+          <option value="2">⭐⭐ (2)</option>
+          <option value="1">⭐ (1)</option>
+        </select>
+        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+          Mostrando {filteredRecommendations.length} de {recommendations.length}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {filteredRecommendations.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)' }}>No se encontraron opiniones coincidentes.</p>
         ) : (
-          recommendations.map((rec) => (
+          filteredRecommendations.map((rec) => (
             <div
               key={rec.id}
               className="card"

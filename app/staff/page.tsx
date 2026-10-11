@@ -156,6 +156,35 @@ export default function StaffPage() {
     'activity' | 'menu' | 'categories' | 'promotions' | 'qr' | 'users' | 'recommendations' | 'settings' | 'help'
   >('activity')
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const urlTab = params.get('tab')
+    const validTabs = [
+      'activity',
+      'menu',
+      'categories',
+      'promotions',
+      'qr',
+      'users',
+      'recommendations',
+      'settings',
+      'help',
+    ]
+    if (urlTab && validTabs.includes(urlTab)) {
+      setTab(urlTab as typeof tab)
+    }
+  }, [])
+
+  const handleSelectTab = useCallback((newTab: typeof tab) => {
+    setTab(newTab)
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      url.searchParams.set('tab', newTab)
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [])
+
   // Alertas / Toasts
   const [alerts, setAlerts] = useState<StaffAlert[]>([])
 
@@ -476,32 +505,32 @@ export default function StaffPage() {
       </header>
 
       <nav className="staff-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === 'activity'} className={tab === 'activity' ? 'active' : ''} onClick={() => setTab('activity')}>
+        <button type="button" role="tab" data-tab="activity" aria-selected={tab === 'activity'} className={tab === 'activity' ? 'active' : ''} onClick={() => handleSelectTab('activity')}>
           Actividad ({orders.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').length})
         </button>
-        <button type="button" role="tab" aria-selected={tab === 'menu'} className={tab === 'menu' ? 'active' : ''} onClick={() => setTab('menu')}>
+        <button type="button" role="tab" data-tab="menu" aria-selected={tab === 'menu'} className={tab === 'menu' ? 'active' : ''} onClick={() => handleSelectTab('menu')}>
           Menú ({items.length})
         </button>
-        <button type="button" role="tab" aria-selected={tab === 'categories'} className={tab === 'categories' ? 'active' : ''} onClick={() => setTab('categories')}>
+        <button type="button" role="tab" data-tab="categories" aria-selected={tab === 'categories'} className={tab === 'categories' ? 'active' : ''} onClick={() => handleSelectTab('categories')}>
           Categorías ({categories.length})
         </button>
-        <button type="button" role="tab" aria-selected={tab === 'promotions'} className={tab === 'promotions' ? 'active' : ''} onClick={() => setTab('promotions')}>
+        <button type="button" role="tab" data-tab="promotions" aria-selected={tab === 'promotions'} className={tab === 'promotions' ? 'active' : ''} onClick={() => handleSelectTab('promotions')}>
           Promociones ({promotions.length})
         </button>
-        <button type="button" role="tab" aria-selected={tab === 'qr'} className={tab === 'qr' ? 'active' : ''} onClick={() => setTab('qr')}>
+        <button type="button" role="tab" data-tab="qr" aria-selected={tab === 'qr'} className={tab === 'qr' ? 'active' : ''} onClick={() => handleSelectTab('qr')}>
           Mesas y QR ({tables.length})
         </button>
-        <button type="button" role="tab" aria-selected={tab === 'recommendations'} className={tab === 'recommendations' ? 'active' : ''} onClick={() => setTab('recommendations')}>
+        <button type="button" role="tab" data-tab="recommendations" aria-selected={tab === 'recommendations'} className={tab === 'recommendations' ? 'active' : ''} onClick={() => handleSelectTab('recommendations')}>
           Opiniones ({recommendations.length})
         </button>
-        <button type="button" role="tab" aria-selected={tab === 'settings'} className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>
+        <button type="button" role="tab" data-tab="settings" aria-selected={tab === 'settings'} className={tab === 'settings' ? 'active' : ''} onClick={() => handleSelectTab('settings')}>
           Ajustes
         </button>
-        <button type="button" role="tab" aria-selected={tab === 'help'} className={tab === 'help' ? 'active' : ''} onClick={() => setTab('help')}>
+        <button type="button" role="tab" data-tab="help" aria-selected={tab === 'help'} className={tab === 'help' ? 'active' : ''} onClick={() => handleSelectTab('help')}>
           📖 Ayuda
         </button>
         {(role === 'owner' || role === 'manager') && (
-          <button type="button" role="tab" aria-selected={tab === 'users'} className={tab === 'users' ? 'active' : ''} onClick={() => setTab('users')}>
+          <button type="button" role="tab" data-tab="users" aria-selected={tab === 'users'} className={tab === 'users' ? 'active' : ''} onClick={() => handleSelectTab('users')}>
             Usuarios
           </button>
         )}

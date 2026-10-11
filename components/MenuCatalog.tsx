@@ -52,14 +52,7 @@ function formatCop(value?: number | null) {
   }).format(safe)
 }
 
-// Normaliza cadenas para búsqueda insensible a acentos/tildes y mayúsculas
-function normalizeText(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-}
+import { normalizeText } from '@/lib/filters'
 
 // Componente para resaltar coincidencias en la búsqueda
 function HighlightMatch({ text, query }: { text: string; query: string }) {

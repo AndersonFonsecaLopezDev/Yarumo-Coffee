@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { normalizeText } from '@/lib/filters'
 
 type User = { id: string; email?: string; lastSignInAt?: string | null; profile: { display_name: string; role: string } | null }
 const empty = { email: '', password: '', displayName: '', role: 'staff' }
@@ -11,6 +12,8 @@ export default function UserAdmin() {
   const [editing, setEditing] = useState<User | null>(null)
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [roleFilter, setRoleFilter] = useState<'all' | 'owner' | 'manager' | 'staff'>('all')
 
   const load = useCallback(async () => {
     try {
@@ -94,6 +97,19 @@ export default function UserAdmin() {
     else await load()
   }
 
+  const filteredUsers = useMemo(() => {
+    const q = normalizeText(searchQuery)
+    return users.filter((u) => {
+      if (roleFilter !== 'all' && (u.profile?.role || '').toLowerCase() !== roleFilter) return false
+      if (q) {
+        const name = normalizeText(u.profile?.display_name)
+        const email = normalizeText(u.email)
+        if (!name.includes(q) && !email.includes(q)) return false
+      }
+      return true
+    })
+  }, [users, searchQuery, roleFilter])
+
   return (
     <section className="user-admin">
       <div className="menu-admin-head">
@@ -105,23 +121,54 @@ export default function UserAdmin() {
           + Nuevo usuario
         </button>
       </div>
+
+      {/* Barra de Filtros de Usuarios */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+        <input
+          type="search"
+          placeholder="Buscar por nombre o correo..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="input"
+          style={{ flex: 1, minWidth: 200 }}
+        />
+        <select
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value as 'all' | 'owner' | 'manager' | 'staff')}
+          className="input"
+          style={{ minWidth: 140 }}
+        >
+          <option value="all">Todos los roles</option>
+          <option value="owner">Owner</option>
+          <option value="manager">Manager</option>
+          <option value="staff">Staff</option>
+        </select>
+        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+          Mostrando {filteredUsers.length} de {users.length} usuarios
+        </span>
+      </div>
+
       {message && <p className="admin-error">{message}</p>}
       <div className="user-grid">
         <div className="admin-list">
-          {users.map((user) => (
-            <article className="admin-item" key={user.id}>
-              <div>
-                <strong>{user.profile?.display_name || user.email}</strong>
-                <small>
-                  {user.email} · {user.profile?.role || 'sin perfil'}
-                </small>
-              </div>
-              <div>
-                <button onClick={() => startEdit(user)}>Editar</button>
-                <button onClick={() => remove(user)}>Eliminar</button>
-              </div>
-            </article>
-          ))}
+          {filteredUsers.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)', padding: 12 }}>No se encontraron usuarios coincidentes.</p>
+          ) : (
+            filteredUsers.map((user) => (
+              <article className="admin-item" key={user.id}>
+                <div>
+                  <strong>{user.profile?.display_name || user.email}</strong>
+                  <small>
+                    {user.email} · {user.profile?.role || 'sin perfil'}
+                  </small>
+                </div>
+                <div>
+                  <button onClick={() => startEdit(user)}>Editar</button>
+                  <button onClick={() => remove(user)}>Eliminar</button>
+                </div>
+              </article>
+            ))
+          )}
         </div>
         <form className="menu-form" onSubmit={save}>
           <h3>{editing ? 'Editar usuario' : 'Nuevo usuario'}</h3>

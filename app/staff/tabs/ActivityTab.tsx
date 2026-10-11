@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { CafeTable, MenuCategory, MenuItem, OrderRequest, Request } from '../types'
 import { createClient } from '@/lib/supabase/client'
+import { useUrlFilters, useDebouncedValue, normalizeText } from '@/lib/filters'
 
 type ActivityTabProps = {
   orders: OrderRequest[]
@@ -48,8 +49,30 @@ export default function ActivityTab({
   onRefresh,
 }: ActivityTabProps) {
   const [supabase] = useState(() => createClient())
-  const [filter, setFilter] = useState<'all' | 'orders' | 'requests'>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now())
+    }, 30000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Filtros sincronizados con URL
+  const {
+    filters,
+    setFilter,
+    resetFilters,
+    hasActiveFilters,
+  } = useUrlFilters('act', {
+    type: 'all', // 'all' | 'orders' | 'requests'
+    status: 'active', // 'active' | 'all' | 'pending' | 'acknowledged' | 'preparing' | 'delivered' | 'cancelled'
+    table: 'all',
+    q: '',
+  })
+
+  const debouncedQ = useDebouncedValue(filters.q, 200)
 
   // Modal Toma Manual de Pedido / Comanda
   const [manualOrderTable, setManualOrderTable] = useState<CafeTable | null>(null)
@@ -235,8 +258,71 @@ export default function ActivityTab({
     return sum + p * q
   }, 0)
 
-  const activeRequests = requests.filter((r) => r.status !== 'done' && r.status !== 'cancelled')
-  const activeOrders = orders.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled')
+  function getElapsedMinutes(isoString?: string | null): number {
+    if (!isoString) return 0
+    const diff = now - new Date(isoString).getTime()
+    return Math.max(0, Math.floor(diff / 60000))
+  }
+
+  const filteredRequests = useMemo(() => {
+    if (filters.type === 'orders') return []
+    const norm = normalizeText(debouncedQ)
+
+    return requests.filter((r) => {
+      // Estado
+      if (filters.status === 'active' && (r.status === 'done' || r.status === 'cancelled')) return false
+      if (filters.status === 'delivered') return false
+      if (filters.status !== 'all' && filters.status !== 'active') {
+        if (filters.status === 'cancelled' && r.status !== 'cancelled') return false
+        if (filters.status === 'pending' && r.status === 'done') return false
+      }
+
+      // Mesa
+      if (filters.table !== 'all') {
+        const matchTable = r.table_id === filters.table || r.table?.label === filters.table
+        if (!matchTable) return false
+      }
+
+      // Búsqueda
+      if (norm) {
+        const tableLabel = normalizeText(r.table?.label)
+        const typeText = r.type === 'waiter' ? 'mesero llamado' : 'cuenta'
+        if (!tableLabel.includes(norm) && !typeText.includes(norm)) return false
+      }
+
+      return true
+    })
+  }, [requests, filters.type, filters.status, filters.table, debouncedQ])
+
+  const filteredOrders = useMemo(() => {
+    if (filters.type === 'requests') return []
+    const norm = normalizeText(debouncedQ)
+
+    return orders.filter((o) => {
+      // Estado
+      if (filters.status === 'active' && (o.status === 'delivered' || o.status === 'cancelled')) return false
+      if (filters.status !== 'all' && filters.status !== 'active' && o.status !== filters.status) return false
+
+      // Mesa
+      if (filters.table !== 'all') {
+        const matchTable = o.table_id === filters.table || o.table?.label === filters.table
+        if (!matchTable) return false
+      }
+
+      // Búsqueda
+      if (norm) {
+        const tableLabel = normalizeText(o.table?.label)
+        const notes = normalizeText(o.notes)
+        const itemsMatch = (o.items || []).some((it) => normalizeText(it.name_snapshot).includes(norm))
+        const orderId = (o.id || '').toLowerCase()
+        if (!tableLabel.includes(norm) && !notes.includes(norm) && !itemsMatch && !orderId.includes(norm)) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }, [orders, filters.type, filters.status, filters.table, debouncedQ])
 
   return (
     <div className="tab-pane">
@@ -245,55 +331,160 @@ export default function ActivityTab({
           <h2>Actividad en Mesa y Comandas</h2>
           <p>Supervisa las solicitudes de mesero, pedidos y cuentas en tiempo real.</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          type="button"
+          className="btn-manual-order-primary"
+          onClick={() => {
+            const firstActive = tables.find((t) => t.active) || tables[0]
+            openManualOrder(firstActive || null)
+          }}
+          title="Crear nueva comanda manual para una mesa"
+        >
+          <span style={{ fontSize: '15px', fontWeight: 'bold' }}>+</span>
+          <span>Solicitar comanda manual</span>
+        </button>
+      </div>
+
+      {/* Barra de Filtros de Actividad */}
+      <div className="staff-filter-card" style={{ marginTop: 18 }}>
+        <div className="filter-main-row">
+          <div className="filter-input-wrap">
+            <span className="filter-search-icon" aria-hidden="true">🔍</span>
+            <input
+              type="search"
+              id="activity-search-input"
+              placeholder="Buscar por mesa, producto o nota..."
+              value={filters.q}
+              onChange={(e) => setFilter('q', e.target.value)}
+              className="input"
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 6 }}>
             <button
               type="button"
-              className={`btn btn-sm ${filter === 'all' ? 'btn-primary' : 'btn-outline'}`}
-              onClick={() => setFilter('all')}
+              className={`btn btn-sm ${filters.type === 'all' ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => setFilter('type', 'all')}
             >
-              Todos ({activeRequests.length + activeOrders.length})
+              Todos ({filteredOrders.length + filteredRequests.length})
             </button>
             <button
               type="button"
-              className={`btn btn-sm ${filter === 'orders' ? 'btn-primary' : 'btn-outline'}`}
-              onClick={() => setFilter('orders')}
+              className={`btn btn-sm ${filters.type === 'orders' ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => setFilter('type', 'orders')}
             >
-              Comandas ({activeOrders.length})
+              Comandas ({filteredOrders.length})
             </button>
             <button
               type="button"
-              className={`btn btn-sm ${filter === 'requests' ? 'btn-primary' : 'btn-outline'}`}
-              onClick={() => setFilter('requests')}
+              className={`btn btn-sm ${filters.type === 'requests' ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => setFilter('type', 'requests')}
             >
-              Llamados ({activeRequests.length})
+              Llamados ({filteredRequests.length})
             </button>
           </div>
 
-          <button
-            type="button"
-            className="btn-manual-order-primary"
-            onClick={() => {
-              const firstActive = tables.find((t) => t.active) || tables[0]
-              openManualOrder(firstActive || null)
-            }}
-            title="Crear nueva comanda manual para una mesa"
+          <select
+            id="activity-status-select"
+            value={filters.status}
+            onChange={(e) => setFilter('status', e.target.value)}
+            className="input"
+            style={{ minWidth: 160 }}
           >
-            <span style={{ fontSize: '15px', fontWeight: 'bold' }}>+</span>
-            <span>Solicitar comanda manual</span>
-          </button>
+            <option value="active">Activos en cocina</option>
+            <option value="pending">Solo pendientes</option>
+            <option value="preparing">En preparación</option>
+            <option value="delivered">Entregados (Historial)</option>
+            <option value="cancelled">Cancelados (Historial)</option>
+            <option value="all">Todos los estados</option>
+          </select>
+
+          <select
+            id="activity-table-select"
+            value={filters.table}
+            onChange={(e) => setFilter('table', e.target.value)}
+            className="input"
+            style={{ minWidth: 130 }}
+          >
+            <option value="all">Todas las mesas</option>
+            {tables.map((t) => (
+              <option key={t.id} value={t.id}>
+                Mesa {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Chips de Filtros y Contador */}
+        <div className="filter-chips-container">
+          <span className="filter-count-badge" id="activity-counter">
+            Mostrando {filteredOrders.length} comandas y {filteredRequests.length} llamados
+          </span>
+
+          {filters.q && (
+            <span className="filter-chip">
+              <span>Texto: «{filters.q}»</span>
+              <button
+                type="button"
+                className="filter-chip-remove"
+                onClick={() => setFilter('q', '')}
+                aria-label="Quitar filtro de texto"
+              >
+                ✕
+              </button>
+            </span>
+          )}
+
+          {filters.status !== 'active' && (
+            <span className="filter-chip">
+              <span>Estado: {filters.status}</span>
+              <button
+                type="button"
+                className="filter-chip-remove"
+                onClick={() => setFilter('status', 'active')}
+                aria-label="Quitar filtro de estado"
+              >
+                ✕
+              </button>
+            </span>
+          )}
+
+          {filters.table !== 'all' && (
+            <span className="filter-chip">
+              <span>Mesa: {tables.find((t) => t.id === filters.table)?.label || filters.table}</span>
+              <button
+                type="button"
+                className="filter-chip-remove"
+                onClick={() => setFilter('table', 'all')}
+                aria-label="Quitar filtro de mesa"
+              >
+                ✕
+              </button>
+            </span>
+          )}
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              className="btn-clear-filters"
+              onClick={resetFilters}
+              id="btn-clear-activity-filters"
+            >
+              Limpiar filtros
+            </button>
+          )}
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginTop: 24 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginTop: 14 }}>
         {/* Solicitudes de servicio (Mesero / Cuenta) */}
-        {(filter === 'all' || filter === 'requests') && activeRequests.length > 0 && (
+        {(filters.type === 'all' || filters.type === 'requests') && filteredRequests.length > 0 && (
           <div>
             <h3 style={{ fontSize: '1.1rem', margin: '0 0 12px', color: 'var(--orange)' }}>
-              🛎️ Llamados y Cuentas Pendientes
+              🛎️ Llamados y Cuentas Pendientes ({filteredRequests.length})
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-              {activeRequests.map((req) => (
+              {filteredRequests.map((req) => (
                 <div
                   key={req.id}
                   className="card"
@@ -308,9 +499,16 @@ export default function ActivityTab({
                   }}
                 >
                   <div>
-                    <strong style={{ fontSize: '1.1rem' }}>
-                      {req.type === 'waiter' ? '🛎️ Llamar mesero' : '🧾 Pide la cuenta'}
-                    </strong>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <strong style={{ fontSize: '1.05rem' }}>
+                        {req.type === 'waiter' ? '🛎️ Llamar mesero' : '🧾 Pide la cuenta'}
+                      </strong>
+                      <span className={`waiting-badge ${getElapsedMinutes(req.created_at) >= 5 ? 'waiting-delayed' : ''}`}>
+                        {getElapsedMinutes(req.created_at) >= 5
+                          ? `⚠️ Hace ${getElapsedMinutes(req.created_at)} min`
+                          : `🕒 Hace ${getElapsedMinutes(req.created_at)} min`}
+                      </span>
+                    </div>
                     <div style={{ fontSize: '0.85rem', marginTop: 4 }}>
                       Mesa <strong>{req.table?.label || 'General'}</strong>
                     </div>
@@ -345,15 +543,15 @@ export default function ActivityTab({
         )}
 
         {/* Comandas de Pedidos */}
-        {(filter === 'all' || filter === 'orders') && (
+        {(filters.type === 'all' || filters.type === 'orders') && (
           <div>
             <h3 style={{ fontSize: '1.1rem', margin: '0 0 12px' }}>
-              ☕ Comandas de Pedidos
+              ☕ Comandas de Pedidos ({filteredOrders.length})
             </h3>
-            {activeOrders.length === 0 ? (
+            {filteredOrders.length === 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
-                  No hay pedidos en preparación en este momento.
+                  No hay pedidos que coincidan con los filtros seleccionados.
                 </p>
                 <button
                   type="button"
@@ -368,11 +566,13 @@ export default function ActivityTab({
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-                {activeOrders.map((ord) => {
+                {filteredOrders.map((ord) => {
                   const total = (ord.items || []).reduce(
                     (sum, it) => sum + (it.price_cop_snapshot || 0) * (it.quantity || 1),
                     0,
                   )
+                  const elapsedMins = getElapsedMinutes(ord.created_at)
+                  const isDelayed = ['pending', 'acknowledged', 'preparing'].includes(ord.status) && elapsedMins >= 15
 
                   return (
                     <div
@@ -381,23 +581,35 @@ export default function ActivityTab({
                       style={{
                         padding: 18,
                         background: 'var(--surface-card)',
-                        border: '1.5px solid var(--border)',
+                        border: isDelayed ? '2px solid #ef4444' : '1.5px solid var(--border)',
                         borderRadius: 16,
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 12,
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 6 }}>
                         <div>
                           <strong>Mesa {ord.table?.label || 'Sin mesa'}</strong>
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: 8 }}>
                             #{ord.id.slice(0, 5).toUpperCase()}
                           </span>
                         </div>
-                        <span className={`status-pill status-${ord.status}`}>
-                          {getOrderStatusText(ord.status)}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {['pending', 'acknowledged', 'preparing'].includes(ord.status) && (
+                            <span className={`waiting-badge ${isDelayed ? 'waiting-delayed' : ''}`}>
+                              {isDelayed ? `⚠️ Demora: hace ${elapsedMins} min` : `🕒 Hace ${elapsedMins} min`}
+                            </span>
+                          )}
+                          {ord.status === 'delivered' && (
+                            <span className="waiting-badge" style={{ color: '#16a34a' }}>
+                              ✓ Entregado {ord.delivered_at ? `hace ${getElapsedMinutes(ord.delivered_at)} min` : ''}
+                            </span>
+                          )}
+                          <span className={`status-pill status-${ord.status}`}>
+                            {getOrderStatusText(ord.status)}
+                          </span>
+                        </div>
                       </div>
 
                       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -415,9 +627,9 @@ export default function ActivityTab({
                         </p>
                       )}
 
-                      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                         <strong>Total: {formatCop(total)}</strong>
-                        <div style={{ display: 'flex', gap: 6 }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           {ord.status === 'pending' && (
                             <button
                               type="button"
@@ -448,14 +660,21 @@ export default function ActivityTab({
                               Entregar ✓
                             </button>
                           )}
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-danger"
-                            disabled={updatingId === ord.id}
-                            onClick={() => updateOrderStatus(ord.id, 'cancelled')}
-                          >
-                            ✕
-                          </button>
+                          {ord.status !== 'cancelled' && ord.status !== 'delivered' && (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-danger"
+                              disabled={updatingId === ord.id}
+                              onClick={() => {
+                                if (confirm('¿Cancelar este pedido?')) {
+                                  updateOrderStatus(ord.id, 'cancelled')
+                                }
+                              }}
+                              title="Cancelar comanda"
+                            >
+                              ✕
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
