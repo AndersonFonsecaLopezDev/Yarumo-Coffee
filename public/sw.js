@@ -1,11 +1,14 @@
-// Service Worker para Yarumo Coffee (Stale-While-Revalidate)
-const CACHE_NAME = 'yarumo-cache-v2'
+// Service Worker para Yarumo Coffee
+// Versión 3: Aislamiento estricto de seguridad y rendimiento.
+// Excluye expresamente /staff, APIs, Auth y llamadas REST autenticadas.
+const CACHE_NAME = 'yarumo-cache-v3'
 
-const PRECACHE_URLS = [
+const PRECACHE_ASSETS = [
   '/',
   '/manifest.webmanifest',
   '/yarumo-logo.webp',
   '/yarumo-logo.avif',
+  '/yarumo-cover-cafe.webp',
   '/icon-32.png',
   '/icon-192.png',
   '/icon-512.png',
@@ -13,50 +16,117 @@ const PRECACHE_URLS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_URLS)
-    }).then(() => self.skipWaiting())
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(PRECACHE_ASSETS))
+      .then(() => self.skipWaiting()),
   )
 })
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key)
-          }
-        })
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys.map((key) => {
+            if (key !== CACHE_NAME) {
+              return caches.delete(key)
+            }
+          }),
+        ),
       )
-    }).then(() => self.clients.claim())
+      .then(() => self.clients.claim()),
   )
 })
 
 self.addEventListener('fetch', (event) => {
   const { request } = event
+
+  // 1. Solo cachear peticiones GET
+  if (request.method !== 'GET') return
+
   const url = new URL(request.url)
 
-  // Ignorar peticiones que no sean GET o que sean de APIs autenticadas de staff/auth
-  if (request.method !== 'GET') return
-  if (url.pathname.startsWith('/api/admin') || url.pathname.startsWith('/auth')) return
+  // 2. EXCLUSIÓN ESTRICTA: Rutas de administración, autenticación y endpoints de API
+  if (
+    url.pathname.startsWith('/staff') ||
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/auth') ||
+    url.pathname.includes('/auth/')
+  ) {
+    return
+  }
 
-  // Estrategia Stale-While-Revalidate para la carta, imágenes y páginas
-  event.respondWith(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      const cachedResponse = await cache.match(request)
+  // 3. EXCLUSIÓN ESTRICTA: Llamadas a APIs de Supabase (REST, Auth, Realtime)
+  if (
+    url.hostname.endsWith('supabase.co') &&
+    (url.pathname.startsWith('/rest/v1') ||
+      url.pathname.startsWith('/auth/v1') ||
+      url.pathname.startsWith('/realtime/v1'))
+  ) {
+    return
+  }
 
-      const networkFetch = fetch(request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          cache.put(request, networkResponse.clone())
+  // 4. Si la petición incluye cabecera Authorization, no cachear
+  if (request.headers.has('authorization')) {
+    return
+  }
+
+  // 5. Estrategia por tipo de recurso:
+  // A. Recursos inmutables de Next.js (_next/static/) e imágenes: Cache-First con fallback a red
+  const isStaticAsset =
+    url.pathname.startsWith('/_next/static/') ||
+    url.pathname.endsWith('.woff2') ||
+    url.pathname.endsWith('.webp') ||
+    url.pathname.endsWith('.avif') ||
+    url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.jpg') ||
+    url.pathname.endsWith('.jpeg') ||
+    url.pathname.endsWith('.svg') ||
+    (url.hostname.endsWith('supabase.co') && url.pathname.startsWith('/storage/v1/object/public/'))
+
+  if (isStaticAsset) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(request)
+        if (cached) return cached
+
+        try {
+          const networkRes = await fetch(request)
+          if (networkRes && networkRes.status === 200) {
+            cache.put(request, networkRes.clone())
+          }
+          return networkRes
+        } catch {
+          return cached || new Response('', { status: 408 })
         }
-        return networkResponse
-      }).catch(() => {
-        // Fallback offline si la red falla y hay respuesta en caché
-        return cachedResponse
-      })
+      }),
+    )
+    return
+  }
 
-      return cachedResponse || networkFetch
-    })
-  )
+  // B. Páginas públicas (/ y /recomendaciones): Stale-While-Revalidate
+  const isPublicPage =
+    url.origin === self.location.origin &&
+    (url.pathname === '/' || url.pathname === '/recomendaciones')
+
+  if (isPublicPage) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cachedResponse = await cache.match(request)
+
+        const fetchPromise = fetch(request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              cache.put(request, networkResponse.clone())
+            }
+            return networkResponse
+          })
+          .catch(() => cachedResponse)
+
+        return cachedResponse || fetchPromise
+      }),
+    )
+  }
 })

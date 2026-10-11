@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import StaffAlerts, { type StaffAlert } from '@/components/StaffAlerts'
 import ThemeToggle from '@/components/ThemeToggle'
+import { playOrderChime, playWaiterChime } from '@/lib/notifications'
 import type {
   Request,
   OrderRequest,
@@ -44,6 +45,29 @@ const UserAdmin = dynamic(() => import('@/components/UserAdmin'), {
 const HelpTab = dynamic(() => import('./tabs/HelpTab'), {
   loading: () => <div className="tab-loading-skeleton">Cargando centro de ayuda...</div>,
 })
+
+type StaffTab =
+  | 'activity'
+  | 'menu'
+  | 'categories'
+  | 'promotions'
+  | 'qr'
+  | 'users'
+  | 'recommendations'
+  | 'settings'
+  | 'help'
+
+const VALID_STAFF_TABS: StaffTab[] = [
+  'activity',
+  'menu',
+  'categories',
+  'promotions',
+  'qr',
+  'users',
+  'recommendations',
+  'settings',
+  'help',
+]
 
 type AuthErrorNotice = {
   title: string
@@ -151,42 +175,53 @@ export default function StaffPage() {
   const [heroImageUrl, setHeroImageUrl] = useState('/yarumo-cover-cafe.webp')
   const [whatsappDeliveryNumber, setWhatsappDeliveryNumber] = useState('573192208938')
 
-  // Pestaña activa
-  const [tab, setTab] = useState<
-    'activity' | 'menu' | 'categories' | 'promotions' | 'qr' | 'users' | 'recommendations' | 'settings' | 'help'
-  >('activity')
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
+  // Pestaña activa (inicializada desde URL sin efectos secundarios)
+  const [tab, setTab] = useState<StaffTab>(() => {
+    if (typeof window === 'undefined') return 'activity'
     const params = new URLSearchParams(window.location.search)
     const urlTab = params.get('tab')
-    const validTabs = [
-      'activity',
-      'menu',
-      'categories',
-      'promotions',
-      'qr',
-      'users',
-      'recommendations',
-      'settings',
-      'help',
-    ]
-    if (urlTab && validTabs.includes(urlTab)) {
-      setTab(urlTab as typeof tab)
+    if (urlTab && VALID_STAFF_TABS.includes(urlTab as StaffTab)) {
+      return urlTab as StaffTab
     }
-  }, [])
+    return 'activity'
+  })
 
-  const handleSelectTab = useCallback((newTab: typeof tab) => {
+  const handleSelectTab = useCallback((newTab: StaffTab) => {
     setTab(newTab)
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href)
       url.searchParams.set('tab', newTab)
       window.history.replaceState({}, '', url.toString())
     }
-  }, [])
+  }, [setTab])
 
   // Alertas / Toasts
   const [alerts, setAlerts] = useState<StaffAlert[]>([])
+
+  // Notificaciones y estado de conexión Realtime (inicializados perezosamente)
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true
+    const saved = localStorage.getItem('yarumo_staff_sound')
+    return saved !== null ? saved !== 'false' : true
+  })
+  const soundRef = useRef(soundEnabled)
+
+  const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting')
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false)
+
+  const toggleSound = useCallback(() => {
+    setSoundEnabled((prev) => {
+      const next = !prev
+      soundRef.current = next
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('yarumo_staff_sound', next ? 'true' : 'false')
+      }
+      if (next) {
+        playWaiterChime()
+      }
+      return next
+    })
+  }, [setSoundEnabled])
 
   const load = useCallback(async () => {
     const { data: sessionData } = await supabase.auth.getSession()
@@ -276,24 +311,118 @@ export default function StaffPage() {
       }
     })
 
-    // Realtime para solicitudes
+    // Consultas específicas y debounced para no recargar las 9 tablas en cada evento
+    const reloadServiceRequests = async () => {
+      if (!mounted) return
+      const reqRes = await supabase
+        .from('service_requests')
+        .select('id, table_id, type, status, created_at, table:cafe_tables(label)')
+        .order('created_at', { ascending: false })
+        .limit(60)
+      if (mounted && reqRes.data) {
+        setRequests((reqRes.data || []) as unknown as Request[])
+      }
+    }
+
+    const reloadOrderRequests = async () => {
+      if (!mounted) return
+      const ordRes = await supabase
+        .from('order_requests')
+        .select('id, table_id, status, notes, source, created_at, acknowledged_at, delivered_at, table:cafe_tables(label), items:order_request_items(id, name_snapshot, price_cop_snapshot, quantity, item_notes)')
+        .order('created_at', { ascending: false })
+        .limit(60)
+      if (mounted && ordRes.data) {
+        setOrders((ordRes.data || []) as unknown as OrderRequest[])
+      }
+    }
+
+    let serviceTimer: NodeJS.Timeout | null = null
+    let orderTimer: NodeJS.Timeout | null = null
+
+    const debouncedReloadServices = () => {
+      if (serviceTimer) clearTimeout(serviceTimer)
+      serviceTimer = setTimeout(() => {
+        void reloadServiceRequests()
+      }, 350)
+    }
+
+    const debouncedReloadOrders = () => {
+      if (orderTimer) clearTimeout(orderTimer)
+      orderTimer = setTimeout(() => {
+        void reloadOrderRequests()
+      }, 350)
+    }
+
+    // Realtime para solicitudes (mesero / cuenta)
     const serviceChannel = supabase
       .channel('staff-service-requests-channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'service_requests' }, () => {
-        void load()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'service_requests' }, (payload) => {
+        if (!mounted) return
+        if (payload.eventType === 'INSERT') {
+          if (soundRef.current) playWaiterChime()
+          const newRow = payload.new as { id?: string; type?: 'waiter' | 'bill'; table_id?: string }
+          setAlerts((prev) => [
+            {
+              id: crypto.randomUUID(),
+              sourceId: newRow?.id || '',
+              type: newRow?.type === 'bill' ? 'bill' : 'waiter',
+              tableLabel: 'Mesa',
+              title: newRow?.type === 'bill' ? 'Piden la cuenta' : 'Llaman al mesero',
+              subtitle: 'Atención solicitada en mesa',
+              createdAt: Date.now(),
+            },
+            ...prev.slice(0, 3),
+          ])
+        }
+        debouncedReloadServices()
       })
-      .subscribe()
+      .subscribe((status) => {
+        if (!mounted) return
+        if (status === 'SUBSCRIBED') {
+          setRealtimeStatus('connected')
+        } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
+          setRealtimeStatus('disconnected')
+        } else {
+          setRealtimeStatus('connecting')
+        }
+      })
 
     // Realtime para pedidos
     const orderChannel = supabase
       .channel('staff-orders-channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_requests' }, () => {
-        void load()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_requests' }, (payload) => {
+        if (!mounted) return
+        if (payload.eventType === 'INSERT') {
+          if (soundRef.current) playOrderChime()
+          const newOrder = payload.new as { id?: string; notes?: string }
+          setAlerts((prev) => [
+            {
+              id: crypto.randomUUID(),
+              sourceId: newOrder?.id || '',
+              type: 'order',
+              tableLabel: 'Comanda',
+              title: 'Nueva comanda de pedido',
+              subtitle: newOrder?.notes ? `Nota: ${newOrder.notes}` : 'Comanda enviada a cocina',
+              createdAt: Date.now(),
+            },
+            ...prev.slice(0, 3),
+          ])
+        }
+        debouncedReloadOrders()
       })
-      .subscribe()
+      .subscribe((status) => {
+        if (!mounted) return
+        if (status === 'SUBSCRIBED') {
+          setRealtimeStatus('connected')
+        } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
+          setRealtimeStatus('disconnected')
+        }
+      })
 
     return () => {
       mounted = false
+      if (serviceTimer) clearTimeout(serviceTimer)
+      if (orderTimer) clearTimeout(orderTimer)
       subscription.unsubscribe()
       void supabase.removeChannel(serviceChannel)
       void supabase.removeChannel(orderChannel)
@@ -497,6 +626,55 @@ export default function StaffPage() {
               <strong>{user}</strong>
             </div>
           )}
+
+          <div
+            className="staff-connection-badge"
+            title={
+              realtimeStatus === 'connected'
+                ? 'Conexión en tiempo real activa'
+                : realtimeStatus === 'connecting'
+                  ? 'Conectando con el servidor...'
+                  : 'Desconectado de Realtime. Pulsa Refrescar.'
+            }
+            aria-live="polite"
+          >
+            <span className={`connection-dot connection-${realtimeStatus}`} />
+            <span className="connection-text">
+              {realtimeStatus === 'connected'
+                ? 'En vivo'
+                : realtimeStatus === 'connecting'
+                  ? 'Conectando…'
+                  : 'Desconectado'}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            className="btn-sound-toggle"
+            onClick={toggleSound}
+            title={soundEnabled ? 'Silenciar alertas sonoras' : 'Activar alertas sonoras'}
+            aria-label={soundEnabled ? 'Silenciar alertas sonoras' : 'Activar alertas sonoras'}
+            id="btn-staff-sound-toggle"
+          >
+            {soundEnabled ? '🔔' : '🔕'}
+          </button>
+
+          <button
+            type="button"
+            className="btn-refresh-data"
+            onClick={async () => {
+              setIsManualRefreshing(true)
+              await load()
+              setIsManualRefreshing(false)
+            }}
+            disabled={isManualRefreshing}
+            title="Recargar todos los datos manualmente"
+            id="btn-staff-manual-refresh"
+          >
+            <span className={isManualRefreshing ? 'spin-icon' : ''}>↻</span>
+            <span className="refresh-btn-label">Refrescar</span>
+          </button>
+
           <ThemeToggle />
           <button type="button" className="button-logout" onClick={logout}>
             Salir ↗
