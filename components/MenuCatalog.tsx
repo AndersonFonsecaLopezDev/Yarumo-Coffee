@@ -3,37 +3,25 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
-import type { CartItem, TableOrder } from './OrderCart'
-import { createClient } from '@/lib/supabase/client'
+import type {
+  MenuItem,
+  MenuCategory,
+  CartItem,
+  TableOrder,
+  MenuItemOptionChoice,
+  MenuItemOptionGroup,
+} from '@/lib/types'
 
-// Carga diferida con dynamic(..., { ssr: false }) para aligerar el bundle inicial de la home
-const OrderCart = dynamic(() => import('./OrderCart'), { ssr: false })
-const GalleryModal = dynamic(() => import('./GalleryModal'), { ssr: false })
-const CustomerOrderTracker = dynamic(() => import('./CustomerOrderTracker'), { ssr: false })
+export type { MenuItem, MenuCategory, CartItem, MenuItemOptionChoice, MenuItemOptionGroup }
+
+import { createClient } from '@/lib/supabase/client'
 import { CategoryIcon } from '@/components/icons/CategoryIcons'
 import { ProductPlaceholder } from '@/components/ProductPlaceholder'
 
-export type MenuItem = {
-  id: string
-  name: string
-  description: string
-  price_cop: number
-  category: string
-  category_id?: string | null
-  sort_order: number
-  image_url: string | null
-  gallery_urls: string[]
-  tags?: string[]
-}
-
-export type MenuCategory = {
-  id: string
-  name: string
-  slug?: string
-  icon: string
-  sort_order: number
-}
-
+const OrderCart = dynamic(() => import('./OrderCart'), { ssr: false })
+const GalleryModal = dynamic(() => import('./GalleryModal'), { ssr: false })
+const CustomerOrderTracker = dynamic(() => import('./CustomerOrderTracker'), { ssr: false })
+ 
 type MenuCatalogProps = {
   initialMenu: MenuItem[]
   initialCategories: MenuCategory[]
@@ -257,21 +245,45 @@ export default function MenuCatalog({
     })
   }, [initialMenu, deferredQuery, selectedCategoryId, favorites])
 
-  const addToCart = useCallback((item: MenuItem, customNotes = '', extraPrice = 0) => {
-    setCart((prev) => {
-      const targetNotes = customNotes.trim()
-      const idx = prev.findIndex((entry) => entry.item.id === item.id && (entry.notes || '').trim() === targetNotes)
-      if (idx >= 0) {
-        const copy = [...prev]
-        copy[idx] = { ...copy[idx], quantity: copy[idx].quantity + 1 }
-        return copy
-      }
-      const itemWithCustomPrice = extraPrice > 0 ? { ...item, price_cop: item.price_cop + extraPrice } : item
-      return [...prev, { item: itemWithCustomPrice, quantity: 1, notes: targetNotes }]
-    })
-    setToastMessage(`✓ ${item.name} agregado al pedido`)
-    setTimeout(() => setToastMessage(''), 2400)
-  }, [])
+  const addToCart = useCallback(
+    (
+      item: MenuItem,
+      customNotes = '',
+      extraPrice = 0,
+      choiceIds: string[] = [],
+      choices: MenuItemOptionChoice[] = [],
+    ) => {
+      setCart((prev) => {
+        const targetNotes = customNotes.trim()
+        const effectivePrice = item.price_cop + (extraPrice > 0 ? extraPrice : 0)
+        const idx = prev.findIndex(
+          (entry) =>
+            entry.item.id === item.id &&
+            (entry.notes || '').trim() === targetNotes &&
+            JSON.stringify(entry.selectedChoiceIds || []) === JSON.stringify(choiceIds),
+        )
+        if (idx >= 0) {
+          const copy = [...prev]
+          copy[idx] = { ...copy[idx], quantity: copy[idx].quantity + 1 }
+          return copy
+        }
+        return [
+          ...prev,
+          {
+            item,
+            quantity: 1,
+            notes: targetNotes,
+            selectedChoiceIds: choiceIds,
+            selectedChoices: choices,
+            effectivePrice,
+          },
+        ]
+      })
+      setToastMessage(`✓ ${item.name} agregado al pedido`)
+      setTimeout(() => setToastMessage(''), 2400)
+    },
+    [],
+  )
 
   const updateCartQuantity = useCallback((indexOrId: number | string, delta: number) => {
     setCart((prev) =>
@@ -505,7 +517,7 @@ export default function MenuCatalog({
                         <span className="item-badge-category">{item.category}</span>
                         {hasGallery && (
                           <span className="item-gallery-badge">
-                            📷 +{item.gallery_urls.length}
+                            📷 +{item.gallery_urls?.length ?? 0}
                           </span>
                         )}
                       </div>

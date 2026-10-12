@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { revalidatePublicContent } from '@/app/actions/revalidate'
 import { normalizeText, useUrlFilters, useDebouncedValue } from '@/lib/filters'
 import PrintMenuModal from './PrintMenuModal'
+import MenuItemOptionsModal from './MenuItemOptionsModal'
 import { useConfirm } from '@/components/ConfirmModal'
 
 type MenuTabProps = {
@@ -25,6 +26,7 @@ const blankMenuForm: MenuForm = {
   sort_order: 0,
   image_url: '',
   gallery_urls: '',
+  tags: '',
 }
 
 const defaultFilters = {
@@ -55,6 +57,7 @@ export default function MenuTab({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showPrintModal, setShowPrintModal] = useState(false)
+  const [optionsModalItem, setOptionsModalItem] = useState<MenuItem | null>(null)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const PAGE_SIZE = 15
@@ -92,6 +95,7 @@ export default function MenuTab({
       sort_order: item.sort_order || 0,
       image_url: item.image_url || '',
       gallery_urls: (item.gallery_urls || []).join('\n'),
+      tags: (item.tags || []).join(', '),
     })
   }
 
@@ -158,6 +162,10 @@ export default function MenuTab({
       gallery_urls: form.gallery_urls
         .split('\n')
         .map((u) => u.trim())
+        .filter(Boolean),
+      tags: (form.tags || '')
+        .split(',')
+        .map((t) => t.trim())
         .filter(Boolean),
     }
 
@@ -481,6 +489,18 @@ export default function MenuTab({
             </div>
           </div>
 
+          <div>
+            <label htmlFor="menu-tags" style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Etiquetas (separadas por coma)</label>
+            <input
+              id="menu-tags"
+              type="text"
+              placeholder="Ej: Nuevo, Vegano, Recomendado del barista"
+              value={form.tags || ''}
+              onChange={(e) => setForm({ ...form, tags: e.target.value })}
+              className="input"
+            />
+          </div>
+
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
             <input
               type="checkbox"
@@ -761,6 +781,15 @@ export default function MenuTab({
                         <td>{item.sort_order}</td>
                         <td style={{ textAlign: 'right' }}>
                           <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline"
+                              onClick={() => setOptionsModalItem(item)}
+                              id={`btn-options-${item.id}`}
+                              title="Configurar opciones y variantes"
+                            >
+                              ⚙ Variantes
+                            </button>
                             <button type="button" className="btn btn-sm btn-outline" onClick={() => editItem(item)}>
                               Editar
                             </button>
@@ -842,6 +871,15 @@ export default function MenuTab({
                     </div>
 
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline"
+                        onClick={() => setOptionsModalItem(item)}
+                        id={`btn-card-options-${item.id}`}
+                        title="Configurar opciones y variantes"
+                      >
+                        ⚙ Variantes
+                      </button>
                       <button
                         type="button"
                         className={`btn btn-sm ${item.available ? 'btn-outline' : 'btn-danger'}`}
@@ -1127,6 +1165,15 @@ export default function MenuTab({
           items={items}
           categories={categories}
           onClose={() => setShowPrintModal(false)}
+        />
+      )}
+
+      {/* Modal de Opciones y Variantes de Producto */}
+      {optionsModalItem && (
+        <MenuItemOptionsModal
+          menuItemId={optionsModalItem.id}
+          menuItemName={optionsModalItem.name}
+          onClose={() => setOptionsModalItem(null)}
         />
       )}
       <ConfirmDialog />

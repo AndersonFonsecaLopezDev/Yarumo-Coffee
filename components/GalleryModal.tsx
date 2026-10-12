@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import Image from 'next/image'
-import type { MenuItem } from '@/components/MenuCatalog'
+import type { MenuItem, MenuItemOptionChoice, MenuItemOptionGroup } from '@/lib/types'
 import { ProductPlaceholder } from '@/components/ProductPlaceholder'
 import { useI18n } from '@/lib/i18n'
 import { useScrollLock } from '@/lib/use-scroll-lock'
@@ -10,7 +10,13 @@ import { useScrollLock } from '@/lib/use-scroll-lock'
 type GalleryModalProps = {
   item: MenuItem | null
   cartQty?: number
-  onAddToCart?: (item: MenuItem, notes?: string, extraPrice?: number) => void
+  onAddToCart?: (
+    item: MenuItem,
+    notes?: string,
+    extraPrice?: number,
+    choiceIds?: string[],
+    choices?: MenuItemOptionChoice[],
+  ) => void
   onUpdateQuantity?: (delta: number) => void
   onClose: () => void
 }
@@ -34,6 +40,8 @@ export default function GalleryModal({
   const { t } = useI18n()
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [baristaNotes, setBaristaNotes] = useState<string>('')
+  const [selectedChoicesByGroup, setSelectedChoicesByGroup] = useState<Record<string, string[]>>({})
+  const [prevItemKey, setPrevItemKey] = useState<string | null>(null)
 
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
@@ -42,7 +50,43 @@ export default function GalleryModal({
     return item ? ([item.image_url, ...(item.gallery_urls || [])].filter(Boolean) as string[]) : []
   }, [item])
 
-  const effectivePrice = item?.price_cop || 0
+  if (item?.id !== prevItemKey) {
+    setPrevItemKey(item?.id ?? null)
+    const initial: Record<string, string[]> = {}
+    if (item?.option_groups) {
+      for (const group of item.option_groups) {
+        const activeChoices = group.choices || []
+        if (group.kind === 'single' && group.required && activeChoices.length > 0) {
+          initial[group.id] = [activeChoices[0].id]
+        } else {
+          initial[group.id] = []
+        }
+      }
+    }
+    setSelectedChoicesByGroup(initial)
+  }
+
+  const { extraDelta, selectedChoiceIds, selectedChoicesList } = useMemo(() => {
+    let delta = 0
+    const ids: string[] = []
+    const choicesList: MenuItemOptionChoice[] = []
+    if (!item?.option_groups) return { extraDelta: 0, selectedChoiceIds: ids, selectedChoicesList: choicesList }
+
+    for (const group of item.option_groups) {
+      const currentIds = selectedChoicesByGroup[group.id] || []
+      for (const cId of currentIds) {
+        const found = (group.choices || []).find((c: MenuItemOptionChoice) => c.id === cId)
+        if (found) {
+          delta += found.price_delta_cop
+          ids.push(found.id)
+          choicesList.push(found)
+        }
+      }
+    }
+    return { extraDelta: delta, selectedChoiceIds: ids, selectedChoicesList: choicesList }
+  }, [item, selectedChoicesByGroup])
+
+  const effectivePrice = (item?.price_cop || 0) + extraDelta
 
   useScrollLock(Boolean(item))
 
@@ -83,7 +127,9 @@ export default function GalleryModal({
 
   function handleAddWithCustomization() {
     if (!item || !onAddToCart) return
-    onAddToCart(item, baristaNotes.trim(), 0)
+    const choiceLabels = selectedChoicesList.map((c) => c.label)
+    const combinedNotes = [...choiceLabels, baristaNotes.trim()].filter(Boolean).join(' | ')
+    onAddToCart(item, combinedNotes, extraDelta, selectedChoiceIds, selectedChoicesList)
   }
 
   return (
@@ -188,6 +234,72 @@ export default function GalleryModal({
           </div>
 
           {item.description && <p className="gallery-description">{item.description}</p>}
+
+          {/* Opciones y variantes guiadas por datos */}
+          {item.option_groups && item.option_groups.length > 0 && (
+            <div className="gallery-options-container" style={{ marginTop: 16 }}>
+              {item.option_groups.map((group: MenuItemOptionGroup) => {
+                const currentSelected = selectedChoicesByGroup[group.id] || []
+                return (
+                  <div
+                    key={group.id}
+                    className="gallery-option-group"
+                    style={{
+                      marginBottom: 14,
+                      padding: '12px 14px',
+                      background: 'var(--surface, rgba(0,0,0,0.02))',
+                      borderRadius: 'var(--radius-md, 12px)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text)' }}>
+                        {group.name}
+                        {group.required && <span style={{ color: 'var(--orange)', marginLeft: 4 }}>*</span>}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {group.kind === 'single' ? 'Elige 1' : 'Opcional múltiple'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {(group.choices || []).map((choice: MenuItemOptionChoice) => {
+                        const isSelected = currentSelected.includes(choice.id)
+                        return (
+                          <button
+                            key={choice.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedChoicesByGroup((prev) => {
+                                if (group.kind === 'single') {
+                                  return { ...prev, [group.id]: [choice.id] }
+                                } else {
+                                  const list = prev[group.id] || []
+                                  const nextList = list.includes(choice.id)
+                                    ? list.filter((id) => id !== choice.id)
+                                    : [...list, choice.id]
+                                  return { ...prev, [group.id]: nextList }
+                                }
+                              })
+                            }}
+                            className={`filter-chip ${isSelected ? 'active' : ''}`}
+                            style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+                          >
+                            <span>{choice.label}</span>
+                            {choice.price_delta_cop > 0 && (
+                              <span style={{ marginLeft: 4, opacity: 0.85 }}>
+                                (+{formatCop(choice.price_delta_cop)})
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
 
           {/* Sección de nota para el barista */}
           <div

@@ -3,32 +3,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScrollLock } from '@/lib/use-scroll-lock'
-import type { MenuItem } from './MenuCatalog'
+import type { CartItem, TableOrder, TableOrderItem } from '@/lib/types'
 
-export type CartItem = {
-  item: MenuItem
-  quantity: number
-  notes: string
-}
-
-export type TableOrderItem = {
-  id: string
-  name_snapshot: string
-  price_cop_snapshot: number
-  quantity: number
-  item_notes: string
-}
-
-export type TableOrder = {
-  id: string
-  status: 'pending' | 'acknowledged' | 'preparing' | 'delivered' | 'cancelled'
-  notes: string
-  source: string
-  created_at: string
-  acknowledged_at: string | null
-  delivered_at: string | null
-  items: TableOrderItem[]
-}
+export type { CartItem, TableOrder, TableOrderItem }
 
 type OrderCartProps = {
   cart: CartItem[]
@@ -96,7 +73,7 @@ export default function OrderCart({
   const isInsideTable = Boolean(table && mesaToken)
   const effectiveOrders = propTableOrders ?? internalOrders
   const totalItems = cart.reduce((acc, curr) => acc + curr.quantity, 0)
-  const totalPrice = cart.reduce((acc, curr) => acc + curr.item.price_cop * curr.quantity, 0)
+  const totalPrice = cart.reduce((acc, curr) => acc + (curr.effectivePrice ?? curr.item.price_cop) * curr.quantity, 0)
   const hasContent = totalItems > 0 || effectiveOrders.length > 0
   const drawerOpen = isOpen && hasContent
 
@@ -205,6 +182,7 @@ export default function OrderCart({
         menu_item_id: ci.item.id,
         quantity: ci.quantity,
         item_notes: ci.notes.trim(),
+        option_choice_ids: ci.selectedChoiceIds || [],
       }))
 
       try {
@@ -283,7 +261,8 @@ export default function OrderCart({
     ]
 
     cart.forEach((ci) => {
-      const itemTotal = ci.item.price_cop * ci.quantity
+      const unitPrice = ci.effectivePrice ?? ci.item.price_cop
+      const itemTotal = unitPrice * ci.quantity
       const notePart = ci.notes.trim() ? ` _(${ci.notes.trim()})_` : ''
       lines.push(`- ${ci.quantity}x ${ci.item.name}${notePart} — ${formatCop(itemTotal)}`)
     })
@@ -400,7 +379,9 @@ export default function OrderCart({
                       <div className="cart-item-main">
                         <div>
                           <strong className="cart-item-name">{item.name}</strong>
-                          <span className="cart-item-unit-price">{formatCop(item.price_cop)} c/u</span>
+                          <span className="cart-item-unit-price">
+                            {formatCop(cart[index]?.effectivePrice ?? item.price_cop)} c/u
+                          </span>
                           {notes && (
                             <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                               <span
@@ -420,7 +401,7 @@ export default function OrderCart({
                           )}
                         </div>
                         <strong className="cart-item-total-price">
-                          {formatCop(item.price_cop * quantity)}
+                          {formatCop((cart[index]?.effectivePrice ?? item.price_cop) * quantity)}
                         </strong>
                       </div>
 

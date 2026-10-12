@@ -80,6 +80,7 @@ export type MenuItem = {
   sort_order: number
   image_url: string | null
   gallery_urls: string[]
+  tags?: string[]
 }
 
 export type MenuForm = {
@@ -93,6 +94,7 @@ export type MenuForm = {
   sort_order: number
   image_url: string
   gallery_urls: string
+  tags?: string
 }
 
 export type CategoryForm = {

@@ -5,7 +5,7 @@ import VisitStrip from '@/components/VisitStrip'
 import Footer from '@/components/Footer'
 import { createPublicClient } from '@/lib/supabase/public'
 import { SITE_URL } from '@/lib/site-url'
-import type { MenuItem, MenuCategory } from '@/components/MenuCatalog'
+import type { MenuItem, MenuCategory, MenuItemOptionGroup, MenuItemOptionChoice } from '@/lib/types'
 import type { Promotion } from '@/components/PromotionsSection'
 
 // Revalidación estática ISR cada 120 segundos
@@ -62,7 +62,7 @@ async function getInitialData(): Promise<{
 }> {
   const supabase = createPublicClient()
 
-  const [menuRes, catRes, promoRes, settingsRes] = await Promise.all([
+  const [menuRes, catRes, promoRes, settingsRes, optionsRes] = await Promise.all([
     supabase
       .from('menu_items')
       .select('id,name,description,price_cop,category,category_id,sort_order,image_url,gallery_urls,tags')
@@ -82,6 +82,11 @@ async function getInitialData(): Promise<{
     supabase
       .from('site_settings')
       .select('key,value'),
+    supabase
+      .from('menu_item_option_groups')
+      .select('id,menu_item_id,name,kind,required,sort_order,active,choices:menu_item_option_choices(id,group_id,label,price_delta_cop,sort_order,active)')
+      .eq('active', true)
+      .order('sort_order'),
   ])
 
   const settingsMap = (settingsRes.data || []).reduce(
@@ -92,8 +97,27 @@ async function getInitialData(): Promise<{
   const heroImageUrl = settingsMap['hero_image_url'] || '/yarumo-cover-cafe.webp'
   const whatsappDeliveryNumber = settingsMap['whatsapp_delivery_number'] || '573192208938'
 
+  const optionsMap = new Map<string, MenuItemOptionGroup[]>()
+  if (Array.isArray(optionsRes?.data)) {
+    const rawGroups = optionsRes.data as unknown as (MenuItemOptionGroup & { choices?: MenuItemOptionChoice[] })[]
+    for (const group of rawGroups) {
+      const activeChoices = Array.isArray(group.choices)
+        ? [...group.choices].filter((c) => c.active).sort((a, b) => a.sort_order - b.sort_order)
+        : []
+      const grpWithChoices: MenuItemOptionGroup = { ...group, choices: activeChoices }
+      const existing = optionsMap.get(group.menu_item_id) || []
+      existing.push(grpWithChoices)
+      optionsMap.set(group.menu_item_id, existing)
+    }
+  }
+
+  const menuWithdrawn = ((menuRes.data || []) as MenuItem[]).map((item) => ({
+    ...item,
+    option_groups: optionsMap.get(item.id) || [],
+  }))
+
   return {
-    menu: (menuRes.data || []) as MenuItem[],
+    menu: menuWithdrawn,
     categories: (catRes.data || []) as MenuCategory[],
     promotions: (promoRes.data || []) as Promotion[],
     heroImageUrl,

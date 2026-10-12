@@ -259,7 +259,7 @@ export default function StaffPage() {
     // 4. Productos de menú
     const itemsRes = await supabase
       .from('menu_items')
-      .select('id, name, slug, description, price_cop, category, category_id, available, sort_order, image_url, gallery_urls')
+      .select('id, name, slug, description, price_cop, category, category_id, available, sort_order, image_url, gallery_urls, tags')
       .order('sort_order')
       .order('name')
     setItems((itemsRes.data || []) as MenuItem[])
