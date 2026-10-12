@@ -135,7 +135,7 @@
 
 /* Inputs de texto, número, selects y textareas */
 .input,
-.staff input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]),
+.staff input:where(:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"])),
 .staff select,
 .staff textarea {
   width: 100%;
@@ -1410,7 +1410,7 @@
 .manual-search-input {
   width: 100%;
   height: 40px;
-  padding: 0 12px 0 36px;
+  padding: 0 12px 0 38px;
   border-radius: 10px;
   border: 1.5px solid var(--border);
   background: var(--surface-card-warm);
@@ -3114,7 +3114,7 @@
 .filter-control-input {
   width: 100%;
   height: 40px;
-  padding: 0 12px 0 36px;
+  padding: 0 12px 0 38px;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface-card-warm);
@@ -3129,6 +3129,11 @@
 .filter-control-input:focus {
   border-color: var(--orange);
   box-shadow: 0 0 0 3px rgba(239, 128, 91, 0.15);
+}
+
+.staff .filter-control-input,
+.staff .manual-search-input {
+  padding-left: 38px;
 }
 
 .filter-control-select {
