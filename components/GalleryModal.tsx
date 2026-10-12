@@ -24,23 +24,6 @@ function formatCop(value?: number | null) {
   }).format(safe)
 }
 
-const MILK_OPTIONS = [
-  { id: 'entera', label: 'Leche entera', extra: 0 },
-  { id: 'deslactosada', label: 'Deslactosada', extra: 0 },
-  { id: 'avena', label: 'Bebida de avena (+ $2.000)', extra: 2000 },
-  { id: 'almendras', label: 'Bebida de almendras (+ $2.000)', extra: 2000 },
-]
-
-const TEMP_OPTIONS = [
-  { id: 'caliente', label: 'Caliente' },
-  { id: 'frio', label: 'Frío / Con hielo' },
-]
-
-const SIZE_OPTIONS = [
-  { id: 'regular', label: 'Estándar', extra: 0 },
-  { id: 'doble', label: 'Doble / Grande (+ $3.000)', extra: 3000 },
-]
-
 export default function GalleryModal({
   item,
   cartQty = 0,
@@ -50,9 +33,6 @@ export default function GalleryModal({
 }: GalleryModalProps) {
   const { t } = useI18n()
   const [activeImageIndex, setActiveImageIndex] = useState(0)
-  const [selectedMilk, setSelectedMilk] = useState<string>('entera')
-  const [selectedTemp, setSelectedTemp] = useState<string>('caliente')
-  const [selectedSize, setSelectedSize] = useState<string>('regular')
   const [baristaNotes, setBaristaNotes] = useState<string>('')
 
   const closeButtonRef = useRef<HTMLButtonElement>(null)
@@ -62,52 +42,7 @@ export default function GalleryModal({
     return item ? ([item.image_url, ...(item.gallery_urls || [])].filter(Boolean) as string[]) : []
   }, [item])
 
-  // Detectar si el producto admite variantes de leche/temperatura (cafés, bebidas)
-  const isBeverage = useMemo(() => {
-    if (!item) return false
-    const cat = item.category.toLowerCase()
-    const name = item.name.toLowerCase()
-    return (
-      cat.includes('café') ||
-      cat.includes('cafe') ||
-      cat.includes('bebida') ||
-      cat.includes('origen') ||
-      name.includes('latte') ||
-      name.includes('cappuccino') ||
-      name.includes('mocaccino') ||
-      name.includes('tinto') ||
-      name.includes('espresso')
-    )
-  }, [item])
-
-  const hasMilk = useMemo(() => {
-    if (!item) return false
-    const name = item.name.toLowerCase()
-    const desc = (item.description || '').toLowerCase()
-    return (
-      name.includes('latte') ||
-      name.includes('cappuccino') ||
-      name.includes('mocaccino') ||
-      name.includes('leche') ||
-      desc.includes('leche')
-    )
-  }, [item])
-
-  // Calcular precio final con extras
-  const extraPrice = useMemo(() => {
-    let extra = 0
-    if (hasMilk) {
-      const milk = MILK_OPTIONS.find((m) => m.id === selectedMilk)
-      if (milk) extra += milk.extra
-    }
-    if (isBeverage) {
-      const size = SIZE_OPTIONS.find((s) => s.id === selectedSize)
-      if (size) extra += size.extra
-    }
-    return extra
-  }, [hasMilk, isBeverage, selectedMilk, selectedSize])
-
-  const effectivePrice = (item?.price_cop || 0) + extraPrice
+  const effectivePrice = item?.price_cop || 0
 
   useScrollLock(Boolean(item))
 
@@ -148,23 +83,7 @@ export default function GalleryModal({
 
   function handleAddWithCustomization() {
     if (!item || !onAddToCart) return
-
-    const parts: string[] = []
-    if (hasMilk) {
-      const milkObj = MILK_OPTIONS.find((m) => m.id === selectedMilk)
-      if (milkObj && milkObj.id !== 'entera') parts.push(`Leche: ${milkObj.label.split(' (')[0]}`)
-    }
-    if (isBeverage) {
-      if (selectedTemp === 'frio') parts.push('Frío con hielo')
-      const sizeObj = SIZE_OPTIONS.find((s) => s.id === selectedSize)
-      if (sizeObj && sizeObj.id !== 'regular') parts.push(`Tamaño: ${sizeObj.label.split(' (')[0]}`)
-    }
-    if (baristaNotes.trim()) {
-      parts.push(baristaNotes.trim())
-    }
-
-    const noteString = parts.length > 0 ? parts.join(' | ') : ''
-    onAddToCart(item, noteString, extraPrice)
+    onAddToCart(item, baristaNotes.trim(), 0)
   }
 
   return (
@@ -270,112 +189,43 @@ export default function GalleryModal({
 
           {item.description && <p className="gallery-description">{item.description}</p>}
 
-          {/* Selector de Variantes Comunes */}
-          {(hasMilk || isBeverage) && (
-            <div
-              className="gallery-variants-section"
-              style={{
-                marginTop: 18,
-                padding: '14px 16px',
-                background: 'var(--surface, rgba(0,0,0,0.02))',
-                borderRadius: 'var(--radius-md, 12px)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 12, color: 'var(--text)' }}>
-                {t('modal_variants')}
-              </h3>
-
-              {hasMilk && (
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-muted)' }}>
-                    Tipo de leche
-                  </label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {MILK_OPTIONS.map((milk) => (
-                      <button
-                        key={milk.id}
-                        type="button"
-                        onClick={() => setSelectedMilk(milk.id)}
-                        className={`filter-chip ${selectedMilk === milk.id ? 'active' : ''}`}
-                        style={{ fontSize: '0.78rem', padding: '5px 10px' }}
-                      >
-                        {milk.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {isBeverage && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 12 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-muted)' }}>
-                      Temperatura
-                    </label>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      {TEMP_OPTIONS.map((tmp) => (
-                        <button
-                          key={tmp.id}
-                          type="button"
-                          onClick={() => setSelectedTemp(tmp.id)}
-                          className={`filter-chip ${selectedTemp === tmp.id ? 'active' : ''}`}
-                          style={{ fontSize: '0.78rem', padding: '5px 10px' }}
-                        >
-                          {tmp.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-muted)' }}>
-                      Tamaño
-                    </label>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      {SIZE_OPTIONS.map((sz) => (
-                        <button
-                          key={sz.id}
-                          type="button"
-                          onClick={() => setSelectedSize(sz.id)}
-                          className={`filter-chip ${selectedSize === sz.id ? 'active' : ''}`}
-                          style={{ fontSize: '0.78rem', padding: '5px 10px' }}
-                        >
-                          {sz.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label
-                  htmlFor="gallery-barista-notes"
-                  style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4, color: 'var(--text-muted)' }}
-                >
-                  {t('modal_notes_label')}
-                </label>
-                <input
-                  id="gallery-barista-notes"
-                  type="text"
-                  maxLength={120}
-                  placeholder={t('modal_notes_ph')}
-                  value={baristaNotes}
-                  onChange={(e) => setBaristaNotes(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    fontSize: '0.85rem',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg)',
-                    color: 'var(--text)',
-                  }}
-                />
-              </div>
+          {/* Sección de nota para el barista */}
+          <div
+            className="gallery-variants-section"
+            style={{
+              marginTop: 18,
+              padding: '14px 16px',
+              background: 'var(--surface, rgba(0,0,0,0.02))',
+              borderRadius: 'var(--radius-md, 12px)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <div>
+              <label
+                htmlFor="gallery-barista-notes"
+                style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4, color: 'var(--text-muted)' }}
+              >
+                {t('modal_notes_label')}
+              </label>
+              <input
+                id="gallery-barista-notes"
+                type="text"
+                maxLength={120}
+                placeholder={t('modal_notes_ph')}
+                value={baristaNotes}
+                onChange={(e) => setBaristaNotes(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  fontSize: '0.85rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg)',
+                  color: 'var(--text)',
+                }}
+              />
             </div>
-          )}
+          </div>
         </div>
 
         {/* Footer de acción comercial */}

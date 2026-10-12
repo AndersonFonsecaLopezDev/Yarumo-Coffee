@@ -79,23 +79,9 @@ function HighlightMatch({ text, query }: { text: string; query: string }) {
   )
 }
 
-// Extrae o infiere etiquetas de producto (Nuevo, Recomendado del barista, Vegano, Sin azúcar)
+// Retorna exclusivamente las etiquetas guardadas para el producto
 function getProductTags(item: MenuItem): string[] {
-  if (item.tags && item.tags.length > 0) return item.tags
-  const tags: string[] = []
-  const descLower = (item.description || '').toLowerCase()
-  const nameLower = item.name.toLowerCase()
-
-  if (descLower.includes('vegano') || nameLower.includes('vegano')) {
-    tags.push('Vegano')
-  }
-  if (descLower.includes('sin azúcar') || descLower.includes('sin azucar')) {
-    tags.push('Sin azúcar añadida')
-  }
-  if (item.sort_order <= 1) {
-    tags.push('Recomendado del barista')
-  }
-  return tags
+  return Array.isArray(item.tags) ? item.tags : []
 }
 
 export default function MenuCatalog({

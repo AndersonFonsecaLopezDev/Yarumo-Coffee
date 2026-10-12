@@ -65,7 +65,7 @@ async function getInitialData(): Promise<{
   const [menuRes, catRes, promoRes, settingsRes] = await Promise.all([
     supabase
       .from('menu_items')
-      .select('id,name,description,price_cop,category,category_id,sort_order,image_url,gallery_urls')
+      .select('id,name,description,price_cop,category,category_id,sort_order,image_url,gallery_urls,tags')
       .eq('available', true)
       .order('sort_order')
       .order('name'),
