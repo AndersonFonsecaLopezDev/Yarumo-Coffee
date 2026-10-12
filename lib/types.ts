@@ -21,7 +21,9 @@ export type MenuItemOptionGroup = {
 export type MenuItem = {
   id: string
   name: string
+  name_en?: string | null
   description: string | null
+  description_en?: string | null
   price_cop: number
   category: string
   category_id?: string | null
@@ -35,8 +37,23 @@ export type MenuItem = {
 export type MenuCategory = {
   id: string
   name: string
+  name_en?: string | null
   slug: string
   icon: string
+  sort_order: number
+}
+
+export type Promotion = {
+  id: string
+  title: string
+  title_en?: string | null
+  description: string
+  description_en?: string | null
+  badge_text: string | null
+  image_url: string | null
+  linked_menu_item_id: string | null
+  starts_at?: string
+  ends_at?: string | null
   sort_order: number
 }
 

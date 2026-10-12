@@ -13,6 +13,7 @@ type CategoriesTabProps = {
 
 const blankCategoryForm: CategoryForm = {
   name: '',
+  name_en: '',
   slug: '',
   icon: '☕',
   sort_order: 0,
@@ -33,6 +34,7 @@ export default function CategoriesTab({
     setEditingCategory(cat)
     setForm({
       name: cat.name,
+      name_en: cat.name_en || '',
       slug: cat.slug || '',
       icon: cat.icon || '☕',
       sort_order: cat.sort_order || 0,
@@ -64,6 +66,7 @@ export default function CategoriesTab({
 
     const payload = {
       name: form.name.trim(),
+      name_en: form.name_en?.trim() || null,
       slug,
       icon: form.icon.trim() || '☕',
       sort_order: Number(form.sort_order) || 0,
@@ -124,6 +127,17 @@ export default function CategoriesTab({
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="input"
               placeholder="Ej: Cafés Filtrados"
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Nombre en inglés (opcional)</label>
+            <input
+              type="text"
+              value={form.name_en || ''}
+              onChange={(e) => setForm({ ...form, name_en: e.target.value })}
+              className="input"
+              placeholder="Ej: Filtered Coffees"
             />
           </div>
 

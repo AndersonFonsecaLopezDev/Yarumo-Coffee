@@ -37,7 +37,7 @@ export default function GalleryModal({
   onUpdateQuantity,
   onClose,
 }: GalleryModalProps) {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [baristaNotes, setBaristaNotes] = useState<string>('')
   const [selectedChoicesByGroup, setSelectedChoicesByGroup] = useState<Record<string, string[]>>({})
@@ -230,11 +230,15 @@ export default function GalleryModal({
         <div className="gallery-details-body">
           <div className="gallery-title-row">
             <h2 id="gallery-item-title" className="gallery-title">
-              {item.name}
+              {language === 'en' && item.name_en ? item.name_en : item.name}
             </h2>
           </div>
 
-          {item.description && <p className="gallery-description">{item.description}</p>}
+          {(language === 'en' && item.description_en ? item.description_en : item.description) && (
+            <p className="gallery-description">
+              {language === 'en' && item.description_en ? item.description_en : item.description}
+            </p>
+          )}
 
           {/* Opciones y variantes guiadas por datos */}
           {item.option_groups && item.option_groups.length > 0 && (

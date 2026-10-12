@@ -31,6 +31,7 @@ export type OrderRequest = {
 export type MenuCategory = {
   id: string
   name: string
+  name_en?: string | null
   slug?: string
   icon: string
   sort_order: number
@@ -41,7 +42,9 @@ export type MenuCategory = {
 export type Promotion = {
   id: string
   title: string
+  title_en?: string | null
   description: string
+  description_en?: string | null
   badge_text: string | null
   image_url: string | null
   linked_menu_item_id: string | null
@@ -71,8 +74,10 @@ export type RecommendationItem = {
 export type MenuItem = {
   id: string
   name: string
+  name_en?: string | null
   slug: string
   description: string
+  description_en?: string | null
   price_cop: number
   category: string
   category_id?: string | null
@@ -85,8 +90,10 @@ export type MenuItem = {
 
 export type MenuForm = {
   name: string
+  name_en?: string
   slug: string
   description: string
+  description_en?: string
   price_cop: number
   category: string
   category_id?: string
@@ -99,6 +106,7 @@ export type MenuForm = {
 
 export type CategoryForm = {
   name: string
+  name_en?: string
   slug: string
   icon: string
   sort_order: number
@@ -107,7 +115,9 @@ export type CategoryForm = {
 
 export type PromotionForm = {
   title: string
+  title_en?: string
   description: string
+  description_en?: string
   badge_text: string
   image_url: string
   linked_menu_item_id: string

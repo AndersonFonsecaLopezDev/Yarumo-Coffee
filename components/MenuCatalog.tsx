@@ -80,7 +80,7 @@ export default function MenuCatalog({
   mesaToken,
   whatsappDeliveryNumber,
 }: MenuCatalogProps) {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const [supabase] = useState(() => createClient())
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
@@ -448,7 +448,7 @@ export default function MenuCatalog({
                     onClick={(e) => handleSelectCategory(cat.id, e)}
                   >
                     <CategoryIcon category={cat.name} slug={cat.slug} icon={cat.icon} size={17} />
-                    <span>{cat.name}</span>
+                    <span>{language === 'en' && cat.name_en ? cat.name_en : cat.name}</span>
                   </button>
                 ))}
               </div>
@@ -483,6 +483,8 @@ export default function MenuCatalog({
                 const hasGallery = (item.gallery_urls?.length ?? 0) > 0
                 const tags = getProductTags(item)
                 const cartQty = cartQuantityMap.get(item.id) || 0
+                const displayName = language === 'en' && item.name_en ? item.name_en : item.name
+                const displayDesc = language === 'en' && item.description_en ? item.description_en : item.description
 
                 return (
                   <article
@@ -505,11 +507,11 @@ export default function MenuCatalog({
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') setGalleryItem(item)
                         }}
-                        aria-label={`${t('media_details_aria_prefix')} ${item.name}`}
+                        aria-label={`${t('media_details_aria_prefix')} ${displayName}`}
                       >
                         <Image
                           src={item.image_url}
-                          alt={item.name}
+                          alt={displayName}
                           fill
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px"
                           loading="lazy"
@@ -532,7 +534,7 @@ export default function MenuCatalog({
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') setGalleryItem(item)
                         }}
-                        aria-label={`${t('media_details_simple_prefix')} ${item.name}`}
+                        aria-label={`${t('media_details_simple_prefix')} ${displayName}`}
                       >
                         <ProductPlaceholder category={item.category} />
                         <span className="item-badge-category">{item.category}</span>
@@ -543,7 +545,7 @@ export default function MenuCatalog({
                       type="button"
                       className={`item-fav-btn ${isFav ? 'is-favorite' : ''}`}
                       onClick={() => toggleFavorite(item.id)}
-                      aria-label={isFav ? `${t('fav_remove_prefix')} ${item.name}` : `${t('fav_add_prefix')} ${item.name}`}
+                      aria-label={isFav ? `${t('fav_remove_prefix')} ${displayName}` : `${t('fav_add_prefix')} ${displayName}`}
                       title={isFav ? t('fav_remove_prefix') : t('fav_add_prefix')}
                     >
                       <svg
@@ -573,13 +575,13 @@ export default function MenuCatalog({
 
                       <div className="item-title-row">
                         <h3 className="item-title">
-                          <HighlightMatch text={item.name} query={deferredQuery} />
+                          <HighlightMatch text={displayName} query={deferredQuery} />
                         </h3>
                       </div>
 
-                      {item.description && (
+                      {displayDesc && (
                         <p className="item-description">
-                          <HighlightMatch text={item.description} query={deferredQuery} />
+                          <HighlightMatch text={displayDesc} query={deferredQuery} />
                         </p>
                       )}
 

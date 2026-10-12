@@ -18,8 +18,10 @@ type MenuTabProps = {
 
 const blankMenuForm: MenuForm = {
   name: '',
+  name_en: '',
   slug: '',
   description: '',
+  description_en: '',
   price_cop: 0,
   category: 'Bebidas Calientes',
   available: true,
@@ -96,6 +98,8 @@ export default function MenuTab({
       image_url: item.image_url || '',
       gallery_urls: (item.gallery_urls || []).join('\n'),
       tags: (item.tags || []).join(', '),
+      name_en: item.name_en || '',
+      description_en: item.description_en || '',
     })
   }
 
@@ -144,6 +148,7 @@ export default function MenuTab({
 
     const payload = {
       name: form.name.trim(),
+      name_en: form.name_en?.trim() || null,
       slug:
         form.slug.trim() ||
         form.name
@@ -153,6 +158,7 @@ export default function MenuTab({
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/(^-|-$)/g, ''),
       description: form.description.trim(),
+      description_en: form.description_en?.trim() || null,
       price_cop: Number(form.price_cop),
       category: matchedCategory?.name || form.category,
       category_id: matchedCategory?.id || null,
@@ -405,6 +411,20 @@ export default function MenuTab({
             />
           </div>
 
+          <div>
+            <label htmlFor="menu-name-en" style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>
+              Nombre en inglés (opcional)
+            </label>
+            <input
+              id="menu-name-en"
+              type="text"
+              value={form.name_en || ''}
+              onChange={(e) => setForm({ ...form, name_en: e.target.value })}
+              className="input"
+              placeholder="Ej: Yarumo Cappuccino"
+            />
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 0.8fr', gap: 10 }}>
             <div>
               <label htmlFor="menu-price" style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Precio COP *</label>
@@ -464,6 +484,20 @@ export default function MenuTab({
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               className="input"
               placeholder="Notas de sabor, preparación..."
+            />
+          </div>
+
+          <div>
+            <label htmlFor="menu-desc-en" style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>
+              Descripción en inglés (opcional)
+            </label>
+            <textarea
+              id="menu-desc-en"
+              rows={2}
+              value={form.description_en || ''}
+              onChange={(e) => setForm({ ...form, description_en: e.target.value })}
+              className="input"
+              placeholder="Flavor notes, brewing method..."
             />
           </div>
 
