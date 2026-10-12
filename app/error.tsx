@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import * as Sentry from '@sentry/nextjs'
+import { T } from '@/lib/i18n'
 
 export default function Error({
   error,
@@ -32,8 +33,8 @@ export default function Error({
       <main className="content">
         <div className="empty-state">
           <div className="empty-state-icon">☕</div>
-          <h3>Algo salió mal</h3>
-          <p>No pudimos cargar Yarumo en este momento. Intenta de nuevo en unos segundos.</p>
+          <h3><T k="error_title" /></h3>
+          <p><T k="error_desc" /></p>
           {error?.message && (
             <pre style={{
               margin: '12px auto',
@@ -51,7 +52,7 @@ export default function Error({
               {error.digest ? `\n(Digest: ${error.digest})` : ''}
             </pre>
           )}
-          <button onClick={reset}>Intentar de nuevo</button>
+          <button onClick={reset}><T k="error_btn" /></button>
         </div>
       </main>
     </>

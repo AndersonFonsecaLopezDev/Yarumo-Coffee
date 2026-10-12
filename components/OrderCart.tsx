@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScrollLock } from '@/lib/use-scroll-lock'
+import { useI18n } from '@/lib/i18n'
 import type { CartItem, TableOrder, TableOrderItem } from '@/lib/types'
 
 export type { CartItem, TableOrder, TableOrderItem }
@@ -30,23 +31,6 @@ function formatCop(value?: number | null) {
   }).format(safe)
 }
 
-function getStatusLabel(status: TableOrder['status']) {
-  switch (status) {
-    case 'pending':
-      return { text: '⏳ Enviado a barra', className: 'status-pending' }
-    case 'acknowledged':
-      return { text: '👀 Recibido', className: 'status-acknowledged' }
-    case 'preparing':
-      return { text: '☕ En preparación', className: 'status-preparing' }
-    case 'delivered':
-      return { text: '✓ Entregado', className: 'status-delivered' }
-    case 'cancelled':
-      return { text: '✕ Cancelado', className: 'status-cancelled' }
-    default:
-      return { text: status, className: 'status-pending' }
-  }
-}
-
 export default function OrderCart({
   cart,
   table,
@@ -60,6 +44,7 @@ export default function OrderCart({
   onClearCart,
   onOrderSuccess,
 }: OrderCartProps) {
+  const { t } = useI18n()
   const [isOpen, setIsOpen] = useState(false)
   const [orderNotes, setOrderNotes] = useState('')
   const [customerName, setCustomerName] = useState('')
@@ -99,6 +84,23 @@ export default function OrderCart({
       document.removeEventListener('keydown', handleKeyDown)
     }
   }, [drawerOpen])
+
+  function getStatusLabel(status: TableOrder['status']) {
+    switch (status) {
+      case 'pending':
+        return { text: t('cart_status_pending_label'), className: 'status-pending' }
+      case 'acknowledged':
+        return { text: t('cart_status_acknowledged_label'), className: 'status-acknowledged' }
+      case 'preparing':
+        return { text: t('cart_status_preparing_label'), className: 'status-preparing' }
+      case 'delivered':
+        return { text: t('cart_status_delivered_label'), className: 'status-delivered' }
+      case 'cancelled':
+        return { text: t('cart_status_cancelled_label'), className: 'status-cancelled' }
+      default:
+        return { text: status, className: 'status-pending' }
+    }
+  }
 
   // Cargar historial si no se provee por props
   const fetchOrdersForTable = useCallback(async (tableId: string, token: string) => {
@@ -162,7 +164,7 @@ export default function OrderCart({
 
   async function handleSendOrder() {
     if (!cart.length) {
-      setErrorMessage('Tu carrito está vacío.')
+      setErrorMessage(t('cart_err_empty'))
       return
     }
 
@@ -171,7 +173,7 @@ export default function OrderCart({
     // FLUJO 1: SERVICIO EN MESA (Comanda a cocina por Supabase)
     if (isInsideTable) {
       if (!table || !mesaToken) {
-        setErrorMessage('Debes escanear el QR asignado a tu mesa para enviar un pedido.')
+        setErrorMessage(t('cart_err_scan_qr'))
         return
       }
 
@@ -196,8 +198,8 @@ export default function OrderCart({
         if (error) {
           setErrorMessage(
             error.message.includes('No es posible crear el pedido')
-              ? 'Por favor espera unos segundos antes de enviar otro pedido.'
-              : error.message || 'No se pudo enviar el pedido. Intenta nuevamente.',
+              ? t('cart_err_wait_seconds')
+              : error.message || t('cart_err_generic'),
           )
           setSubmitting(false)
           return
@@ -213,7 +215,7 @@ export default function OrderCart({
         void fetchOrdersForTable(table.id, mesaToken)
         onOrderSuccess(orderId)
       } catch {
-        setErrorMessage('Error de conexión al enviar el pedido. Verifica tu conexión a internet.')
+        setErrorMessage(t('cart_err_connection'))
         setSubmitting(false)
       }
       return
@@ -221,17 +223,17 @@ export default function OrderCart({
 
     // FLUJO 2: PEDIDO A DOMICILIO (Envío estructurado a WhatsApp)
     if (!customerName.trim()) {
-      setErrorMessage('Por favor ingresa tu nombre para el domicilio.')
+      setErrorMessage(t('cart_err_name_req'))
       return
     }
 
     if (!deliveryAddress.trim()) {
-      setErrorMessage('Por favor ingresa tu dirección de entrega.')
+      setErrorMessage(t('cart_err_address_req'))
       return
     }
 
     if (!customerPhone.trim()) {
-      setErrorMessage('Por favor ingresa tu número de teléfono o celular.')
+      setErrorMessage(t('cart_err_phone_req'))
       return
     }
 
@@ -248,7 +250,8 @@ export default function OrderCart({
       )
     } catch {}
 
-    // Construir mensaje legible para WhatsApp (sin emojis para evitar que wa.me o WhatsApp Web muestren rombos con signo de interrogación '?')
+    // Decisión de diseño i18n: El mensaje a WhatsApp para el restaurante se mantiene en español
+    // porque es recibido y procesado por el equipo de baristas y barra local en Armenia, Quindío.
     const lines = [
       '*¡Hola Yarumo Coffee! Quiero hacer un pedido a domicilio:*',
       '',
@@ -316,7 +319,7 @@ export default function OrderCart({
         type="button"
         className="floating-cart-btn"
         onClick={openCartDrawer}
-        aria-label={`Ver pedido actual (${totalItems} productos)`}
+        aria-label={`${t('cart_floating_aria_prefix')} (${totalItems} ${t('cart_floating_products_suffix')})`}
       >
         <div className="cart-badge-icon">
           <span>{isInsideTable ? '🛒' : '🛵'}</span>
@@ -324,10 +327,10 @@ export default function OrderCart({
         </div>
         <div className="cart-btn-info">
           <span className="cart-btn-label">
-            {isInsideTable ? `Mesa ${table?.label}` : 'Tu Domicilio'}
+            {isInsideTable ? `${t('cart_floating_table_prefix')} ${table?.label}` : t('cart_floating_delivery')}
           </span>
           <strong className="cart-btn-price">
-            {totalItems > 0 ? formatCop(totalPrice) : `${effectiveOrders.length} comanda(s)`}
+            {totalItems > 0 ? formatCop(totalPrice) : `${effectiveOrders.length} ${t('cart_floating_orders_suffix')}`}
           </strong>
         </div>
         <span className="cart-btn-arrow" aria-hidden="true">→</span>
@@ -339,22 +342,22 @@ export default function OrderCart({
           className="cart-modal-overlay"
           role="dialog"
           aria-modal="true"
-          aria-label={isInsideTable ? 'Resumen de tu pedido en mesa' : 'Resumen de tu pedido a domicilio'}
+          aria-label={isInsideTable ? t('cart_dialog_table_aria') : t('cart_dialog_delivery_aria')}
           onClick={() => setIsOpen(false)}
         >
           <div className="cart-modal-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="cart-modal-header">
               <div>
                 <span className="eyebrow">
-                  {isInsideTable ? `Mesa ${table?.label}` : '🛵 Pedido a Domicilio'}
+                  {isInsideTable ? `${t('cart_floating_table_prefix')} ${table?.label}` : t('cart_eyebrow_delivery')}
                 </span>
-                <h2>{isInsideTable ? 'Tu Pedido en Mesa' : 'Tu Pedido'}</h2>
+                <h2>{isInsideTable ? t('cart_title_table') : t('cart_title')}</h2>
               </div>
               <button
                 type="button"
                 className="cart-modal-close"
                 onClick={() => setIsOpen(false)}
-                aria-label="Cerrar pedido"
+                aria-label={t('cart_close_aria')}
               >
                 ×
               </button>
@@ -370,7 +373,7 @@ export default function OrderCart({
               {cart.length === 0 ? (
                 <div className="cart-empty-message">
                   <span className="cart-empty-icon">☕</span>
-                  <p>No tienes productos en tu carrito.</p>
+                  <p>{t('cart_empty_msg')}</p>
                 </div>
               ) : (
                 <div className="cart-items-list">
@@ -380,7 +383,7 @@ export default function OrderCart({
                         <div>
                           <strong className="cart-item-name">{item.name}</strong>
                           <span className="cart-item-unit-price">
-                            {formatCop(cart[index]?.effectivePrice ?? item.price_cop)} c/u
+                            {formatCop(cart[index]?.effectivePrice ?? item.price_cop)} {t('cart_each_suffix')}
                           </span>
                           {notes && (
                             <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
@@ -410,7 +413,7 @@ export default function OrderCart({
                           <button
                             type="button"
                             onClick={() => onUpdateQuantity(index, -1)}
-                            aria-label={`Disminuir cantidad de ${item.name}`}
+                            aria-label={`${t('cart_qty_minus_prefix')} ${item.name}`}
                           >
                             −
                           </button>
@@ -419,7 +422,7 @@ export default function OrderCart({
                             type="button"
                             onClick={() => onUpdateQuantity(index, 1)}
                             disabled={quantity >= 20}
-                            aria-label={`Aumentar cantidad de ${item.name}`}
+                            aria-label={`${t('cart_qty_plus_prefix')} ${item.name}`}
                           >
                             +
                           </button>
@@ -428,20 +431,20 @@ export default function OrderCart({
                           type="button"
                           className="cart-remove-btn"
                           onClick={() => onRemoveItem(index)}
-                          aria-label={`Eliminar ${item.name} del pedido`}
+                          aria-label={`${t('cart_remove_aria_prefix')} ${item.name}`}
                         >
-                          Quitar
+                          {t('cart_remove_btn')}
                         </button>
                       </div>
 
                       <div className="cart-item-note-input-wrap">
                         <input
                           type="text"
-                          placeholder="Nota para este producto (ej. sin azúcar, leche deslactosada)"
+                          placeholder={t('cart_item_note_ph')}
                           value={notes}
                           onChange={(e) => onUpdateItemNotes(index, e.target.value)}
                           maxLength={150}
-                          aria-label={`Nota adicional para ${item.name}`}
+                          aria-label={`${t('cart_item_note_aria_prefix')} ${item.name}`}
                         />
                       </div>
                     </div>
@@ -451,15 +454,15 @@ export default function OrderCart({
                   {!isInsideTable && (
                     <div className="delivery-form-section">
                       <div className="delivery-form-title">
-                        <span>📍 Datos de entrega para el domicilio:</span>
+                        <span>{t('cart_delivery_section_title')}</span>
                       </div>
 
                       <div className="delivery-field-group">
-                        <label htmlFor="delivery-name">Tu nombre completo: *</label>
+                        <label htmlFor="delivery-name">{t('cart_delivery_name_label')}</label>
                         <input
                           id="delivery-name"
                           type="text"
-                          placeholder="Ej. Ana María Gómez"
+                          placeholder={t('cart_delivery_name_ph')}
                           value={customerName}
                           onChange={(e) => setCustomerName(e.target.value)}
                           required
@@ -468,11 +471,11 @@ export default function OrderCart({
                       </div>
 
                       <div className="delivery-field-group">
-                        <label htmlFor="delivery-address">Dirección de entrega (Apto / Casa / Barrio): *</label>
+                        <label htmlFor="delivery-address">{t('cart_delivery_address_label')}</label>
                         <input
                           id="delivery-address"
                           type="text"
-                          placeholder="Ej. Cra 14 # 9 Norte - 20, Apto 402, Barrio Los Profesionales"
+                          placeholder={t('cart_delivery_address_ph')}
                           value={deliveryAddress}
                           onChange={(e) => setDeliveryAddress(e.target.value)}
                           required
@@ -481,11 +484,11 @@ export default function OrderCart({
                       </div>
 
                       <div className="delivery-field-group">
-                        <label htmlFor="delivery-phone">Teléfono / Celular de contacto: *</label>
+                        <label htmlFor="delivery-phone">{t('cart_delivery_phone_label')}</label>
                         <input
                           id="delivery-phone"
                           type="tel"
-                          placeholder="Ej. 310 123 4567"
+                          placeholder={t('cart_delivery_phone_ph')}
                           value={customerPhone}
                           onChange={(e) => setCustomerPhone(e.target.value)}
                           required
@@ -494,7 +497,7 @@ export default function OrderCart({
                       </div>
 
                       <div className="delivery-field-group">
-                        <label>Forma de pago: *</label>
+                        <label>{t('cart_delivery_payment_label')}</label>
                         <div className="delivery-payment-options">
                           <button
                             type="button"
@@ -502,7 +505,7 @@ export default function OrderCart({
                             onClick={() => setPaymentMethod('Efectivo')}
                           >
                             <span>💵</span>
-                            <span>Efectivo</span>
+                            <span>{t('cart_payment_cash')}</span>
                           </button>
                           <button
                             type="button"
@@ -510,7 +513,7 @@ export default function OrderCart({
                             onClick={() => setPaymentMethod('Llave (Transferencia)')}
                           >
                             <span>🔑</span>
-                            <span>Llave / Transferencia</span>
+                            <span>{t('cart_payment_transfer')}</span>
                           </button>
                         </div>
                       </div>
@@ -526,7 +529,7 @@ export default function OrderCart({
                           lineHeight: '1.4',
                         }}
                       >
-                        🛵 <strong>Nota:</strong> El costo de domicilio no está incluido en este valor y te será confirmado por WhatsApp al validar la cobertura de tu dirección.
+                        {t('cart_delivery_disclaimer')}
                       </div>
                     </div>
                   )}
@@ -534,16 +537,16 @@ export default function OrderCart({
                   <div className="cart-general-notes">
                     <label htmlFor="order-general-notes">
                       {isInsideTable
-                        ? 'Notas o instrucciones para el equipo:'
-                        : 'Instrucciones adicionales para la entrega / preparación:'}
+                        ? t('cart_notes_table_label')
+                        : t('cart_notes_delivery_label')}
                     </label>
                     <textarea
                       id="order-general-notes"
                       rows={2}
                       placeholder={
                         isInsideTable
-                          ? 'Ej. Servir bebidas primero, cubiertos adicionales...'
-                          : 'Ej. Dejar en portería, timbrar al llegar, llevar cambio de $50.000...'
+                          ? t('cart_notes_table_ph')
+                          : t('cart_notes_delivery_ph')
                       }
                       value={orderNotes}
                       onChange={(e) => setOrderNotes(e.target.value)}
@@ -557,9 +560,9 @@ export default function OrderCart({
               {isInsideTable && effectiveOrders.length > 0 && (
                 <div className="cart-session-history">
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                    <h3>Todo lo que has pedido</h3>
+                    <h3>{t('cart_history_title')}</h3>
                     <small style={{ color: 'var(--orange)', fontWeight: 700 }}>
-                      Consumo: {formatCop(accumulatedTotalCop)}
+                      {t('cart_history_consumption_prefix')} {formatCop(accumulatedTotalCop)}
                     </small>
                   </div>
                   <div className="session-orders-list">
@@ -573,8 +576,8 @@ export default function OrderCart({
                         <div className="session-order-badge" key={ord.id || idx}>
                           <div className="session-order-header">
                             <span>
-                              Comanda #{effectiveOrders.length - idx}{' '}
-                              {ord.source === 'staff' && <small style={{ color: 'var(--text-muted)' }}>(Mesero)</small>}
+                              {t('cart_order_order_prefix')}{effectiveOrders.length - idx}{' '}
+                              {ord.source === 'staff' && <small style={{ color: 'var(--text-muted)' }}>{t('cart_order_waiter_tag')}</small>}
                             </span>
                             <span className={`order-status-pill ${statusInfo.className}`}>
                               {statusInfo.text}
@@ -592,7 +595,7 @@ export default function OrderCart({
                             {new Date(ord.created_at).toLocaleTimeString('es-CO', {
                               hour: '2-digit',
                               minute: '2-digit',
-                            })} · Subtotal: {formatCop(orderSum)}
+                            })} · {t('cart_order_subtotal_prefix')} {formatCop(orderSum)}
                           </small>
                         </div>
                       )
@@ -606,10 +609,10 @@ export default function OrderCart({
               <div className="cart-modal-footer">
                 <div className="cart-footer-summary">
                   <div>
-                    <span>{isInsideTable ? 'Total a enviar' : 'Total productos'}</span>
+                    <span>{isInsideTable ? t('cart_total_to_send') : t('cart_total_products')}</span>
                     {!isInsideTable && (
                       <small style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>
-                        (Domicilio no incluido)
+                        {t('cart_delivery_not_included')}
                       </small>
                     )}
                   </div>
@@ -623,9 +626,9 @@ export default function OrderCart({
                 >
                   {isInsideTable
                     ? submitting
-                      ? 'Enviando comanda…'
-                      : `Enviar comanda · Mesa ${table?.label}`
-                    : '📲 Enviar pedido por WhatsApp →'}
+                      ? t('cart_btn_sending_kitchen')
+                      : `${t('cart_btn_send_table_prefix')} ${table?.label}`
+                    : t('cart_btn_send_whatsapp_cta')}
                 </button>
               </div>
             )}

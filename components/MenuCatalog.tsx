@@ -17,6 +17,7 @@ export type { MenuItem, MenuCategory, CartItem, MenuItemOptionChoice, MenuItemOp
 import { createClient } from '@/lib/supabase/client'
 import { CategoryIcon } from '@/components/icons/CategoryIcons'
 import { ProductPlaceholder } from '@/components/ProductPlaceholder'
+import { useI18n } from '@/lib/i18n'
 
 const OrderCart = dynamic(() => import('./OrderCart'), { ssr: false })
 const GalleryModal = dynamic(() => import('./GalleryModal'), { ssr: false })
@@ -79,6 +80,7 @@ export default function MenuCatalog({
   mesaToken,
   whatsappDeliveryNumber,
 }: MenuCatalogProps) {
+  const { t } = useI18n()
   const [supabase] = useState(() => createClient())
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
@@ -363,11 +365,11 @@ export default function MenuCatalog({
         />
       )}
 
-      <section className="catalog-section" id="menu" aria-label="Carta digital de productos">
+      <section className="catalog-section" id="menu" aria-label={t('catalog_aria')}>
         <div className="catalog-header">
           <div>
-            <span className="eyebrow">Selección de la casa</span>
-            <h2>Nuestra Carta</h2>
+            <span className="eyebrow">{t('catalog_eyebrow')}</span>
+            <h2>{t('catalog_title')}</h2>
           </div>
         </div>
 
@@ -379,17 +381,17 @@ export default function MenuCatalog({
                 <span aria-hidden="true">🔍</span>
                 <input
                   type="search"
-                  placeholder="Buscar café, postres, bebidas..."
+                  placeholder={t('search_placeholder')}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  aria-label="Buscar productos en la carta"
+                  aria-label={t('search_aria')}
                 />
                 {query && (
                   <button
                     type="button"
                     className="search-clear-btn"
                     onClick={() => setQuery('')}
-                    aria-label="Limpiar búsqueda"
+                    aria-label={t('clear_search')}
                   >
                     ✕
                   </button>
@@ -416,7 +418,7 @@ export default function MenuCatalog({
                   onClick={(e) => handleSelectCategory('all', e)}
                 >
                   <CategoryIcon category="Todos" size={17} />
-                  <span>Todos</span>
+                  <span>{t('tab_all')}</span>
                 </button>
                 {favorites.size > 0 && (
                   <button
@@ -430,7 +432,7 @@ export default function MenuCatalog({
                     onClick={(e) => handleSelectCategory('favorites', e)}
                   >
                     <CategoryIcon category="Favoritos" size={17} />
-                    <span>Favoritos ({favorites.size})</span>
+                    <span>{t('tab_favorites')} ({favorites.size})</span>
                   </button>
                 )}
                 {initialCategories.map((cat) => (
@@ -460,8 +462,8 @@ export default function MenuCatalog({
             <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
               <p style={{ fontSize: '1.1rem', marginBottom: 8 }}>
                 {selectedCategoryId === 'favorites'
-                  ? 'Aún no tienes productos guardados en favoritos.'
-                  : 'No encontramos productos que coincidan con tu búsqueda.'}
+                  ? t('no_favorites')
+                  : t('no_results')}
               </p>
               <button
                 type="button"
@@ -471,7 +473,7 @@ export default function MenuCatalog({
                   setSelectedCategoryId('all')
                 }}
               >
-                Ver todos los productos
+                {t('view_all_products')}
               </button>
             </div>
           ) : (
@@ -489,8 +491,8 @@ export default function MenuCatalog({
                     id={`item-${item.id}`}
                   >
                     {cartQty > 0 && (
-                      <span className="item-in-cart-pill" aria-label={`${cartQty} en tu pedido`}>
-                        ✓ {cartQty} en pedido
+                      <span className="item-in-cart-pill" aria-label={`${cartQty} ${t('in_order')}`}>
+                        ✓ {cartQty} {t('in_order')}
                       </span>
                     )}
 
@@ -503,7 +505,7 @@ export default function MenuCatalog({
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') setGalleryItem(item)
                         }}
-                        aria-label={`Ver detalles y fotos de ${item.name}`}
+                        aria-label={`${t('media_details_aria_prefix')} ${item.name}`}
                       >
                         <Image
                           src={item.image_url}
@@ -530,7 +532,7 @@ export default function MenuCatalog({
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') setGalleryItem(item)
                         }}
-                        aria-label={`Ver detalles de ${item.name}`}
+                        aria-label={`${t('media_details_simple_prefix')} ${item.name}`}
                       >
                         <ProductPlaceholder category={item.category} />
                         <span className="item-badge-category">{item.category}</span>
@@ -541,8 +543,8 @@ export default function MenuCatalog({
                       type="button"
                       className={`item-fav-btn ${isFav ? 'is-favorite' : ''}`}
                       onClick={() => toggleFavorite(item.id)}
-                      aria-label={isFav ? `Quitar ${item.name} de favoritos` : `Guardar ${item.name} en favoritos`}
-                      title={isFav ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+                      aria-label={isFav ? `${t('fav_remove_prefix')} ${item.name}` : `${t('fav_add_prefix')} ${item.name}`}
+                      title={isFav ? t('fav_remove_prefix') : t('fav_add_prefix')}
                     >
                       <svg
                         viewBox="0 0 24 24"
@@ -586,12 +588,12 @@ export default function MenuCatalog({
 
                         <div className="item-footer-actions">
                           {cartQty > 0 ? (
-                            <div className="item-stepper" role="group" aria-label={`Modificar cantidad de ${item.name}`}>
+                            <div className="item-stepper" role="group" aria-label={`${t('stepper_modify_prefix')} ${item.name}`}>
                               <button
                                 type="button"
                                 className="stepper-btn stepper-btn-minus"
                                 onClick={() => updateCartQuantity(item.id, -1)}
-                                aria-label={`Quitar uno de ${item.name}`}
+                                aria-label={`${t('stepper_minus_prefix')} ${item.name}`}
                               >
                                 −
                               </button>
@@ -602,7 +604,7 @@ export default function MenuCatalog({
                                 type="button"
                                 className="stepper-btn stepper-btn-plus"
                                 onClick={() => updateCartQuantity(item.id, 1)}
-                                aria-label={`Agregar otro ${item.name}`}
+                                aria-label={`${t('stepper_plus_prefix')} ${item.name}`}
                               >
                                 +
                               </button>
@@ -612,10 +614,10 @@ export default function MenuCatalog({
                               type="button"
                               className="item-add-btn add-to-cart-btn"
                               onClick={() => addToCart(item)}
-                              aria-label={`Pedir ${item.name}`}
+                              aria-label={`${t('btn_order')} ${item.name}`}
                             >
                               <span>+</span>
-                              <span>Pedir</span>
+                              <span>{t('btn_order')}</span>
                             </button>
                           )}
                         </div>
@@ -645,7 +647,7 @@ export default function MenuCatalog({
         onClearCart={clearCart}
         onOrderSuccess={(orderId) => {
           setCart([])
-          setToastMessage(`✓ Comanda #${orderId.slice(0, 5)} enviada con éxito`)
+          setToastMessage(`${t('toast_order_success_prefix')} #${orderId.slice(0, 5)}`)
           setTimeout(() => setToastMessage(''), 3000)
         }}
       />

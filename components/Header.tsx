@@ -39,7 +39,7 @@ export default function Header() {
         </span>
       </Link>
 
-      <nav className="nav-links" aria-label="Navegación principal">
+      <nav className="nav-links" aria-label={t('nav_aria_main')}>
         <Link
           href={isHome ? '#menu' : '/#menu'}
           className={isHome ? 'active' : ''}
@@ -55,15 +55,15 @@ export default function Header() {
         <Link
           href={isHome ? '#visitanos' : '/#visitanos'}
         >
-          Visítanos
+          {t('nav_visit')}
         </Link>
       </nav>
 
       <div className="header-actions">
         {tableLabel && (
-          <div className="header-table-badge" title="Mesa vinculada mediante código QR">
+          <div className="header-table-badge" title={t('table_badge_title')}>
             <span className="table-indicator-dot" />
-            <span>Mesa {tableLabel}</span>
+            <span>{t('table_label_prefix')} {tableLabel === 'Activa' ? t('table_badge_active') : tableLabel}</span>
           </div>
         )}
 
@@ -85,7 +85,7 @@ export default function Header() {
           href="https://www.instagram.com/yarumocafearmenia/"
           target="_blank"
           rel="noreferrer"
-          aria-label="Abrir perfil de Instagram de Yarumo Coffee"
+          aria-label={t('instagram_aria')}
         >
           Instagram ↗
         </a>

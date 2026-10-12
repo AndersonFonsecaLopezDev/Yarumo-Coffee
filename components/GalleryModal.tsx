@@ -121,7 +121,8 @@ export default function GalleryModal({
     if (!item) return
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://yarumo-coffee.vercel.app'
     const link = `${origin}/?item=${item.id}#menu`
-    const message = encodeURIComponent(`¡Mira este café de Yarumo Coffee! ${item.name}: ${link}`)
+    const prefix = t('share_product_text_prefix')
+    const message = encodeURIComponent(`${prefix} ${item.name}: ${link}`)
     window.open(`https://api.whatsapp.com/send?text=${message}`, '_blank')
   }
 
@@ -168,7 +169,7 @@ export default function GalleryModal({
             type="button"
             className="gallery-close-btn"
             onClick={onClose}
-            aria-label="Cerrar modal"
+            aria-label={t('modal_close_aria')}
           >
             ✕
           </button>
@@ -183,7 +184,7 @@ export default function GalleryModal({
                 type="button"
                 className="gallery-nav-btn gallery-nav-prev"
                 onClick={() => setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length)}
-                aria-label="Foto anterior"
+                aria-label={t('modal_prev_photo')}
               >
                 ‹
               </button>
@@ -191,7 +192,7 @@ export default function GalleryModal({
                 type="button"
                 className="gallery-nav-btn gallery-nav-next"
                 onClick={() => setActiveImageIndex((prev) => (prev + 1) % images.length)}
-                aria-label="Foto siguiente"
+                aria-label={t('modal_next_photo')}
               >
                 ›
               </button>
@@ -211,7 +212,7 @@ export default function GalleryModal({
                 type="button"
                 className={`gallery-thumb-btn ${idx === activeImageIndex ? 'active' : ''}`}
                 onClick={() => setActiveImageIndex(idx)}
-                aria-label={`Ver foto ${idx + 1}`}
+                aria-label={`${t('modal_thumb_aria_prefix')} ${idx + 1}`}
               >
                 <Image
                   src={imgUrl}
@@ -258,7 +259,7 @@ export default function GalleryModal({
                         {group.required && <span style={{ color: 'var(--orange)', marginLeft: 4 }}>*</span>}
                       </span>
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        {group.kind === 'single' ? 'Elige 1' : 'Opcional múltiple'}
+                        {group.kind === 'single' ? t('modal_opt_choose_one') : t('modal_opt_optional')}
                       </span>
                     </div>
 
@@ -388,8 +389,8 @@ export default function GalleryModal({
               type="button"
               className="item-share-btn"
               onClick={shareProductWhatsapp}
-              aria-label={`Compartir ${item.name} por WhatsApp`}
-              title="Compartir por WhatsApp"
+              aria-label={`${t('modal_share')}: ${item.name}`}
+              title={t('modal_share')}
             >
               💬
             </button>
