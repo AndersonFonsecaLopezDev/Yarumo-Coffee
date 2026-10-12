@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useScrollLock } from '@/lib/use-scroll-lock'
 import type { MenuItem } from './MenuCatalog'
 
 export type CartItem = {
@@ -93,40 +94,34 @@ export default function OrderCart({
   const [internalOrders, setInternalOrders] = useState<TableOrder[]>([])
 
   const isInsideTable = Boolean(table && mesaToken)
+  const effectiveOrders = propTableOrders ?? internalOrders
+  const totalItems = cart.reduce((acc, curr) => acc + curr.quantity, 0)
+  const totalPrice = cart.reduce((acc, curr) => acc + curr.item.price_cop * curr.quantity, 0)
+  const hasContent = totalItems > 0 || effectiveOrders.length > 0
+  const drawerOpen = isOpen && hasContent
+
+  const [prevHasContent, setPrevHasContent] = useState(hasContent)
+  if (prevHasContent !== hasContent) {
+    setPrevHasContent(hasContent)
+    if (!hasContent && isOpen) {
+      setIsOpen(false)
+    }
+  }
+
+  useScrollLock(drawerOpen)
 
   useEffect(() => {
-    if (!isOpen) return
+    if (!drawerOpen) return
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setIsOpen(false)
       }
     }
     document.addEventListener('keydown', handleKeyDown)
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = prevOverflow
     }
-  }, [isOpen])
-
-  function openCartDrawer() {
-    try {
-      const saved = typeof window !== 'undefined' ? localStorage.getItem('yarumo_delivery_customer') : null
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (parsed.name) setCustomerName(parsed.name)
-        if (parsed.address) setDeliveryAddress(parsed.address)
-        if (parsed.phone) setCustomerPhone(parsed.phone)
-        if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod)
-      }
-    } catch {}
-    setIsOpen(true)
-  }
-
-  const effectiveOrders = propTableOrders ?? internalOrders
-  const totalItems = cart.reduce((acc, curr) => acc + curr.quantity, 0)
-  const totalPrice = cart.reduce((acc, curr) => acc + curr.item.price_cop * curr.quantity, 0)
+  }, [drawerOpen])
 
   // Cargar historial si no se provee por props
   const fetchOrdersForTable = useCallback(async (tableId: string, token: string) => {
@@ -316,8 +311,22 @@ export default function OrderCart({
     onOrderSuccess('whatsapp')
   }
 
+  function openCartDrawer() {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('yarumo_delivery_customer') : null
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed.name) setCustomerName(parsed.name)
+        if (parsed.address) setDeliveryAddress(parsed.address)
+        if (parsed.phone) setCustomerPhone(parsed.phone)
+        if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod)
+      }
+    } catch {}
+    setIsOpen(true)
+  }
+
   // El botón flotante solo es visible si hay items en carrito o si hay pedidos realizados para la mesa
-  if (!totalItems && effectiveOrders.length === 0) {
+  if (!hasContent) {
     return null
   }
 
@@ -346,7 +355,7 @@ export default function OrderCart({
       </button>
 
       {/* Cart Drawer Modal */}
-      {isOpen && (
+      {drawerOpen && (
         <div
           className="cart-modal-overlay"
           role="dialog"

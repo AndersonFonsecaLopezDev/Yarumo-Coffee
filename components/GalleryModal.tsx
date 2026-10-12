@@ -5,6 +5,7 @@ import Image from 'next/image'
 import type { MenuItem } from '@/components/MenuCatalog'
 import { ProductPlaceholder } from '@/components/ProductPlaceholder'
 import { useI18n } from '@/lib/i18n'
+import { useScrollLock } from '@/lib/use-scroll-lock'
 
 type GalleryModalProps = {
   item: MenuItem | null
@@ -107,6 +108,8 @@ export default function GalleryModal({
   }, [hasMilk, isBeverage, selectedMilk, selectedSize])
 
   const effectivePrice = (item?.price_cop || 0) + extraPrice
+
+  useScrollLock(Boolean(item))
 
   useEffect(() => {
     if (!item) return
