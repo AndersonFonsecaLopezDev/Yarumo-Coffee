@@ -13,7 +13,7 @@
 -- SECCIÓN 1: CONSULTAS DE AUDITORÍA (LISTAS PARA EJECUTAR EN SUPABASE SQL EDITOR)
 -- ------------------------------------------------------------------------------
 
--- 1.1 AUDITORÍA DE FOTOGRAFÍAS: Productos activos que NO tienen foto cargada
+-- 1.1 AUDITORÍA DE FOTOGRAFÍAS: Productos disponibles que NO tienen foto cargada
 --     Muestra exactamente al dueño qué productos requieren sesión de fotografía.
 /*
 SELECT 
@@ -21,7 +21,7 @@ SELECT
     mi.id AS producto_id,
     mi.name AS nombre_producto,
     mi.price_cop AS precio_cop,
-    mi.active AS esta_activo,
+    mi.available AS esta_disponible,
     CASE 
         WHEN mi.image_url IS NULL OR trim(mi.image_url) = '' THEN 'Sin foto principal'
         ELSE 'Foto ok'
@@ -29,7 +29,7 @@ SELECT
     coalesce(array_length(mi.gallery_urls, 1), 0) AS fotos_galeria_adicionales
 FROM public.menu_items mi
 LEFT JOIN public.menu_categories mc ON mi.category_id = mc.id
-WHERE mi.active = true 
+WHERE mi.available = true 
   AND (mi.image_url IS NULL OR trim(mi.image_url) = '')
 ORDER BY mc.sort_order ASC, mi.name ASC;
 */
@@ -42,8 +42,7 @@ SELECT
     mi.name,
     mi.category,
     mi.price_cop,
-    mi.active,
-    mi.updated_at
+    mi.available
 FROM public.menu_items mi
 WHERE mi.price_cop < 1500 OR mi.price_cop > 80000
 ORDER BY mi.price_cop ASC;
@@ -56,7 +55,7 @@ SELECT
     mi.name,
     mi.category,
     mi.price_cop,
-    mi.active
+    mi.available
 FROM public.menu_items mi
 WHERE lower(mi.name) LIKE '%test%'
    OR lower(mi.name) LIKE '%prueba%'
@@ -89,11 +88,10 @@ END $$;
 -- SECCIÓN 3: SANEAMIENTO DE PRODUCTOS DE PRUEBA Y CATEGORIZACIÓN
 -- ------------------------------------------------------------------------------
 
--- Inactivar (sin eliminar) productos con nombres de prueba para no corromper comandas pasadas
+-- Deshabilitar disponibilidad (sin eliminar) de productos con nombres de prueba para no corromper comandas pasadas
 UPDATE public.menu_items
-SET active = false,
-    updated_at = now()
-WHERE active = true
+SET available = false
+WHERE available = true
   AND (
     lower(name) LIKE '%test%'
     OR lower(name) LIKE '%prueba%'
@@ -105,8 +103,7 @@ WHERE active = true
 -- Ejemplo: Bebidas de café ubicadas por error en 'Otros'
 UPDATE public.menu_items
 SET category_id = (SELECT id FROM public.menu_categories WHERE slug = 'bebidas-calientes' LIMIT 1),
-    category = 'Bebidas Calientes',
-    updated_at = now()
+    category = 'Bebidas Calientes'
 WHERE category = 'Otros'
   AND (
     lower(name) LIKE '%espresso%'
@@ -123,8 +120,7 @@ WHERE category = 'Otros'
 -- Bebidas frías de café o jugos ubicados por error en 'Otros'
 UPDATE public.menu_items
 SET category_id = (SELECT id FROM public.menu_categories WHERE slug = 'bebidas-frias' LIMIT 1),
-    category = 'Bebidas Frías',
-    updated_at = now()
+    category = 'Bebidas Frías'
 WHERE category = 'Otros'
   AND (
     lower(name) LIKE '%frapp%'
@@ -143,29 +139,25 @@ WHERE category = 'Otros'
 
 -- 4.1 Espresso Yarumo / Espresso Sencillo
 UPDATE public.menu_items
-SET description = 'Extracción precisa de café 100% arábica cultivado en la cordillera del Quindío (1.550 msnm). Perfil balanceado con crema densa y avellanada, notas a chocolate amargo, panela y sutil acidez cítrica.',
-    updated_at = now()
+SET description = 'Extracción precisa de café 100% arábica cultivado en la cordillera del Quindío (1.550 msnm). Perfil balanceado con crema densa y avellanada, notas a chocolate amargo, panela y sutil acidez cítrica.'
 WHERE lower(name) in ('espresso', 'espresso sencillo', 'expreso', 'espresso yarumo')
   AND (description IS NULL OR char_length(trim(description)) < 25);
 
 -- 4.2 Cappuccino Tradicional
 UPDATE public.menu_items
-SET description = 'Espresso doble armonizado con leche cremada a temperatura óptima (65°C), logrando una microespuma sedosa y dulce natural sin azúcares añadidos. Decorado con arte latte.',
-    updated_at = now()
+SET description = 'Espresso doble armonizado con leche cremada a temperatura óptima (65°C), logrando una microespuma sedosa y dulce natural sin azúcares añadidos. Decorado con arte latte.'
 WHERE lower(name) in ('cappuccino', 'capuchino', 'cappuccino tradicional')
   AND (description IS NULL OR char_length(trim(description)) < 25);
 
 -- 4.3 Métodos Filtrados (V60 / Prensa Francesa / Aeropress)
 UPDATE public.menu_items
-SET description = 'Filtrado artesanal en mesa. Destaca la pureza del grano quindiano con taza limpia, cuerpo ligero a medio, fragancia floral y notas dulces a caña de azúcar y frutas amarillas.',
-    updated_at = now()
+SET description = 'Filtrado artesanal en mesa. Destaca la pureza del grano quindiano con taza limpia, cuerpo ligero a medio, fragancia floral y notas dulces a caña de azúcar y frutas amarillas.'
 WHERE (lower(name) LIKE '%v60%' OR lower(name) LIKE '%prensa francesa%' OR lower(name) LIKE '%aeropress%' OR lower(name) LIKE '%chemex%')
   AND (description IS NULL OR char_length(trim(description)) < 25);
 
 -- 4.4 Granizado o Nevado Yarumo
 UPDATE public.menu_items
-SET description = 'Bebida fría refrescante a base de concentración de espresso de origen, leche seleccionada y hielo finamente frappé. Coronado con crema chantilly y canela molida.',
-    updated_at = now()
+SET description = 'Bebida fría refrescante a base de concentración de espresso de origen, leche seleccionada y hielo finamente frappé. Coronado con crema chantilly y canela molida.'
 WHERE (lower(name) LIKE '%granizado%' OR lower(name) LIKE '%nevado%')
   AND (description IS NULL OR char_length(trim(description)) < 25);
 
@@ -173,7 +165,7 @@ WHERE (lower(name) LIKE '%granizado%' OR lower(name) LIKE '%nevado%')
 -- ------------------------------------------------------------------------------
 -- SECCIÓN 5: RESUMEN DE ESTADO TRAS APLICAR
 -- ------------------------------------------------------------------------------
--- Muestra el total de productos activos por categoría y porcentaje con foto.
+-- Muestra el total de productos disponibles por categoría y porcentaje con foto.
 /*
 SELECT 
     mc.name AS categoria,
@@ -185,7 +177,7 @@ SELECT
         1
     ) AS porcentaje_cobertura_fotos
 FROM public.menu_categories mc
-LEFT JOIN public.menu_items mi ON mc.id = mi.category_id AND mi.active = true
+LEFT JOIN public.menu_items mi ON mc.id = mi.category_id AND mi.available = true
 GROUP BY mc.id, mc.name, mc.sort_order
 ORDER BY mc.sort_order ASC;
 */
