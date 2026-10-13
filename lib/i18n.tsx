@@ -578,7 +578,6 @@ function getLangSnapshot(): Language {
   try {
     const stored = localStorage.getItem('yarumo-lang')
     if (stored === 'es' || stored === 'en') return stored
-    if (navigator.language?.startsWith('en')) return 'en'
   } catch {}
   return 'es'
 }
