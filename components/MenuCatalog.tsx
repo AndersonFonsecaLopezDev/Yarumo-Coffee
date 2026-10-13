@@ -43,16 +43,8 @@ function generateLineId(): string {
   return `line-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
 }
 
-function formatCop(value?: number | null) {
-  const safe = typeof value === 'number' && !Number.isNaN(value) ? value : 0
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(safe)
-}
-
 import { normalizeText } from '@/lib/filters'
+import { formatCop } from '@/lib/format'
 
 // Componente para resaltar coincidencias en la búsqueda
 function HighlightMatch({ text, query }: { text: string; query: string }) {

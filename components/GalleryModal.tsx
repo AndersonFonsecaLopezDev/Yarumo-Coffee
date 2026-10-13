@@ -7,6 +7,7 @@ import { ProductPlaceholder } from '@/components/ProductPlaceholder'
 import { WhatsAppIcon } from '@/components/icons/CategoryIcons'
 import { useI18n } from '@/lib/i18n'
 import { useScrollLock } from '@/lib/use-scroll-lock'
+import { formatCop } from '@/lib/format'
 
 type GalleryModalProps = {
   item: MenuItem | null
@@ -20,15 +21,6 @@ type GalleryModalProps = {
   ) => void
   onUpdateQuantity?: (delta: number) => void
   onClose: () => void
-}
-
-function formatCop(value?: number | null) {
-  const safe = typeof value === 'number' && !Number.isNaN(value) ? value : 0
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(safe)
 }
 
 export default function GalleryModal({

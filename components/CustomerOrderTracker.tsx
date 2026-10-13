@@ -1,21 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import type { TableOrder } from './OrderCart'
+import type { TableOrder } from '@/lib/types'
 import { useI18n } from '@/lib/i18n'
+import { formatCop } from '@/lib/format'
 
 type CustomerOrderTrackerProps = {
   latestOrder: TableOrder | null
   onRefresh?: () => void
-}
-
-function formatCop(value?: number | null) {
-  const safe = typeof value === 'number' && !Number.isNaN(value) ? value : 0
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(safe)
 }
 
 export default function CustomerOrderTracker({ latestOrder }: CustomerOrderTrackerProps) {

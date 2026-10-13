@@ -2,21 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { formatCop } from '@/lib/format'
 import type { MenuItemOptionGroup } from '@/lib/types'
 
 type MenuItemOptionsModalProps = {
   menuItemId: string
   menuItemName: string
   onClose: () => void
-}
-
-function formatCop(value?: number | null) {
-  const safe = typeof value === 'number' && !Number.isNaN(value) ? value : 0
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(safe)
 }
 
 export default function MenuItemOptionsModal({

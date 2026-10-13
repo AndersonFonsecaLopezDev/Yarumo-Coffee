@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import type { MenuItem, MenuCategory } from '../types'
 import { SITE_URL } from '@/lib/site-url'
+import { formatCop } from '@/lib/format'
 
 const emptySubscribe = () => () => {}
 
@@ -12,14 +13,6 @@ type PrintMenuModalProps = {
   items: MenuItem[]
   categories: MenuCategory[]
   onClose: () => void
-}
-
-function formatCop(value: number) {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(value)
 }
 
 export default function PrintMenuModal({

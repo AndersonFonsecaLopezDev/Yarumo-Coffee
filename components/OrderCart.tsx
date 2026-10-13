@@ -7,6 +7,7 @@ import { useI18n } from '@/lib/i18n'
 import { useConfirm } from '@/components/ConfirmModal'
 import { CartIcon, DeliveryScooterIcon, HotCoffeeIcon } from '@/components/icons/CategoryIcons'
 import { SITE_URL } from '@/lib/site-url'
+import { formatCop } from '@/lib/format'
 import type { CartItem, TableOrder, TableOrderItem } from '@/lib/types'
 
 export type { CartItem, TableOrder, TableOrderItem }
@@ -23,15 +24,6 @@ type OrderCartProps = {
   onRemoveItem: (indexOrId: number | string) => void
   onClearCart: () => void
   onOrderSuccess: (orderId: string) => void
-}
-
-function formatCop(value?: number | null) {
-  const safe = typeof value === 'number' && !Number.isNaN(value) ? value : 0
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(safe)
 }
 
 export default function OrderCart({
