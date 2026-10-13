@@ -32,8 +32,16 @@ type MenuCatalogProps = {
   initialItemId?: string
 }
 
-const CART_STORAGE_KEY = 'yarumo_customer_cart_v1'
+const CART_STORAGE_KEY_V1 = 'yarumo_customer_cart_v1'
+const CART_STORAGE_KEY = 'yarumo_customer_cart_v2'
 const FAVORITES_STORAGE_KEY = 'yarumo_user_favorites'
+
+function generateLineId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `line-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+}
 
 function formatCop(value?: number | null) {
   const safe = typeof value === 'number' && !Number.isNaN(value) ? value : 0
@@ -109,19 +117,43 @@ export default function MenuCatalog({
   // Referencia a las pestañas para navegación por teclado ARIA
   const tabsContainerRef = useRef<HTMLDivElement>(null)
 
-  // 1. Carrito con persistencia en localStorage (versión 1 y caducidad de 24h)
+  // 1. Carrito con persistencia en localStorage (versión 2 con migración de v1 y caducidad de 24h)
   const [cart, setCart] = useState<CartItem[]>(() => {
     if (typeof window === 'undefined') return []
     try {
-      const raw = localStorage.getItem(CART_STORAGE_KEY)
-      if (!raw) return []
-      const parsed = JSON.parse(raw)
       const now = Date.now()
-      if (parsed.savedAt && now - parsed.savedAt > 24 * 60 * 60 * 1000) {
-        localStorage.removeItem(CART_STORAGE_KEY)
-        return []
+      // Intentar cargar v2
+      const rawV2 = localStorage.getItem(CART_STORAGE_KEY)
+      if (rawV2) {
+        const parsed = JSON.parse(rawV2)
+        if (parsed.savedAt && now - parsed.savedAt > 24 * 60 * 60 * 1000) {
+          localStorage.removeItem(CART_STORAGE_KEY)
+          return []
+        }
+        if (Array.isArray(parsed.items)) {
+          return parsed.items.map((it: CartItem) => ({
+            ...it,
+            id: it.id || generateLineId(),
+          }))
+        }
       }
-      return Array.isArray(parsed.items) ? parsed.items : []
+
+      // Migrar con gracia formato v1 anterior si existe y no ha caducado
+      const rawV1 = localStorage.getItem(CART_STORAGE_KEY_V1)
+      if (rawV1) {
+        const parsedV1 = JSON.parse(rawV1)
+        if (parsedV1.savedAt && now - parsedV1.savedAt <= 24 * 60 * 60 * 1000 && Array.isArray(parsedV1.items)) {
+          const migrated: CartItem[] = parsedV1.items.map((it: CartItem) => ({
+            ...it,
+            id: it.id || generateLineId(),
+          }))
+          try {
+            localStorage.removeItem(CART_STORAGE_KEY_V1)
+          } catch {}
+          return migrated
+        }
+      }
+      return []
     } catch {
       return []
     }
@@ -132,7 +164,7 @@ export default function MenuCatalog({
       localStorage.setItem(
         CART_STORAGE_KEY,
         JSON.stringify({
-          version: 1,
+          version: 2,
           savedAt: Date.now(),
           items: cart,
         }),
@@ -140,10 +172,12 @@ export default function MenuCatalog({
     } catch {}
   }, [cart])
 
+  // El mapa suma cantidades de todas las líneas para reflejar el total real de ese producto
   const cartQuantityMap = useMemo(() => {
     const map = new Map<string, number>()
     for (const entry of cart) {
-      map.set(entry.item.id, entry.quantity)
+      const current = map.get(entry.item.id) || 0
+      map.set(entry.item.id, current + entry.quantity)
     }
     return map
   }, [cart])
@@ -303,6 +337,7 @@ export default function MenuCatalog({
         return [
           ...prev,
           {
+            id: generateLineId(),
             item,
             quantity: 1,
             notes: targetNotes,
@@ -318,11 +353,62 @@ export default function MenuCatalog({
     [],
   )
 
-  const updateCartQuantity = useCallback((indexOrId: number | string, delta: number) => {
+  // Stepper de la tarjeta de catálogo y del modal de detalle: opera sobre la línea más reciente
+  const updateCartQuantityByProduct = useCallback(
+    (productId: string, delta: number) => {
+      setCart((prev) => {
+        let targetIdx = -1
+        for (let i = prev.length - 1; i >= 0; i--) {
+          if (prev[i].item.id === productId) {
+            targetIdx = i
+            break
+          }
+        }
+
+        if (targetIdx === -1) {
+          if (delta > 0) {
+            const item = initialMenu.find((it) => it.id === productId)
+            if (!item) return prev
+            return [
+              ...prev,
+              {
+                id: generateLineId(),
+                item,
+                quantity: 1,
+                notes: '',
+                effectivePrice: item.price_cop,
+              },
+            ]
+          }
+          return prev
+        }
+
+        const target = prev[targetIdx]
+        const nextQty = target.quantity + delta
+        const copy = [...prev]
+
+        if (nextQty > 0) {
+          copy[targetIdx] = { ...target, quantity: nextQty }
+          return copy
+        }
+
+        // Si llega a 0, eliminar esta línea específica
+        copy.splice(targetIdx, 1)
+        return copy
+      })
+    },
+    [initialMenu],
+  )
+
+  // Actualización por ID de línea para el carrito desplegable (OrderCart)
+  const updateCartQuantity = useCallback((lineIdOrIndex: number | string, delta: number) => {
     setCart((prev) =>
       prev
         .map((entry, idx) => {
-          const matches = typeof indexOrId === 'number' ? idx === indexOrId : entry.item.id === indexOrId
+          const matches =
+            typeof lineIdOrIndex === 'number'
+              ? idx === lineIdOrIndex
+              : entry.id === lineIdOrIndex || (entry.id == null && entry.item.id === lineIdOrIndex)
           if (matches) {
             const nextQty = entry.quantity + delta
             return nextQty > 0 ? { ...entry, quantity: nextQty } : null
@@ -333,19 +419,24 @@ export default function MenuCatalog({
     )
   }, [])
 
-  const updateCartItemNotes = useCallback((indexOrId: number | string, notes: string) => {
+  const updateCartItemNotes = useCallback((lineIdOrIndex: number | string, notes: string) => {
     setCart((prev) =>
       prev.map((entry, idx) => {
-        const matches = typeof indexOrId === 'number' ? idx === indexOrId : entry.item.id === indexOrId
+        const matches =
+          typeof lineIdOrIndex === 'number'
+            ? idx === lineIdOrIndex
+            : entry.id === lineIdOrIndex || (entry.id == null && entry.item.id === lineIdOrIndex)
         return matches ? { ...entry, notes } : entry
       }),
     )
   }, [])
 
-  const removeCartItem = useCallback((indexOrId: number | string) => {
+  const removeCartItem = useCallback((lineIdOrIndex: number | string) => {
     setCart((prev) =>
       prev.filter((entry, idx) => {
-        return typeof indexOrId === 'number' ? idx !== indexOrId : entry.item.id !== indexOrId
+        return typeof lineIdOrIndex === 'number'
+          ? idx !== lineIdOrIndex
+          : entry.id !== lineIdOrIndex && (entry.id != null || entry.item.id !== lineIdOrIndex)
       }),
     )
   }, [])
@@ -643,7 +734,7 @@ export default function MenuCatalog({
                               <button
                                 type="button"
                                 className="stepper-btn stepper-btn-minus"
-                                onClick={() => updateCartQuantity(item.id, -1)}
+                                onClick={() => updateCartQuantityByProduct(item.id, -1)}
                                 aria-label={`${t('stepper_minus_prefix')} ${item.name}`}
                               >
                                 −
@@ -654,7 +745,7 @@ export default function MenuCatalog({
                               <button
                                 type="button"
                                 className="stepper-btn stepper-btn-plus"
-                                onClick={() => updateCartQuantity(item.id, 1)}
+                                onClick={() => updateCartQuantityByProduct(item.id, 1)}
                                 aria-label={`${t('stepper_plus_prefix')} ${item.name}`}
                               >
                                 +
@@ -710,7 +801,7 @@ export default function MenuCatalog({
           item={galleryItem}
           cartQty={cartQuantityMap.get(galleryItem.id) || 0}
           onAddToCart={(it, notes, extra) => addToCart(it, notes, extra)}
-          onUpdateQuantity={(delta) => updateCartQuantity(galleryItem.id, delta)}
+          onUpdateQuantity={(delta) => updateCartQuantityByProduct(galleryItem.id, delta)}
           onClose={() => setGalleryItem(null)}
         />
       )}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScrollLock } from '@/lib/use-scroll-lock'
 import { useI18n } from '@/lib/i18n'
+import { useConfirm } from '@/components/ConfirmModal'
 import type { CartItem, TableOrder, TableOrderItem } from '@/lib/types'
 
 export type { CartItem, TableOrder, TableOrderItem }
@@ -45,6 +46,7 @@ export default function OrderCart({
   onOrderSuccess,
 }: OrderCartProps) {
   const { t } = useI18n()
+  const { confirm, ConfirmDialog } = useConfirm()
   const [isOpen, setIsOpen] = useState(false)
   const [orderNotes, setOrderNotes] = useState('')
   const [customerName, setCustomerName] = useState('')
@@ -307,6 +309,19 @@ export default function OrderCart({
     setIsOpen(true)
   }
 
+  async function handleClearCartClick() {
+    const ok = await confirm({
+      title: t('cart_clear_confirm_title'),
+      message: t('cart_clear_confirm_msg'),
+      confirmText: t('cart_clear'),
+      cancelText: t('btn_cancel') || 'Cancelar',
+      danger: true,
+    })
+    if (ok) {
+      onClearCart()
+    }
+  }
+
   // El botón flotante solo es visible si hay items en carrito o si hay pedidos realizados para la mesa
   if (!hasContent) {
     return null
@@ -353,14 +368,35 @@ export default function OrderCart({
                 </span>
                 <h2>{isInsideTable ? t('cart_title_table') : t('cart_title')}</h2>
               </div>
-              <button
-                type="button"
-                className="cart-modal-close"
-                onClick={() => setIsOpen(false)}
-                aria-label={t('cart_close_aria')}
-              >
-                ×
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {cart.length > 0 && (
+                  <button
+                    type="button"
+                    className="cart-clear-btn"
+                    onClick={handleClearCartClick}
+                    id="btn-clear-cart"
+                    style={{
+                      background: 'none',
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                      padding: '5px 10px',
+                      fontSize: '0.8rem',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🗑️ {t('cart_clear')}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="cart-modal-close"
+                  onClick={() => setIsOpen(false)}
+                  aria-label={t('cart_close_aria')}
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
             {errorMessage && (
@@ -377,78 +413,82 @@ export default function OrderCart({
                 </div>
               ) : (
                 <div className="cart-items-list">
-                  {cart.map(({ item, quantity, notes }, index) => (
-                    <div className="cart-item-row" key={`${item.id}-${index}`}>
-                      <div className="cart-item-main">
-                        <div>
-                          <strong className="cart-item-name">{item.name}</strong>
-                          <span className="cart-item-unit-price">
-                            {formatCop(cart[index]?.effectivePrice ?? item.price_cop)} {t('cart_each_suffix')}
-                          </span>
-                          {notes && (
-                            <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                              <span
-                                style={{
-                                  display: 'inline-block',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 600,
-                                  background: 'rgba(224, 90, 43, 0.12)',
-                                  color: 'var(--orange)',
-                                  padding: '2px 8px',
-                                  borderRadius: '6px',
-                                }}
-                              >
-                                ☕ {notes}
-                              </span>
-                            </div>
-                          )}
+                  {cart.map((cartEntry, index) => {
+                    const lineId = cartEntry.id || index
+                    const { item, quantity, notes } = cartEntry
+                    return (
+                      <div className="cart-item-row" key={cartEntry.id || `${item.id}-${index}`}>
+                        <div className="cart-item-main">
+                          <div>
+                            <strong className="cart-item-name">{item.name}</strong>
+                            <span className="cart-item-unit-price">
+                              {formatCop(cartEntry.effectivePrice ?? item.price_cop)} {t('cart_each_suffix')}
+                            </span>
+                            {notes && (
+                              <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                <span
+                                  style={{
+                                    display: 'inline-block',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    background: 'rgba(224, 90, 43, 0.12)',
+                                    color: 'var(--orange)',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                  }}
+                                >
+                                  ☕ {notes}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <strong className="cart-item-total-price">
+                            {formatCop((cartEntry.effectivePrice ?? item.price_cop) * quantity)}
+                          </strong>
                         </div>
-                        <strong className="cart-item-total-price">
-                          {formatCop((cart[index]?.effectivePrice ?? item.price_cop) * quantity)}
-                        </strong>
-                      </div>
 
-                      <div className="cart-item-controls">
-                        <div className="cart-qty-picker">
+                        <div className="cart-item-controls">
+                          <div className="cart-qty-picker">
+                            <button
+                              type="button"
+                              onClick={() => onUpdateQuantity(lineId, -1)}
+                              aria-label={`${t('cart_qty_minus_prefix')} ${item.name}`}
+                            >
+                              −
+                            </button>
+                            <span>{quantity}</span>
+                            <button
+                              type="button"
+                              onClick={() => onUpdateQuantity(lineId, 1)}
+                              disabled={quantity >= 20}
+                              aria-label={`${t('cart_qty_plus_prefix')} ${item.name}`}
+                            >
+                              +
+                            </button>
+                          </div>
                           <button
                             type="button"
-                            onClick={() => onUpdateQuantity(index, -1)}
-                            aria-label={`${t('cart_qty_minus_prefix')} ${item.name}`}
+                            className="cart-remove-btn"
+                            onClick={() => onRemoveItem(lineId)}
+                            aria-label={`${t('cart_remove_aria_prefix')} ${item.name}`}
                           >
-                            −
-                          </button>
-                          <span>{quantity}</span>
-                          <button
-                            type="button"
-                            onClick={() => onUpdateQuantity(index, 1)}
-                            disabled={quantity >= 20}
-                            aria-label={`${t('cart_qty_plus_prefix')} ${item.name}`}
-                          >
-                            +
+                            {t('cart_remove_btn')}
                           </button>
                         </div>
-                        <button
-                          type="button"
-                          className="cart-remove-btn"
-                          onClick={() => onRemoveItem(index)}
-                          aria-label={`${t('cart_remove_aria_prefix')} ${item.name}`}
-                        >
-                          {t('cart_remove_btn')}
-                        </button>
-                      </div>
 
-                      <div className="cart-item-note-input-wrap">
-                        <input
-                          type="text"
-                          placeholder={t('cart_item_note_ph')}
-                          value={notes}
-                          onChange={(e) => onUpdateItemNotes(index, e.target.value)}
-                          maxLength={150}
-                          aria-label={`${t('cart_item_note_aria_prefix')} ${item.name}`}
-                        />
+                        <div className="cart-item-note-input-wrap">
+                          <input
+                            type="text"
+                            placeholder={t('cart_item_note_ph')}
+                            value={notes}
+                            onChange={(e) => onUpdateItemNotes(lineId, e.target.value)}
+                            maxLength={150}
+                            aria-label={`${t('cart_item_note_aria_prefix')} ${item.name}`}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
 
                   {/* FORMULARIO DE DOMICILIO: Solo cuando NO está en mesa física */}
                   {!isInsideTable && (
@@ -635,6 +675,8 @@ export default function OrderCart({
           </div>
         </div>
       )}
+      <ConfirmDialog />
     </>
   )
 }
+

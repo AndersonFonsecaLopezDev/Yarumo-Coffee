@@ -361,7 +361,7 @@ export default function GalleryModal({
                 id="btn-modal-add-to-cart"
               >
                 <span>+</span>
-                <span>{cartQty > 0 ? t('btn_added') : t('modal_add_to_cart')}</span>
+                <span>{cartQty > 0 ? t('modal_add_another') : t('modal_add_to_cart')}</span>
               </button>
             )}
 
