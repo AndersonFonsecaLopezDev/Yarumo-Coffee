@@ -1,7 +1,7 @@
 // Service Worker para Yarumo Coffee
-// Versión 3: Aislamiento estricto de seguridad y rendimiento.
+// Versión 4: Network-First para navegación pública con respaldo en caché offline.
 // Excluye expresamente /staff, APIs, Auth y llamadas REST autenticadas.
-const CACHE_NAME = 'yarumo-cache-v3'
+const CACHE_NAME = 'yarumo-cache-v4'
 
 const PRECACHE_ASSETS = [
   '/',
@@ -74,7 +74,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // 5. Estrategia por tipo de recurso:
-  // A. Recursos inmutables de Next.js (_next/static/) e imágenes: Cache-First con fallback a red
+  // A. Recursos estáticos inmutables de Next.js (_next/static/) e imágenes: Cache-First con fallback a red
   const isStaticAsset =
     url.pathname.startsWith('/_next/static/') ||
     url.pathname.endsWith('.woff2') ||
@@ -106,27 +106,35 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // B. Páginas públicas (/ y /recomendaciones): Stale-While-Revalidate
+  // B. Páginas públicas (/ y /recomendaciones): Network-First con respaldo en caché solo sin conexión
   const isPublicPage =
     url.origin === self.location.origin &&
-    (url.pathname === '/' || url.pathname === '/recomendaciones')
+    (url.pathname === '/' || url.pathname === '/recomendaciones' || url.pathname.startsWith('/producto/'))
 
   if (isPublicPage) {
     event.respondWith(
-      caches.open(CACHE_NAME).then(async (cache) => {
-        const cachedResponse = await cache.match(request)
-
-        const fetchPromise = fetch(request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              cache.put(request, networkResponse.clone())
-            }
-            return networkResponse
-          })
-          .catch(() => cachedResponse)
-
-        return cachedResponse || fetchPromise
-      }),
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone()
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone)
+            })
+          }
+          return networkResponse
+        })
+        .catch(async () => {
+          const cache = await caches.open(CACHE_NAME)
+          const cachedResponse = await cache.match(request)
+          if (cachedResponse) {
+            return cachedResponse
+          }
+          // Fallback a la raíz si no hay coincidencia exacta de ruta
+          const rootFallback = await cache.match('/')
+          if (rootFallback) return rootFallback
+          return new Response('Sin conexión', { status: 503, headers: { 'Content-Type': 'text/plain' } })
+        }),
     )
   }
 })
+

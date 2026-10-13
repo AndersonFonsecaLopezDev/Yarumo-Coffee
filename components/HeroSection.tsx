@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import { T } from '@/lib/i18n'
 
 type HeroSectionProps = {
   heroImageUrl: string
@@ -8,20 +9,20 @@ export default function HeroSection({ heroImageUrl }: HeroSectionProps) {
   return (
     <section className="hero" id="inicio" aria-label="Bienvenida a Yarumo Coffee">
       <div className="hero-copy">
-        <span className="eyebrow">Armenia · Quindío · Colombia</span>
+        <span className="eyebrow"><T k="hero_eyebrow" /></span>
         <h1>
-          Donde cada taza<br />
-          <em>cuenta una historia.</em>
+          <T k="hero_title_1" /><br />
+          <em><T k="hero_title_2" /></em>
         </h1>
         <p>
-          Café especial cultivado en las montañas del Quindío, tostado con precisión y servido con calidez en tu mesa.
+          <T k="hero_desc" />
         </p>
         <div className="hero-actions">
           <a href="#menu" className="hero-cta" id="cta-ver-carta">
-            Ver carta digital ↓
+            <T k="hero_cta" />
           </a>
           <span className="hero-badge-delivery">
-            ☕ Atención en mesa y domicilios
+            <T k="hero_badge" />
           </span>
         </div>
       </div>
@@ -37,8 +38,8 @@ export default function HeroSection({ heroImageUrl }: HeroSectionProps) {
           quality={75}
         />
         <figcaption className="hero-photo-caption">
-          <span>Café de Origen</span>
-          <strong>Armenia, Quindío</strong>
+          <span><T k="hero_origin_title" /></span>
+          <strong><T k="hero_origin_sub" /></strong>
         </figcaption>
       </figure>
     </section>

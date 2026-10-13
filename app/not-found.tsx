@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { T } from '@/lib/i18n'
 
 export default function NotFound() {
   return (
@@ -17,10 +18,10 @@ export default function NotFound() {
       <main className="content">
         <div className="empty-state">
           <div className="empty-state-icon">🌿</div>
-          <h3>No encontramos esta página</h3>
-          <p>El enlace que seguiste no existe o se movió. Vuelve al menú para seguir explorando.</p>
+          <h3><T k="not_found_title" /></h3>
+          <p><T k="not_found_desc" /></p>
           <Link href="/">
-            <button>Volver al menú</button>
+            <button><T k="not_found_btn" /></button>
           </Link>
         </div>
       </main>

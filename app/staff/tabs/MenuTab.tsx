@@ -7,7 +7,12 @@ import { createClient } from '@/lib/supabase/client'
 import { revalidatePublicContent } from '@/app/actions/revalidate'
 import { normalizeText, useUrlFilters, useDebouncedValue } from '@/lib/filters'
 import PrintMenuModal from './PrintMenuModal'
+import MenuItemOptionsModal from './MenuItemOptionsModal'
 import { useConfirm } from '@/components/ConfirmModal'
+import { SearchIcon } from '@/components/icons/CategoryIcons'
+import MenuItemForm from './menu/MenuItemForm'
+import MenuFilters from './menu/MenuFilters'
+import MenuBulkActions from './menu/MenuBulkActions'
 
 type MenuTabProps = {
   items: MenuItem[]
@@ -17,14 +22,17 @@ type MenuTabProps = {
 
 const blankMenuForm: MenuForm = {
   name: '',
+  name_en: '',
   slug: '',
   description: '',
+  description_en: '',
   price_cop: 0,
   category: 'Bebidas Calientes',
   available: true,
   sort_order: 0,
   image_url: '',
   gallery_urls: '',
+  tags: '',
 }
 
 const defaultFilters = {
@@ -55,6 +63,7 @@ export default function MenuTab({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showPrintModal, setShowPrintModal] = useState(false)
+  const [optionsModalItem, setOptionsModalItem] = useState<MenuItem | null>(null)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const PAGE_SIZE = 15
@@ -62,10 +71,6 @@ export default function MenuTab({
   // Selección múltiple para acciones en lote
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [bulkActionLoading, setBulkActionLoading] = useState(false)
-  const [bulkPercent, setBulkPercent] = useState('')
-  const [showBulkPriceModal, setShowBulkPriceModal] = useState(false)
-  const [showBulkCategoryModal, setShowBulkCategoryModal] = useState(false)
-  const [targetBulkCategory, setTargetBulkCategory] = useState(categories[0]?.id || '')
 
   // Filtros persistidos en URL
   const {
@@ -92,6 +97,9 @@ export default function MenuTab({
       sort_order: item.sort_order || 0,
       image_url: item.image_url || '',
       gallery_urls: (item.gallery_urls || []).join('\n'),
+      tags: (item.tags || []).join(', '),
+      name_en: item.name_en || '',
+      description_en: item.description_en || '',
     })
   }
 
@@ -140,6 +148,7 @@ export default function MenuTab({
 
     const payload = {
       name: form.name.trim(),
+      name_en: form.name_en?.trim() || null,
       slug:
         form.slug.trim() ||
         form.name
@@ -149,6 +158,7 @@ export default function MenuTab({
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/(^-|-$)/g, ''),
       description: form.description.trim(),
+      description_en: form.description_en?.trim() || null,
       price_cop: Number(form.price_cop),
       category: matchedCategory?.name || form.category,
       category_id: matchedCategory?.id || null,
@@ -158,6 +168,10 @@ export default function MenuTab({
       gallery_urls: form.gallery_urls
         .split('\n')
         .map((u) => u.trim())
+        .filter(Boolean),
+      tags: (form.tags || '')
+        .split(',')
+        .map((t) => t.trim())
         .filter(Boolean),
     }
 
@@ -305,20 +319,19 @@ export default function MenuTab({
     }
   }
 
-  async function handleBulkCategorySubmit() {
-    if (!targetBulkCategory || selectedIds.length === 0) return
+  async function handleBulkCategorySubmit(targetCategoryId: string) {
+    if (!targetCategoryId || selectedIds.length === 0) return
     setBulkActionLoading(true)
-    const cat = categories.find((c) => c.id === targetBulkCategory)
+    const cat = categories.find((c) => c.id === targetCategoryId)
     const { error: bulkErr } = await supabase
       .from('menu_items')
       .update({
-        category_id: targetBulkCategory,
+        category_id: targetCategoryId,
         category: cat?.name || 'General',
       })
       .in('id', selectedIds)
 
     setBulkActionLoading(false)
-    setShowBulkCategoryModal(false)
     if (bulkErr) setError('Error al cambiar categoría: ' + bulkErr.message)
     else {
       setSelectedIds([])
@@ -327,8 +340,7 @@ export default function MenuTab({
     }
   }
 
-  async function handleBulkPriceAdjustSubmit() {
-    const percent = parseFloat(bulkPercent)
+  async function handleBulkPriceAdjustSubmit(percent: number) {
     if (Number.isNaN(percent) || selectedIds.length === 0) return
 
     const ok = await confirm({
@@ -349,8 +361,6 @@ export default function MenuTab({
 
     await Promise.all(updates)
     setBulkActionLoading(false)
-    setShowBulkPriceModal(false)
-    setBulkPercent('')
     setSelectedIds([])
     void revalidatePublicContent(['menu'])
     onRefresh()
@@ -381,288 +391,31 @@ export default function MenuTab({
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, marginTop: 20 }}>
         {/* Formulario de Creación / Edición */}
-        <form onSubmit={saveItem} className="card" style={{ padding: 22, background: 'var(--surface-card)', borderRadius: 16, border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <h3>{editing ? 'Editar Producto' : 'Nuevo Producto'}</h3>
-
-          <div>
-            <label htmlFor="menu-name" style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Nombre *</label>
-            <input
-              id="menu-name"
-              type="text"
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="input"
-              placeholder="Ej: Cappuccino Yarumo"
-            />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 0.8fr', gap: 10 }}>
-            <div>
-              <label htmlFor="menu-price" style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Precio COP *</label>
-              <input
-                id="menu-price"
-                type="number"
-                min="0"
-                required
-                value={form.price_cop || ''}
-                onChange={(e) => setForm({ ...form, price_cop: Number(e.target.value) })}
-                className="input"
-                placeholder="12000"
-              />
-            </div>
-            <div>
-              <label htmlFor="menu-cat" style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Categoría</label>
-              <select
-                id="menu-cat"
-                value={form.category_id || ''}
-                onChange={(e) => {
-                  const cat = categories.find((c) => c.id === e.target.value)
-                  setForm({
-                    ...form,
-                    category_id: e.target.value,
-                    category: cat?.name || form.category,
-                  })
-                }}
-                className="input"
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="menu-sort" style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Orden</label>
-              <input
-                id="menu-sort"
-                type="number"
-                value={form.sort_order}
-                onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })}
-                className="input"
-                placeholder="0"
-                title="Número para ordenar dentro de la categoría"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="menu-desc" style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Descripción</label>
-            <textarea
-              id="menu-desc"
-              rows={2}
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="input"
-              placeholder="Notas de sabor, preparación..."
-            />
-          </div>
-
-          <div>
-            <label htmlFor="menu-image" style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Foto Principal (Archivo o URL)</label>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <input
-                id="menu-image"
-                type="file"
-                accept="image/*"
-                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                className="input input-sm"
-                style={{ flex: 1 }}
-              />
-              <input
-                type="url"
-                placeholder="https://... o sube archivo"
-                value={form.image_url}
-                onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                className="input input-sm"
-                style={{ flex: 1 }}
-              />
-            </div>
-          </div>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
-            <input
-              type="checkbox"
-              checked={form.available}
-              onChange={(e) => setForm({ ...form, available: e.target.checked })}
-            />
-            Producto disponible para pedidos
-          </label>
-
-          <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Guardando...' : editing ? 'Actualizar' : 'Crear Producto'}
-            </button>
-            {editing && (
-              <button type="button" className="btn btn-outline" onClick={newItem}>
-                Cancelar
-              </button>
-            )}
-          </div>
-        </form>
+        <MenuItemForm
+          form={form}
+          setForm={setForm}
+          categories={categories}
+          editing={editing}
+          saving={saving}
+          error={error}
+          imageFile={imageFile}
+          setImageFile={setImageFile}
+          onSave={saveItem}
+          onCancel={newItem}
+        />
 
         {/* Panel de Catálogo con Filtros Avanzados */}
         <div>
-          <div className="staff-filter-card">
-            <div className="filter-main-row">
-              <div className="filter-input-wrap">
-                <span className="filter-search-icon" aria-hidden="true">🔍</span>
-                <input
-                  type="search"
-                  id="menu-search-input"
-                  placeholder="Buscar por nombre o descripción..."
-                  value={filters.q}
-                  onChange={(e) => {
-                    setFilter('q', e.target.value)
-                    setCurrentPage(1)
-                  }}
-                  className="filter-control-input"
-                />
-              </div>
-
-              <select
-                id="menu-category-select"
-                value={filters.cat}
-                onChange={(e) => {
-                  setFilter('cat', e.target.value)
-                  setCurrentPage(1)
-                }}
-                className="filter-control-select"
-                style={{ minWidth: 155 }}
-              >
-                <option value="all">Todas las categorías</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                id="menu-availability-select"
-                value={filters.avail}
-                onChange={(e) => {
-                  setFilter('avail', e.target.value)
-                  setCurrentPage(1)
-                }}
-                className="filter-control-select"
-                style={{ minWidth: 145 }}
-              >
-                <option value="all">Todos los estados</option>
-                <option value="available">Solo disponibles</option>
-                <option value="sold_out">Solo agotados</option>
-              </select>
-
-              <select
-                id="menu-sort-select"
-                value={filters.sort}
-                onChange={(e) => setFilter('sort', e.target.value)}
-                className="filter-control-select"
-                style={{ minWidth: 145 }}
-              >
-                <option value="sort_order">Orden de carta</option>
-                <option value="name_asc">Nombre (A-Z)</option>
-                <option value="name_desc">Nombre (Z-A)</option>
-                <option value="price_asc">Menor precio</option>
-                <option value="price_desc">Mayor precio</option>
-                <option value="category">Por categoría</option>
-              </select>
-
-              <div className="segmented-type-control" role="group" aria-label="Cambiar vista">
-                <button
-                  type="button"
-                  className={`segmented-btn ${filters.view === 'cards' ? 'active' : ''}`}
-                  onClick={() => setFilter('view', 'cards')}
-                  title="Vista en tarjetas"
-                >
-                  ▦ Tarjetas
-                </button>
-                <button
-                  type="button"
-                  className={`segmented-btn ${filters.view === 'table' ? 'active' : ''}`}
-                  onClick={() => setFilter('view', 'table')}
-                  title="Vista en tabla"
-                >
-                  ▤ Tabla
-                </button>
-              </div>
-            </div>
-
-            {/* Fila de Chips y Contador */}
-            <div className="filter-chips-container">
-              <span className="filter-count-badge" id="menu-counter">
-                Mostrando {filteredItems.length} de {items.length} productos
-              </span>
-
-              {filters.q && (
-                <span className="filter-chip">
-                  <span>Texto: «{filters.q}»</span>
-                  <button
-                    type="button"
-                    className="filter-chip-remove"
-                    onClick={() => setFilter('q', '')}
-                    aria-label="Quitar filtro de texto"
-                  >
-                    ✕
-                  </button>
-                </span>
-              )}
-
-              {filters.cat !== 'all' && (
-                <span className="filter-chip">
-                  <span>{categories.find((c) => c.id === filters.cat)?.name || 'Categoría'}</span>
-                  <button
-                    type="button"
-                    className="filter-chip-remove"
-                    onClick={() => setFilter('cat', 'all')}
-                    aria-label="Quitar filtro de categoría"
-                  >
-                    ✕
-                  </button>
-                </span>
-              )}
-
-              {filters.avail !== 'all' && (
-                <span className="filter-chip">
-                  <span>{filters.avail === 'available' ? 'Disponibles' : 'Agotados'}</span>
-                  <button
-                    type="button"
-                    className="filter-chip-remove"
-                    onClick={() => setFilter('avail', 'all')}
-                    aria-label="Quitar filtro de disponibilidad"
-                  >
-                    ✕
-                  </button>
-                </span>
-              )}
-
-              {filters.photo !== 'all' && (
-                <span className="filter-chip">
-                  <span>{filters.photo === 'with_photo' ? 'Con foto' : 'Sin foto'}</span>
-                  <button
-                    type="button"
-                    className="filter-chip-remove"
-                    onClick={() => setFilter('photo', 'all')}
-                    aria-label="Quitar filtro de foto"
-                  >
-                    ✕
-                  </button>
-                </span>
-              )}
-
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  className="btn-clear-filters"
-                  onClick={resetFilters}
-                  id="btn-clear-menu-filters"
-                >
-                  Limpiar filtros
-                </button>
-              )}
-            </div>
-          </div>
+          <MenuFilters
+            filters={filters}
+            setFilter={setFilter}
+            resetFilters={resetFilters}
+            hasActiveFilters={hasActiveFilters}
+            categories={categories}
+            items={items}
+            filteredCount={filteredItems.length}
+            setCurrentPage={setCurrentPage}
+          />
 
           {/* Estado Vacío */}
           {filteredItems.length === 0 ? (
@@ -676,7 +429,9 @@ export default function MenuTab({
                 border: '1px dashed var(--border)',
               }}
             >
-              <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>🔍</div>
+              <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                <SearchIcon size={40} />
+              </div>
               <h3 style={{ margin: '0 0 8px' }}>No encontramos productos</h3>
               <p style={{ color: 'var(--text-muted)', margin: '0 0 16px', fontSize: '0.9rem' }}>
                 Ningún ítem coincide con los criterios de búsqueda o filtros activos.
@@ -761,6 +516,15 @@ export default function MenuTab({
                         <td>{item.sort_order}</td>
                         <td style={{ textAlign: 'right' }}>
                           <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline"
+                              onClick={() => setOptionsModalItem(item)}
+                              id={`btn-options-${item.id}`}
+                              title="Configurar opciones y variantes"
+                            >
+                              ⚙ Variantes
+                            </button>
                             <button type="button" className="btn btn-sm btn-outline" onClick={() => editItem(item)}>
                               Editar
                             </button>
@@ -844,6 +608,15 @@ export default function MenuTab({
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       <button
                         type="button"
+                        className="btn btn-sm btn-outline"
+                        onClick={() => setOptionsModalItem(item)}
+                        id={`btn-card-options-${item.id}`}
+                        title="Configurar opciones y variantes"
+                      >
+                        ⚙ Variantes
+                      </button>
+                      <button
+                        type="button"
                         className={`btn btn-sm ${item.available ? 'btn-outline' : 'btn-danger'}`}
                         onClick={() => toggleAvailability(item)}
                         title="Cambio rápido de disponibilidad"
@@ -892,134 +665,16 @@ export default function MenuTab({
         </div>
       </div>
 
-      {/* Barra Flotante de Acciones en Lote */}
-      {selectedIds.length > 0 && (
-        <div className="bulk-actions-floating-bar" role="region" aria-label="Acciones masivas">
-          <div className="bulk-actions-summary">
-            ✓ {selectedIds.length} producto{selectedIds.length > 1 ? 's' : ''} seleccionado{selectedIds.length > 1 ? 's' : ''}
-          </div>
-          <div className="bulk-actions-buttons">
-            <button
-              type="button"
-              className="btn btn-sm btn-outline"
-              style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.4)' }}
-              disabled={bulkActionLoading}
-              onClick={() => handleBulkAvailability(true)}
-            >
-              Marcar disponible
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm btn-outline"
-              style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.4)' }}
-              disabled={bulkActionLoading}
-              onClick={() => handleBulkAvailability(false)}
-            >
-              Marcar agotado
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm btn-outline"
-              style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.4)' }}
-              disabled={bulkActionLoading}
-              onClick={() => setShowBulkCategoryModal(true)}
-            >
-              Cambiar categoría
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm btn-outline"
-              style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.4)' }}
-              disabled={bulkActionLoading}
-              onClick={() => setShowBulkPriceModal(true)}
-            >
-              Ajustar precios %
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm"
-              style={{ background: 'rgba(255,255,255,0.15)', color: '#fff' }}
-              onClick={() => setSelectedIds([])}
-            >
-              Deseleccionar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Ajustar Precios en % */}
-      {showBulkPriceModal && (
-        <div className="bottom-sheet-backdrop" onClick={() => setShowBulkPriceModal(false)}>
-          <div className="card" style={{ maxWidth: 440, width: '90%', padding: 24, background: 'var(--surface-card)', borderRadius: 16 }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 8px' }}>Ajustar Precios en Lote</h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 16px' }}>
-              Se recalculará el precio de {selectedIds.length} productos seleccionados, redondeando a centenas (COP).
-            </p>
-            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 6 }}>
-              Porcentaje de ajuste (+10 para subir 10%, -5 para bajar 5%):
-            </label>
-            <input
-              type="number"
-              step="0.5"
-              placeholder="Ej: 10"
-              value={bulkPercent}
-              onChange={(e) => setBulkPercent(e.target.value)}
-              className="input"
-              style={{ width: '100%', marginBottom: 16 }}
-            />
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button type="button" className="btn btn-outline" onClick={() => setShowBulkPriceModal(false)}>
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={!bulkPercent || bulkActionLoading}
-                onClick={handleBulkPriceAdjustSubmit}
-              >
-                {bulkActionLoading ? 'Aplicando...' : 'Aplicar cambio'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Cambiar Categoría en Lote */}
-      {showBulkCategoryModal && (
-        <div className="bottom-sheet-backdrop" onClick={() => setShowBulkCategoryModal(false)}>
-          <div className="card" style={{ maxWidth: 440, width: '90%', padding: 24, background: 'var(--surface-card)', borderRadius: 16 }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 8px' }}>Mover a otra categoría</h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 16px' }}>
-              Se reasignarán los {selectedIds.length} productos seleccionados.
-            </p>
-            <select
-              value={targetBulkCategory}
-              onChange={(e) => setTargetBulkCategory(e.target.value)}
-              className="input"
-              style={{ width: '100%', marginBottom: 16 }}
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button type="button" className="btn btn-outline" onClick={() => setShowBulkCategoryModal(false)}>
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={bulkActionLoading}
-                onClick={handleBulkCategorySubmit}
-              >
-                {bulkActionLoading ? 'Guardando...' : 'Mover productos'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Acciones en Lote y sus modales */}
+      <MenuBulkActions
+        selectedIds={selectedIds}
+        setSelectedIds={setSelectedIds}
+        bulkActionLoading={bulkActionLoading}
+        categories={categories}
+        onBulkAvailability={handleBulkAvailability}
+        onBulkCategoryChange={handleBulkCategorySubmit}
+        onBulkPriceAdjust={handleBulkPriceAdjustSubmit}
+      />
 
       {/* Bottom Sheet Móvil para Filtros */}
       {showMobileFilters && (
@@ -1127,6 +782,15 @@ export default function MenuTab({
           items={items}
           categories={categories}
           onClose={() => setShowPrintModal(false)}
+        />
+      )}
+
+      {/* Modal de Opciones y Variantes de Producto */}
+      {optionsModalItem && (
+        <MenuItemOptionsModal
+          menuItemId={optionsModalItem.id}
+          menuItemName={optionsModalItem.name}
+          onClose={() => setOptionsModalItem(null)}
         />
       )}
       <ConfirmDialog />

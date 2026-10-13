@@ -168,4 +168,33 @@ Variables de entorno requeridas en Vercel:
 - `SUPABASE_SERVICE_ROLE_KEY` (solo servidor)
 - `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` (opcionales para rate limiting distribuido)
 
+## Rate Limiting y Arquitectura de Resiliencia (`lib/rate-limit.ts`)
+
+El control de frecuencia para el envío de opiniones y solicitudes críticas opera bajo una estrategia por capas:
+
+1. **Upstash Redis REST (Persistente distribuido)**: Si `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` están definidos, las peticiones se coordinan globalmente en Redis (2 peticiones por ventana de 60 segundos por IP/mesa).
+2. **Sin Upstash (Comportamiento Serverless)**:
+   - Si no hay variables de Upstash configuradas, el limitador conmuta a un modelo híbrido:
+     - **Para mesas específicas**: Consulta en Supabase (`recommendations` creadas en los últimos 60s para esa mesa) para bloquear abusos persistentes.
+     - **Para tráfico general / anónimo**: Utiliza una caché en memoria volátil de la instancia (`inMemoryCache`). En entornos serverless como Vercel, este límite aplica **por instancia de función**. Si hay múltiples lambdas concurrentes, una ráfaga podría repartirse entre ellas. Por esta razón, la política RLS en base de datos (`status = 'pending'`) actúa como la defensa en profundidad definitiva, impidiendo que cualquier opinión no autorizada se publique directamente.
+3. **Política de fallo (`fail-open` vs `fail-closed`)**:
+   - El endpoint de recomendaciones opera con `fail-open`. En caso de desconexión o fallo puntual de Upstash/red, no se rechaza a clientes legítimos en mesa con errores falsos de saturación; en su lugar, se inserta la recomendación como `pending` para que el personal de staff la modere.
+
+## Gestión de Migraciones y `supabase migration repair`
+
+El flujo de despliegue en `.github/workflows/supabase-deploy.yml` ejecuta `supabase db push` utilizando una versión fijada del CLI (`2.120.0`).
+
+- **Regla de integridad**: Nunca se deben renombrar ni modificar archivos de migración ya aplicados en la base de datos remota (`supabase_migrations.schema_migrations`), ya que esto genera desincronización de checksums o errores de migración faltante.
+- **Caso de nombres irregulares**: Si se requiere estandarizar el nombre de una migración que ya fue aplicada en producción (como `20261011_curacion_catalogo.sql` a formato numérico de 12 dígitos):
+  1. Conectar al proyecto con `supabase link --project-ref <PROJECT_ID>`.
+  2. Verificar estado con `supabase migration list`.
+  3. Marcar la migración como aplicada o revertida según corresponda con:
+     ```bash
+     supabase migration repair --status applied <NUEVA_VERSION>
+     ```
+  4. Eliminar el registro de la versión antigua si fue renombrada:
+     ```bash
+     supabase migration repair --status reverted <VERSION_ANTERIOR>
+     ```
+
 

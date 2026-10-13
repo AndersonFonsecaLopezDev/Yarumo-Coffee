@@ -1,50 +1,44 @@
 'use client'
 
 import { useState } from 'react'
-import type { TableOrder } from './OrderCart'
+import type { TableOrder } from '@/lib/types'
+import { useI18n } from '@/lib/i18n'
+import { formatCop } from '@/lib/format'
 
 type CustomerOrderTrackerProps = {
   latestOrder: TableOrder | null
   onRefresh?: () => void
 }
 
-function formatCop(value?: number | null) {
-  const safe = typeof value === 'number' && !Number.isNaN(value) ? value : 0
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(safe)
-}
-
-function getOrderStepInfo(status: TableOrder['status']) {
-  switch (status) {
-    case 'pending':
-      return { step: 1, label: 'Enviado a barra', icon: '⏳', desc: 'Tu comanda está en fila' }
-    case 'acknowledged':
-      return { step: 2, label: 'Recibido', icon: '👀', desc: 'El barista confirmó tu pedido' }
-    case 'preparing':
-      return { step: 3, label: 'En preparación', icon: '☕', desc: 'Estamos preparando tus productos' }
-    case 'delivered':
-      return { step: 4, label: 'Entregado en mesa', icon: '✓', desc: '¡Buen provecho!' }
-    case 'cancelled':
-      return { step: 0, label: 'Comanda cancelada', icon: '✕', desc: 'Consulta con el equipo' }
-    default:
-      return { step: 1, label: status, icon: '☕', desc: '' }
-  }
-}
-
 export default function CustomerOrderTracker({ latestOrder }: CustomerOrderTrackerProps) {
+  const { t } = useI18n()
   const [showDetails, setShowDetails] = useState(false)
 
   if (!latestOrder || latestOrder.status === 'cancelled') return null
+
+  function getOrderStepInfo(status: TableOrder['status']) {
+    switch (status) {
+      case 'pending':
+        return { step: 1, label: t('tracker_step_pending'), icon: '⏳', desc: t('tracker_step_pending_desc') }
+      case 'acknowledged':
+        return { step: 2, label: t('tracker_step_ack'), icon: '👀', desc: t('tracker_step_ack_desc') }
+      case 'preparing':
+        return { step: 3, label: t('tracker_step_prep'), icon: '☕', desc: t('tracker_step_prep_desc') }
+      case 'delivered':
+        return { step: 4, label: t('tracker_step_deliv'), icon: '✓', desc: t('tracker_step_deliv_desc') }
+      case 'cancelled':
+        return { step: 0, label: t('tracker_step_cancel'), icon: '✕', desc: t('tracker_step_cancel_desc') }
+      default:
+        return { step: 1, label: status, icon: '☕', desc: '' }
+    }
+  }
 
   const stepInfo = getOrderStepInfo(latestOrder.status)
 
   return (
     <section
       className="customer-order-tracker-wrap"
-      aria-label="Seguimiento en vivo de tu pedido"
+      aria-label={t('tracker_aria')}
       style={{ maxWidth: 1080, margin: '24px auto', padding: '0 20px' }}
     >
       <div
@@ -60,7 +54,7 @@ export default function CustomerOrderTracker({ latestOrder }: CustomerOrderTrack
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <span className="eyebrow">
-              Comanda en vivo #{latestOrder.id.slice(0, 5).toUpperCase()}
+              {t('tracker_live_order_prefix')}{latestOrder.id.slice(0, 5).toUpperCase()}
             </span>
             <h3 style={{ margin: '4px 0 0', fontSize: '1.25rem' }}>
               {stepInfo.icon} {stepInfo.label}
@@ -73,7 +67,7 @@ export default function CustomerOrderTracker({ latestOrder }: CustomerOrderTrack
             onClick={() => setShowDetails(!showDetails)}
             aria-expanded={showDetails}
           >
-            {showDetails ? 'Ocultar productos ▲' : 'Ver productos ▼'}
+            {showDetails ? t('tracker_hide_items') : t('tracker_show_items')}
           </button>
         </div>
 
@@ -95,7 +89,7 @@ export default function CustomerOrderTracker({ latestOrder }: CustomerOrderTrack
             </div>
             {latestOrder.notes && (
               <p style={{ marginTop: 10, fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                Nota: {latestOrder.notes}
+                {t('tracker_note_prefix')} {latestOrder.notes}
               </p>
             )}
           </div>

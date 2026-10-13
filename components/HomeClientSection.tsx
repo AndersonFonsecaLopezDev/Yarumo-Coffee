@@ -10,6 +10,7 @@ type HomeClientSectionProps = {
   initialCategories: MenuCategory[]
   initialPromotions: Promotion[]
   whatsappDeliveryNumber: string
+  initialItemId?: string
 }
 
 export default function HomeClientSection({
@@ -17,6 +18,7 @@ export default function HomeClientSection({
   initialCategories,
   initialPromotions,
   whatsappDeliveryNumber,
+  initialItemId,
 }: HomeClientSectionProps) {
   const [table, setTable] = useState<{ id: string; label: string } | null>(null)
   const [mesaToken, setMesaToken] = useState<string | null>(null)
@@ -78,6 +80,7 @@ export default function HomeClientSection({
         table={table}
         mesaToken={mesaToken}
         whatsappDeliveryNumber={whatsappDeliveryNumber}
+        initialItemId={initialItemId}
       />
 
       {toastMessage && (

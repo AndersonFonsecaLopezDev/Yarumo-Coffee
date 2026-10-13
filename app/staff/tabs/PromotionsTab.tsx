@@ -23,7 +23,9 @@ function toLocalDatetimeInput(isoString?: string | null) {
 
 const blankPromotionForm: PromotionForm = {
   title: '',
+  title_en: '',
   description: '',
+  description_en: '',
   badge_text: '',
   image_url: '',
   linked_menu_item_id: '',
@@ -72,7 +74,9 @@ export default function PromotionsTab({
     setImageFile(null)
     setForm({
       title: promo.title,
+      title_en: promo.title_en || '',
       description: promo.description || '',
+      description_en: promo.description_en || '',
       badge_text: promo.badge_text || '',
       image_url: promo.image_url || '',
       linked_menu_item_id: promo.linked_menu_item_id || '',
@@ -124,7 +128,9 @@ export default function PromotionsTab({
 
     const payload = {
       title: form.title.trim(),
+      title_en: form.title_en?.trim() || null,
       description: form.description.trim(),
+      description_en: form.description_en?.trim() || null,
       badge_text: form.badge_text.trim() || null,
       image_url: imageUrl,
       linked_menu_item_id: form.linked_menu_item_id || null,
@@ -192,6 +198,17 @@ export default function PromotionsTab({
           </div>
 
           <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Título en inglés (opcional)</label>
+            <input
+              type="text"
+              value={form.title_en || ''}
+              onChange={(e) => setForm({ ...form, title_en: e.target.value })}
+              className="input"
+              placeholder="Ej: 2x1 Cappuccino Promo"
+            />
+          </div>
+
+          <div>
             <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Texto del Badge</label>
             <input
               type="text"
@@ -210,6 +227,17 @@ export default function PromotionsTab({
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               className="input"
               placeholder="Válido de 3pm a 6pm"
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Descripción en inglés (opcional)</label>
+            <textarea
+              rows={2}
+              value={form.description_en || ''}
+              onChange={(e) => setForm({ ...form, description_en: e.target.value })}
+              className="input"
+              placeholder="Valid from 3pm to 6pm"
             />
           </div>
 

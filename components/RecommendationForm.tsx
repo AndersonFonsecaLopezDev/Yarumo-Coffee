@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { useI18n } from '@/lib/i18n'
 
 export default function RecommendationForm() {
+  const { t } = useI18n()
   const [name, setName] = useState('')
   const [rating, setRating] = useState(5)
   const [hoverRating, setHoverRating] = useState(0)
@@ -20,7 +22,7 @@ export default function RecommendationForm() {
 
     // Detección inmediata de bot en cliente
     if (website.trim()) {
-      setSuccessMsg('¡Muchas gracias por tu recomendación! Tu opinión ha sido recibida.')
+      setSuccessMsg(t('rec_bot_success_msg'))
       setName('')
       setComment('')
       return
@@ -44,18 +46,18 @@ export default function RecommendationForm() {
       const data = await res.json()
 
       if (!res.ok) {
-        setErrorMsg(data.error || 'Ocurrió un error al enviar tu recomendación.')
+        setErrorMsg(data.error || t('rec_err_generic'))
         setSubmitting(false)
         return
       }
 
-      setSuccessMsg('¡Muchas gracias por tu recomendación! Tu opinión ha sido recibida y se publicará pronto.')
+      setSuccessMsg(t('rec_success_msg'))
       setName('')
       setRating(5)
       setTableNumber('')
       setComment('')
     } catch {
-      setErrorMsg('No se pudo conectar con el servidor. Por favor intenta de nuevo.')
+      setErrorMsg(t('rec_err_connection'))
     } finally {
       setSubmitting(false)
     }
@@ -63,9 +65,9 @@ export default function RecommendationForm() {
 
   return (
     <div className="rec-form-card" style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 24, boxShadow: 'var(--shadow-sm)' }}>
-      <h3 style={{ margin: '0 0 6px', fontSize: '1.25rem' }}>Déjanos tu opinión</h3>
+      <h3 style={{ margin: '0 0 6px', fontSize: '1.25rem' }}>{t('rec_form_title')}</h3>
       <p style={{ margin: '0 0 20px', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-        Tu experiencia nos ayuda a mejorar y a que otros descubran la magia del café especial.
+        {t('rec_form_desc')}
       </p>
 
       {successMsg && (
@@ -83,13 +85,13 @@ export default function RecommendationForm() {
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
           <label htmlFor="rec-name" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6 }}>
-            Tu nombre *
+            {t('rec_name_label')}
           </label>
           <input
             id="rec-name"
             type="text"
             required
-            placeholder="Ej: Laura Gómez"
+            placeholder={t('rec_name_ph')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: '0.95rem' }}
@@ -98,9 +100,9 @@ export default function RecommendationForm() {
 
         <div>
           <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6 }}>
-            Calificación *
+            {t('rec_rating_label')}
           </label>
-          <div style={{ display: 'flex', gap: 6 }} role="radiogroup" aria-label="Calificación en estrellas">
+          <div style={{ display: 'flex', gap: 6 }} role="radiogroup" aria-label={t('rec_rating_aria')}>
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
@@ -108,7 +110,7 @@ export default function RecommendationForm() {
                 onClick={() => setRating(star)}
                 onMouseEnter={() => setHoverRating(star)}
                 onMouseLeave={() => setHoverRating(0)}
-                aria-label={`${star} estrellas`}
+                aria-label={`${star} ${t('rec_stars_suffix')}`}
                 style={{
                   fontSize: 26,
                   color: (hoverRating || rating) >= star ? '#ef805b' : 'var(--border)',
@@ -124,12 +126,12 @@ export default function RecommendationForm() {
 
         <div>
           <label htmlFor="rec-table" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6 }}>
-            Número de mesa (opcional)
+            {t('rec_table_label')}
           </label>
           <input
             id="rec-table"
             type="text"
-            placeholder="Ej: 3"
+            placeholder={t('rec_table_ph')}
             value={tableNumber}
             onChange={(e) => setTableNumber(e.target.value)}
             style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: '0.95rem' }}
@@ -139,7 +141,7 @@ export default function RecommendationForm() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <label htmlFor="rec-comment" style={{ fontSize: '0.85rem', fontWeight: 700 }}>
-              Tu comentario *
+              {t('rec_comment_label')}
             </label>
             <span style={{ fontSize: '0.78rem', color: comment.length > 450 ? 'var(--orange)' : 'var(--text-muted)' }}>
               {comment.length} / 500
@@ -150,7 +152,7 @@ export default function RecommendationForm() {
             required
             rows={3}
             maxLength={500}
-            placeholder="¿Qué te pareció el café, la atención y el espacio?"
+            placeholder={t('rec_comment_ph')}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: '0.95rem', resize: 'vertical' }}
@@ -176,7 +178,7 @@ export default function RecommendationForm() {
           className="service-btn primary"
           style={{ width: '100%', justifyContent: 'center' }}
         >
-          {submitting ? 'Enviando...' : 'Publicar recomendación'}
+          {submitting ? t('rec_submitting') : t('rec_submit_btn')}
         </button>
       </form>
     </div>

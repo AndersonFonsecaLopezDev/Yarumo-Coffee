@@ -3,6 +3,7 @@ import Footer from '@/components/Footer'
 import RecommendationForm from '@/components/RecommendationForm'
 import { createPublicClient } from '@/lib/supabase/public'
 import { GOOGLE_REVIEWS_URL } from '@/lib/site-url'
+import { T } from '@/lib/i18n'
 import type { Metadata } from 'next'
 
 export const revalidate = 60
@@ -48,12 +49,12 @@ export default async function RecomendacionesPage() {
       <Header />
       <main style={{ maxWidth: 1080, margin: '0 auto', padding: '40px 20px 80px' }}>
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <span className="eyebrow">Comunidad Yarumo</span>
+          <span className="eyebrow"><T k="rec_eyebrow" /></span>
           <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', margin: '8px 0 12px' }}>
-            Voces de nuestra mesa
+            <T k="rec_page_title" />
           </h1>
           <p style={{ maxWidth: 560, margin: '0 auto', color: 'var(--text-muted)' }}>
-            Cada visita escribe un capítulo. Cuéntanos qué sentiste al probar nuestro café o explora las impresiones de otros amantes del café especial.
+            <T k="rec_page_desc" />
           </p>
         </div>
 
@@ -65,7 +66,7 @@ export default async function RecomendacionesPage() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontSize: '1.4rem', margin: 0 }}>
-                Opiniones recientes ({recommendations.length})
+                <T k="rec_recent_title_prefix" /> ({recommendations.length})
               </h2>
               <a
                 href={GOOGLE_REVIEWS_URL}
@@ -79,7 +80,7 @@ export default async function RecomendacionesPage() {
 
             {recommendations.length === 0 ? (
               <div style={{ padding: 32, textAlign: 'center', background: 'var(--surface-card)', borderRadius: 16, border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                Sé el primero en dejarnos tu opinión en esta mesa.
+                <T k="rec_empty" />
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -99,11 +100,11 @@ export default async function RecomendacionesPage() {
                         <strong style={{ fontSize: '1rem', display: 'block' }}>{rec.name}</strong>
                         {rec.table_number && (
                           <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                            Mesa {rec.table_number}
+                            <T k="rec_table_prefix" /> {rec.table_number}
                           </small>
                         )}
                       </div>
-                      <div style={{ color: 'var(--orange)', fontSize: '0.9rem' }} aria-label={`${rec.rating} de 5 estrellas`}>
+                      <div style={{ color: 'var(--orange)', fontSize: '0.9rem' }} aria-label={`${rec.rating} / 5`}>
                         {'★'.repeat(rec.rating)}{'☆'.repeat(5 - rec.rating)}
                       </div>
                     </div>
