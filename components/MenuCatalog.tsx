@@ -15,7 +15,7 @@ import type {
 export type { MenuItem, MenuCategory, CartItem, MenuItemOptionChoice, MenuItemOptionGroup }
 
 import { createClient } from '@/lib/supabase/client'
-import { CategoryIcon } from '@/components/icons/CategoryIcons'
+import { CategoryIcon, SearchIcon } from '@/components/icons/CategoryIcons'
 import { ProductPlaceholder } from '@/components/ProductPlaceholder'
 import { useI18n } from '@/lib/i18n'
 
@@ -518,7 +518,7 @@ export default function MenuCatalog({
           <div className="filter-bar">
             <div className="search-container">
               <div className="search-input-wrap">
-                <span aria-hidden="true">🔍</span>
+                <SearchIcon size={18} className="search-input-icon" />
                 <input
                   type="search"
                   placeholder={t('search_placeholder')}

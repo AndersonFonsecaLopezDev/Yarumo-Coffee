@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import Image from 'next/image'
 import type { MenuItem, MenuItemOptionChoice, MenuItemOptionGroup } from '@/lib/types'
 import { ProductPlaceholder } from '@/components/ProductPlaceholder'
+import { WhatsAppIcon } from '@/components/icons/CategoryIcons'
 import { useI18n } from '@/lib/i18n'
 import { useScrollLock } from '@/lib/use-scroll-lock'
 
@@ -45,6 +46,7 @@ export default function GalleryModal({
 
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
 
   const images = useMemo(() => {
     return item ? ([item.image_url, ...(item.gallery_urls || [])].filter(Boolean) as string[]) : []
@@ -99,6 +101,26 @@ export default function GalleryModal({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         onClose()
+      } else if (event.key === 'Tab') {
+        const dialog = dialogRef.current
+        if (!dialog) return
+        const focusables = dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        )
+        if (focusables.length === 0) return
+        const first = focusables[0]
+        const last = focusables[focusables.length - 1]
+        if (event.shiftKey) {
+          if (document.activeElement === first) {
+            event.preventDefault()
+            last.focus()
+          }
+        } else {
+          if (document.activeElement === last) {
+            event.preventDefault()
+            first.focus()
+          }
+        }
       } else if (event.key === 'ArrowRight' && images.length > 1) {
         setActiveImageIndex((prev) => (prev + 1) % images.length)
       } else if (event.key === 'ArrowLeft' && images.length > 1) {
@@ -142,9 +164,9 @@ export default function GalleryModal({
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         className="gallery-modal-card"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxHeight: '92vh', overflowY: 'auto' }}
       >
         {/* Visor de Imagen o Arte Vectorial de Marca */}
         <div className="gallery-viewport">
@@ -246,28 +268,18 @@ export default function GalleryModal({
               {item.option_groups.map((group: MenuItemOptionGroup) => {
                 const currentSelected = selectedChoicesByGroup[group.id] || []
                 return (
-                  <div
-                    key={group.id}
-                    className="gallery-option-group"
-                    style={{
-                      marginBottom: 14,
-                      padding: '12px 14px',
-                      background: 'var(--surface, rgba(0,0,0,0.02))',
-                      borderRadius: 'var(--radius-md, 12px)',
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text)' }}>
+                  <div key={group.id} className="gallery-option-group">
+                    <div className="gallery-option-header">
+                      <span className="gallery-option-title">
                         {group.name}
-                        {group.required && <span style={{ color: 'var(--orange)', marginLeft: 4 }}>*</span>}
+                        {group.required && <span className="gallery-option-badge-required"> *</span>}
                       </span>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      <span className={group.required ? 'gallery-option-badge-required' : 'gallery-option-badge-optional'}>
                         {group.kind === 'single' ? t('modal_opt_choose_one') : t('modal_opt_optional')}
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    <div className="gallery-option-chips-wrap">
                       {(group.choices || []).map((choice: MenuItemOptionChoice) => {
                         const isSelected = currentSelected.includes(choice.id)
                         return (
@@ -287,12 +299,11 @@ export default function GalleryModal({
                                 }
                               })
                             }}
-                            className={`filter-chip ${isSelected ? 'active' : ''}`}
-                            style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+                            className={`gallery-option-chip ${isSelected ? 'active' : ''}`}
                           >
                             <span>{choice.label}</span>
                             {choice.price_delta_cop > 0 && (
-                              <span style={{ marginLeft: 4, opacity: 0.85 }}>
+                              <span className="gallery-option-price-delta">
                                 (+{formatCop(choice.price_delta_cop)})
                               </span>
                             )}
@@ -307,21 +318,9 @@ export default function GalleryModal({
           )}
 
           {/* Sección de nota para el barista */}
-          <div
-            className="gallery-variants-section"
-            style={{
-              marginTop: 18,
-              padding: '14px 16px',
-              background: 'var(--surface, rgba(0,0,0,0.02))',
-              borderRadius: 'var(--radius-md, 12px)',
-              border: '1px solid var(--border)',
-            }}
-          >
+          <div className="gallery-barista-card">
             <div>
-              <label
-                htmlFor="gallery-barista-notes"
-                style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4, color: 'var(--text-muted)' }}
-              >
+              <label htmlFor="gallery-barista-notes" className="gallery-barista-label">
                 {t('modal_notes_label')}
               </label>
               <input
@@ -331,15 +330,7 @@ export default function GalleryModal({
                 placeholder={t('modal_notes_ph')}
                 value={baristaNotes}
                 onChange={(e) => setBaristaNotes(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  fontSize: '0.85rem',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg)',
-                  color: 'var(--text)',
-                }}
+                className="gallery-barista-input"
               />
             </div>
           </div>
@@ -394,9 +385,9 @@ export default function GalleryModal({
               className="item-share-btn"
               onClick={shareProductWhatsapp}
               aria-label={`${t('modal_share')}: ${item.name}`}
-              title={t('modal_share')}
+              title={`${t('modal_share')}: ${item.name}`}
             >
-              💬
+              <WhatsAppIcon size={20} />
             </button>
           </div>
         </div>

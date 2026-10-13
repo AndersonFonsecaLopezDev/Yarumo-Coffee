@@ -5,6 +5,7 @@ import type { CafeTable, MenuCategory, MenuItem, OrderRequest, Request } from '.
 import { createClient } from '@/lib/supabase/client'
 import { useUrlFilters, useDebouncedValue, normalizeText } from '@/lib/filters'
 import { useConfirm } from '@/components/ConfirmModal'
+import { SearchIcon } from '@/components/icons/CategoryIcons'
 
 type ActivityTabProps = {
   orders: OrderRequest[]
@@ -351,7 +352,7 @@ export default function ActivityTab({
       <div className="staff-filter-card" style={{ marginTop: 18 }}>
         <div className="filter-main-row">
           <div className="filter-input-wrap">
-            <span className="filter-search-icon" aria-hidden="true">🔍</span>
+            <span className="filter-search-icon" aria-hidden="true"><SearchIcon size={16} /></span>
             <input
               type="search"
               id="activity-search-input"
@@ -784,7 +785,7 @@ export default function ActivityTab({
                 {/* Buscador y filtro de categoría */}
                 <div className="manual-search-filter-row">
                   <div className="manual-search-input-wrap">
-                    <span className="manual-search-icon" aria-hidden="true">🔍</span>
+                    <span className="manual-search-icon" aria-hidden="true"><SearchIcon size={16} /></span>
                     <input
                       type="text"
                       placeholder="Buscar producto en la carta..."

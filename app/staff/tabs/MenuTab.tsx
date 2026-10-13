@@ -9,6 +9,7 @@ import { normalizeText, useUrlFilters, useDebouncedValue } from '@/lib/filters'
 import PrintMenuModal from './PrintMenuModal'
 import MenuItemOptionsModal from './MenuItemOptionsModal'
 import { useConfirm } from '@/components/ConfirmModal'
+import { SearchIcon } from '@/components/icons/CategoryIcons'
 
 type MenuTabProps = {
   items: MenuItem[]
@@ -561,7 +562,7 @@ export default function MenuTab({
           <div className="staff-filter-card">
             <div className="filter-main-row">
               <div className="filter-input-wrap">
-                <span className="filter-search-icon" aria-hidden="true">🔍</span>
+                <span className="filter-search-icon" aria-hidden="true"><SearchIcon size={16} /></span>
                 <input
                   type="search"
                   id="menu-search-input"
@@ -730,7 +731,9 @@ export default function MenuTab({
                 border: '1px dashed var(--border)',
               }}
             >
-              <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>🔍</div>
+              <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                <SearchIcon size={40} />
+              </div>
               <h3 style={{ margin: '0 0 8px' }}>No encontramos productos</h3>
               <p style={{ color: 'var(--text-muted)', margin: '0 0 16px', fontSize: '0.9rem' }}>
                 Ningún ítem coincide con los criterios de búsqueda o filtros activos.

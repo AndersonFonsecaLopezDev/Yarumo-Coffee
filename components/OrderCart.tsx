@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScrollLock } from '@/lib/use-scroll-lock'
 import { useI18n } from '@/lib/i18n'
 import { useConfirm } from '@/components/ConfirmModal'
+import { CartIcon, DeliveryScooterIcon, HotCoffeeIcon } from '@/components/icons/CategoryIcons'
 import type { CartItem, TableOrder, TableOrderItem } from '@/lib/types'
 
 export type { CartItem, TableOrder, TableOrderItem }
@@ -64,6 +65,9 @@ export default function OrderCart({
   const hasContent = totalItems > 0 || effectiveOrders.length > 0
   const drawerOpen = isOpen && hasContent
 
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
+
   const [prevHasContent, setPrevHasContent] = useState(hasContent)
   if (prevHasContent !== hasContent) {
     setPrevHasContent(hasContent)
@@ -76,14 +80,37 @@ export default function OrderCart({
 
   useEffect(() => {
     if (!drawerOpen) return
+    previousFocusRef.current = document.activeElement as HTMLElement | null
+
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setIsOpen(false)
+      } else if (e.key === 'Tab') {
+        const dialog = dialogRef.current
+        if (!dialog) return
+        const focusables = dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        )
+        if (focusables.length === 0) return
+        const first = focusables[0]
+        const last = focusables[focusables.length - 1]
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault()
+            last.focus()
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault()
+            first.focus()
+          }
+        }
       }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
+      previousFocusRef.current?.focus()
     }
   }, [drawerOpen])
 
@@ -337,7 +364,7 @@ export default function OrderCart({
         aria-label={`${t('cart_floating_aria_prefix')} (${totalItems} ${t('cart_floating_products_suffix')})`}
       >
         <div className="cart-badge-icon">
-          <span>{isInsideTable ? '🛒' : '🛵'}</span>
+          <span>{isInsideTable ? <CartIcon size={20} /> : <DeliveryScooterIcon size={20} />}</span>
           {totalItems > 0 && <span className="cart-count-badge">{totalItems}</span>}
         </div>
         <div className="cart-btn-info">
@@ -360,7 +387,7 @@ export default function OrderCart({
           aria-label={isInsideTable ? t('cart_dialog_table_aria') : t('cart_dialog_delivery_aria')}
           onClick={() => setIsOpen(false)}
         >
-          <div className="cart-modal-dialog" onClick={(e) => e.stopPropagation()}>
+          <div ref={dialogRef} className="cart-modal-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="cart-modal-header">
               <div>
                 <span className="eyebrow">
@@ -368,24 +395,16 @@ export default function OrderCart({
                 </span>
                 <h2>{isInsideTable ? t('cart_title_table') : t('cart_title')}</h2>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="cart-header-actions">
                 {cart.length > 0 && (
                   <button
                     type="button"
                     className="cart-clear-btn"
                     onClick={handleClearCartClick}
                     id="btn-clear-cart"
-                    style={{
-                      background: 'none',
-                      border: '1px solid var(--border)',
-                      borderRadius: '8px',
-                      padding: '5px 10px',
-                      fontSize: '0.8rem',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
                   >
-                    🗑️ {t('cart_clear')}
+                    <span>🗑️</span>
+                    <span>{t('cart_clear')}</span>
                   </button>
                 )}
                 <button
@@ -408,7 +427,9 @@ export default function OrderCart({
             <div className="cart-modal-body">
               {cart.length === 0 ? (
                 <div className="cart-empty-message">
-                  <span className="cart-empty-icon">☕</span>
+                  <span className="cart-empty-icon">
+                    <HotCoffeeIcon size={44} />
+                  </span>
                   <p>{t('cart_empty_msg')}</p>
                 </div>
               ) : (
@@ -425,19 +446,9 @@ export default function OrderCart({
                               {formatCop(cartEntry.effectivePrice ?? item.price_cop)} {t('cart_each_suffix')}
                             </span>
                             {notes && (
-                              <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                                <span
-                                  style={{
-                                    display: 'inline-block',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 600,
-                                    background: 'rgba(224, 90, 43, 0.12)',
-                                    color: 'var(--orange)',
-                                    padding: '2px 8px',
-                                    borderRadius: '6px',
-                                  }}
-                                >
-                                  ☕ {notes}
+                              <div className="cart-item-notes-wrap">
+                                <span className="cart-item-notes-badge">
+                                  <HotCoffeeIcon size={13} /> {notes}
                                 </span>
                               </div>
                             )}
@@ -599,9 +610,9 @@ export default function OrderCart({
               {/* Historial Real de Pedidos de la Mesa */}
               {isInsideTable && effectiveOrders.length > 0 && (
                 <div className="cart-session-history">
-                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                  <div className="cart-history-header-row">
                     <h3>{t('cart_history_title')}</h3>
-                    <small style={{ color: 'var(--orange)', fontWeight: 700 }}>
+                    <small className="cart-history-total-tag">
                       {t('cart_history_consumption_prefix')} {formatCop(accumulatedTotalCop)}
                     </small>
                   </div>
