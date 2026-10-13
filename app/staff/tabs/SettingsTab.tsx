@@ -119,7 +119,7 @@ export default function SettingsTab({
       <h2>Ajustes y Portada del Menú</h2>
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, marginTop: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, marginTop: 20, alignItems: 'start' }}>
         {/* Foto de portada */}
         <div className="card" style={{ padding: 24, background: 'var(--surface-card)', borderRadius: 16, border: '1px solid var(--border)' }}>
           <h3>Foto de Portada del Menú (Hero)</h3>

@@ -28,7 +28,11 @@ export default function MenuItemForm({
   onCancel,
 }: MenuItemFormProps) {
   return (
-    <form onSubmit={onSave} className="menu-form staff-panel card" style={{ padding: 20 }}>
+    <form
+      onSubmit={onSave}
+      className="menu-form staff-panel card menu-form-sticky"
+      style={{ padding: 20, alignSelf: 'start', alignContent: 'start' }}
+    >
       <h3 style={{ margin: '0 0 16px', fontSize: '1.1rem' }}>
         {editing ? 'Editar Producto' : 'Nuevo Producto'}
       </h3>

@@ -180,9 +180,9 @@ export default function PromotionsTab({
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, marginTop: 20 }}>
+      <div className="staff-two-column-layout">
         {/* Formulario */}
-        <form onSubmit={savePromotion} className="card" style={{ padding: 22, background: 'var(--surface-card)', borderRadius: 16, border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <form onSubmit={savePromotion} className="card menu-form-sticky" style={{ padding: 22, background: 'var(--surface-card)', borderRadius: 16, border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12, alignSelf: 'start' }}>
           <h3>{editingPromotion ? 'Editar Promoción' : 'Nueva Promoción'}</h3>
 
           <div>

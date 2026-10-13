@@ -389,7 +389,7 @@ export default function MenuTab({
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, marginTop: 20 }}>
+      <div className="staff-two-column-layout">
         {/* Formulario de Creación / Edición */}
         <MenuItemForm
           form={form}
