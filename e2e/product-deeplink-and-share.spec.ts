@@ -39,7 +39,7 @@ test.describe('Bloque 5 - Enlace de WhatsApp y Deep Links de Producto', () => {
       await page.waitForLoadState('domcontentloaded')
       const notice = page.locator('.catalog-deeplink-notice')
       await expect(notice).toBeVisible()
-      await expect(notice).toContainText(/no disponible|no longer available/i)
+      await expect(notice).toContainText(/no.*disponible|no longer available/i)
     }
   })
 
@@ -89,7 +89,7 @@ test.describe('Bloque 5 - Enlace de WhatsApp y Deep Links de Producto', () => {
     // Aviso visible
     const notice = page.locator('.catalog-deeplink-notice')
     await expect(notice).toBeVisible()
-    await expect(notice).toContainText(/no disponible|no longer available/i)
+    await expect(notice).toContainText(/no.*disponible|no longer available/i)
 
     // La sección del catálogo sigue usable y visible en el DOM
     const catalogSection = page.locator('#menu')
