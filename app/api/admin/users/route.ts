@@ -199,6 +199,9 @@ export async function PATCH(request: NextRequest) {
       if (target?.role === 'owner') {
         return NextResponse.json({ error: 'Solo un owner puede modificar otro owner' }, { status: 403 })
       }
+      if (auth.role === 'manager' && target?.role === 'manager' && id !== auth.user.id) {
+        return NextResponse.json({ error: 'Un manager no puede modificar a otro manager' }, { status: 403 })
+      }
     }
 
     const update: { user_metadata: { display_name: string }; password?: string } = {
@@ -261,8 +264,13 @@ export async function DELETE(request: NextRequest) {
       if (target?.role === 'owner') {
         return NextResponse.json({ error: 'Solo un owner puede eliminar otro owner' }, { status: 403 })
       }
+      if (auth.role === 'manager' && target?.role === 'manager') {
+        return NextResponse.json({ error: 'Un manager no puede eliminar a otro manager' }, { status: 403 })
+      }
     }
 
+    // Limpiar perfil y luego usuario en Supabase Auth
+    await auth.admin.from('staff_profiles').delete().eq('user_id', id)
     const deleted = await auth.admin.auth.admin.deleteUser(id)
     if (deleted.error) {
       return NextResponse.json({ error: deleted.error.message }, { status: 400 })
