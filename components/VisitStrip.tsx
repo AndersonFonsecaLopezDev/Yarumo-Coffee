@@ -1,4 +1,5 @@
 import { T } from '@/lib/i18n'
+import { SITE_CONFIG } from '@/lib/site-config'
 
 export default function VisitStrip() {
   return (
@@ -16,7 +17,7 @@ export default function VisitStrip() {
           <T k="visit_address_line2" />
         </p>
         <a
-          href="https://maps.app.goo.gl/yr8DTNsgNKm6NQb6A?g_st=iw"
+          href={SITE_CONFIG.social.googleMaps}
           target="_blank"
           rel="noreferrer"
         >

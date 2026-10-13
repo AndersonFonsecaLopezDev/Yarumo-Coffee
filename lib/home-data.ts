@@ -1,47 +1,48 @@
 import { createPublicClient } from '@/lib/supabase/public'
 import { SITE_URL } from '@/lib/site-url'
+import { SITE_CONFIG } from '@/lib/site-config'
 import type { MenuItem, MenuCategory, MenuItemOptionGroup, MenuItemOptionChoice } from '@/lib/types'
 import type { Promotion } from '@/components/PromotionsSection'
 
 export const cafeJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'CafeOrCoffeeShop',
-  name: 'Yarumo Coffee',
+  name: SITE_CONFIG.name,
   image: `${SITE_URL}/yarumo-cover-cafe-og.webp`,
   url: SITE_URL,
-  telephone: '+573192208938',
-  priceRange: '$$',
-  servesCuisine: ['Café de especialidad', 'Repostería artesanal', 'Bebidas calientes y frías'],
+  telephone: SITE_CONFIG.phone.e164,
+  priceRange: SITE_CONFIG.priceRange,
+  servesCuisine: [...SITE_CONFIG.cuisine],
   menu: `${SITE_URL}/#menu`,
   geo: {
     '@type': 'GeoCoordinates',
-    latitude: 4.5429,
-    longitude: -75.6668,
+    latitude: SITE_CONFIG.coordinates.latitude,
+    longitude: SITE_CONFIG.coordinates.longitude,
   },
   address: {
     '@type': 'PostalAddress',
-    streetAddress: 'Carrera 19 # 21 Norte-01 Local 1',
-    addressLocality: 'Armenia',
-    addressRegion: 'Quindío',
-    addressCountry: 'CO',
+    streetAddress: SITE_CONFIG.address.street,
+    addressLocality: SITE_CONFIG.address.city,
+    addressRegion: SITE_CONFIG.address.region,
+    addressCountry: SITE_CONFIG.address.country,
   },
   openingHoursSpecification: [
     {
       '@type': 'OpeningHoursSpecification',
-      dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-      opens: '08:00',
-      closes: '20:00',
+      dayOfWeek: SITE_CONFIG.schedule.weekdays.days,
+      opens: SITE_CONFIG.schedule.weekdays.opens,
+      closes: SITE_CONFIG.schedule.weekdays.closes,
     },
     {
       '@type': 'OpeningHoursSpecification',
-      dayOfWeek: ['Sunday'],
-      opens: '09:00',
-      closes: '19:00',
+      dayOfWeek: SITE_CONFIG.schedule.sunday.days,
+      opens: SITE_CONFIG.schedule.sunday.opens,
+      closes: SITE_CONFIG.schedule.sunday.closes,
     },
   ],
   sameAs: [
-    'https://www.instagram.com/yarumocafearmenia/',
-    'https://maps.app.goo.gl/yr8DTNsgNKm6NQb6A?g_st=iw',
+    SITE_CONFIG.social.instagram,
+    SITE_CONFIG.social.googleMaps,
   ],
 }
 

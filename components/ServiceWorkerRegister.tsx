@@ -9,7 +9,7 @@ export default function ServiceWorkerRegister() {
       'serviceWorker' in navigator &&
       process.env.NODE_ENV === 'production'
     ) {
-      window.addEventListener('load', () => {
+      const register = () => {
         navigator.serviceWorker
           .register('/sw.js')
           .then((registration) => {
@@ -18,7 +18,14 @@ export default function ServiceWorkerRegister() {
           .catch((err) => {
             console.debug('Service Worker no registrado:', err)
           })
-      })
+      }
+
+      if (document.readyState === 'complete') {
+        register()
+      } else {
+        window.addEventListener('load', register)
+        return () => window.removeEventListener('load', register)
+      }
     }
   }, [])
 

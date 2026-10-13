@@ -6,6 +6,7 @@ import { useScrollLock } from '@/lib/use-scroll-lock'
 import { useI18n } from '@/lib/i18n'
 import { useConfirm } from '@/components/ConfirmModal'
 import { CartIcon, DeliveryScooterIcon, HotCoffeeIcon } from '@/components/icons/CategoryIcons'
+import { SITE_URL } from '@/lib/site-url'
 import type { CartItem, TableOrder, TableOrderItem } from '@/lib/types'
 
 export type { CartItem, TableOrder, TableOrderItem }
@@ -308,7 +309,8 @@ export default function OrderCart({
     lines.push(`*TOTAL PRODUCTOS:* ${formatCop(totalPrice)}`)
     lines.push('_(Nota: El costo de domicilio aún no está incluido. Quedo atento a que me confirmen el valor de la entrega y el total final)_')
     lines.push('')
-    lines.push('_Pedido generado desde yarumocoffee.com_')
+    const siteDomain = SITE_URL.replace(/^https?:\/\//, '')
+    lines.push(`_Pedido generado desde ${siteDomain}_`)
 
     const cleanNumber = (whatsappNumber || '573192208938').replace(/\D/g, '')
     const message = lines.join('\n')
