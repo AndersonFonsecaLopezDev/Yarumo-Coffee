@@ -22,6 +22,7 @@ export type MenuItem = {
   id: string
   name: string
   name_en?: string | null
+  slug?: string | null
   description: string | null
   description_en?: string | null
   price_cop: number

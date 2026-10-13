@@ -120,7 +120,7 @@ export default function GalleryModal({
   function shareProductWhatsapp() {
     if (!item) return
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://yarumo-coffee.vercel.app'
-    const link = `${origin}/?item=${item.id}#menu`
+    const link = `${origin}/producto/${item.id}`
     const prefix = t('share_product_text_prefix')
     const message = encodeURIComponent(`${prefix} ${item.name}: ${link}`)
     window.open(`https://api.whatsapp.com/send?text=${message}`, '_blank')

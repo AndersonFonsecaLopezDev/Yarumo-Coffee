@@ -29,6 +29,7 @@ type MenuCatalogProps = {
   table: { id: string; label: string } | null
   mesaToken: string | null
   whatsappDeliveryNumber: string
+  initialItemId?: string
 }
 
 const CART_STORAGE_KEY = 'yarumo_customer_cart_v1'
@@ -79,13 +80,20 @@ export default function MenuCatalog({
   table,
   mesaToken,
   whatsappDeliveryNumber,
+  initialItemId,
 }: MenuCatalogProps) {
   const { t, language } = useI18n()
   const [supabase] = useState(() => createClient())
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all')
-  const [galleryItem, setGalleryItem] = useState<MenuItem | null>(null)
+  const [galleryItem, setGalleryItem] = useState<MenuItem | null>(() => {
+    if (initialItemId) {
+      return initialMenu.find((it) => it.id === initialItemId || it.slug === initialItemId) || null
+    }
+    return null
+  })
+  const [deepLinkNotice, setDeepLinkNotice] = useState<string>('')
   const [favorites, setFavorites] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set()
     try {
@@ -140,24 +148,47 @@ export default function MenuCatalog({
     return map
   }, [cart])
 
-  // 2. Deep link ?item=id o ?item=slug al cargar
+  // 2. Deep link: abrir GalleryModal de producto por initialItemId o por ?item=id
   useEffect(() => {
     if (typeof window === 'undefined') return
     const params = new URLSearchParams(window.location.search)
-    const targetItemId = params.get('item')
+    const urlItemId = params.get('item')
+    const targetItemId = initialItemId || urlItemId
+
     if (targetItemId) {
-      setTimeout(() => {
-        const el = document.getElementById(`item-${targetItemId}`)
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-          el.style.outline = '3px solid var(--lime)'
-          setTimeout(() => {
-            el.style.outline = 'none'
-          }, 3000)
+      const foundItem = initialMenu.find(
+        (it) => it.id === targetItemId || (it.slug && it.slug === targetItemId),
+      )
+
+      if (foundItem) {
+        const timer = setTimeout(() => {
+          setGalleryItem(foundItem)
+          const el = document.getElementById(`item-${foundItem.id}`)
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }, 50)
+
+        // Limpiar URL si venía por parámetro ?item=
+        if (urlItemId) {
+          params.delete('item')
+          const remainingQuery = params.toString()
+          const newUrl = `${window.location.pathname}${remainingQuery ? `?${remainingQuery}` : ''}${window.location.hash || ''}`
+          window.history.replaceState({}, '', newUrl)
         }
-      }, 300)
+        return () => clearTimeout(timer)
+      } else {
+        const timer = setTimeout(() => {
+          setDeepLinkNotice(t('item_unavailable'))
+        }, 50)
+        const clearNotice = setTimeout(() => setDeepLinkNotice(''), 4500)
+        return () => {
+          clearTimeout(timer)
+          clearTimeout(clearNotice)
+        }
+      }
     }
-  }, [])
+  }, [initialItemId, initialMenu, t])
 
   const toggleFavorite = useCallback((itemId: string) => {
     setFavorites((prev) => {
@@ -372,6 +403,24 @@ export default function MenuCatalog({
             <h2>{t('catalog_title')}</h2>
           </div>
         </div>
+
+        {deepLinkNotice && (
+          <div
+            className="catalog-deeplink-notice alert alert-warning"
+            role="status"
+            aria-live="polite"
+            style={{
+              maxWidth: 640,
+              margin: '0 auto 18px',
+              padding: '12px 18px',
+              borderRadius: 12,
+              textAlign: 'center',
+              fontWeight: 500,
+            }}
+          >
+            <span>⚠️ {deepLinkNotice}</span>
+          </div>
+        )}
 
         {/* Barra sticky con búsqueda y pestañas de categorías */}
         <div className="sticky-filter-wrapper">
