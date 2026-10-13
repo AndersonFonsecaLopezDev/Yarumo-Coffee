@@ -2686,6 +2686,39 @@
   box-sizing: border-box;
 }
 
+/* Tabla semántica de paginación para repetición de encabezado institucional */
+.print-paged-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.print-paged-thead {
+  display: table-header-group;
+}
+
+.print-paged-th {
+  padding: 0;
+  margin: 0;
+  border: none;
+  font-weight: normal;
+  text-align: left;
+}
+
+.print-paged-tbody {
+  display: table-row-group;
+}
+
+.print-paged-td {
+  padding: 0;
+  margin: 0;
+  border: none;
+  vertical-align: top;
+}
+
 .print-sheet-header {
   display: flex;
   justify-content: space-between;
@@ -3048,9 +3081,41 @@
     overflow: visible !important;
   }
 
+  .print-paged-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-paged-thead {
+    display: table-header-group !important;
+  }
+
+  .print-paged-th {
+    padding: 0 0 10px 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    font-weight: normal !important;
+    text-align: left !important;
+  }
+
+  .print-paged-tbody {
+    display: table-row-group !important;
+  }
+
+  .print-paged-td {
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    vertical-align: top !important;
+  }
+
   .print-categories-grid {
     column-gap: 22px !important;
-    column-fill: balance !important;
+    column-fill: auto !important;
     break-inside: auto !important;
     page-break-inside: auto !important;
   }

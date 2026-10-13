@@ -372,125 +372,139 @@ export default function PrintMenuModal({
             id="printable-menu"
             className={`printable-menu-sheet font-size-${fontSize} cols-${columns} orientation-${orientation} paper-${paperSize}`}
           >
-            {/* Encabezado del Menú Impreso */}
-            <header className="print-sheet-header">
-              <div className="print-header-brand">
-                <div className="print-logo-wrap">
-                  <Image
-                    src="/yarumo-logo.webp"
-                    alt="Yarumo Coffee"
-                    width={56}
-                    height={56}
-                    priority
-                  />
-                </div>
-                <div>
-                  <h1 className="print-brand-title">YARUMO COFFEE</h1>
-                  <p className="print-brand-tagline">CAFÉ ESPECIAL DE ORIGEN · ARMENIA, QUINDÍO</p>
-                </div>
-              </div>
+            <table className="print-paged-table">
+              <thead className="print-paged-thead">
+                <tr>
+                  <th className="print-paged-th">
+                    {/* Encabezado Institucional: se repite automáticamente en TODAS las páginas impresas */}
+                    <header className="print-sheet-header">
+                      <div className="print-header-brand">
+                        <div className="print-logo-wrap">
+                          <Image
+                            src="/yarumo-logo.webp"
+                            alt="Yarumo Coffee"
+                            width={56}
+                            height={56}
+                            priority
+                          />
+                        </div>
+                        <div>
+                          <h1 className="print-brand-title">YARUMO COFFEE</h1>
+                          <p className="print-brand-tagline">CAFÉ ESPECIAL DE ORIGEN · ARMENIA, QUINDÍO</p>
+                        </div>
+                      </div>
 
-              <div className="print-header-meta">
-                <span className="print-slogan">«Donde cada taza cuenta una historia»</span>
-                <span className="print-contact">Carrera 19 # 21 Norte-01 Local 1 · @yarumocafearmenia</span>
-              </div>
-            </header>
+                      <div className="print-header-meta">
+                        <span className="print-slogan">«Donde cada taza cuenta una historia»</span>
+                        <span className="print-contact">Carrera 19 # 21 Norte-01 Local 1 · @yarumocafearmenia</span>
+                      </div>
+                    </header>
+                  </th>
+                </tr>
+              </thead>
 
-            {/* Cuadrícula de Categorías y Productos */}
-            <main className="print-categories-grid">
-              {categorizedItems.map(({ category, items: catItems }) => (
-                <section key={category.id} className="print-category-block">
-                  <h2 className="print-category-title">
-                    <span className="print-cat-icon">{category.icon || '☕'}</span>
-                    <span>{category.name}</span>
-                  </h2>
+              <tbody className="print-paged-tbody">
+                <tr>
+                  <td className="print-paged-td">
+                    {/* Cuadrícula de Categorías y Productos */}
+                    <main className="print-categories-grid">
+                      {categorizedItems.map(({ category, items: catItems }) => (
+                        <section key={category.id} className="print-category-block">
+                          <h2 className="print-category-title">
+                            <span className="print-cat-icon">{category.icon || '☕'}</span>
+                            <span>{category.name}</span>
+                          </h2>
 
-                  <div className="print-items-list">
-                    {catItems.map((item) => (
-                      <article key={item.id} className="print-menu-item">
-                        <div className="print-item-content">
-                          {showPhotos && item.image_url && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={item.image_url}
-                              alt={item.name}
-                              className="print-item-thumb"
-                            />
-                          )}
-                          <div style={{ flex: 1 }}>
-                            <div className="print-item-header">
-                              <strong className="print-item-name">{item.name}</strong>
-                              <span className="print-leader-dots" aria-hidden="true" />
-                              <span className="print-item-price">{formatCop(item.price_cop)}</span>
-                            </div>
-                            {showDescriptions && item.description && (
-                              <p className="print-item-desc">{item.description}</p>
-                            )}
+                          <div className="print-items-list">
+                            {catItems.map((item) => (
+                              <article key={item.id} className="print-menu-item">
+                                <div className="print-item-content">
+                                  {showPhotos && item.image_url && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={item.image_url}
+                                      alt={item.name}
+                                      className="print-item-thumb"
+                                    />
+                                  )}
+                                  <div style={{ flex: 1 }}>
+                                    <div className="print-item-header">
+                                      <strong className="print-item-name">{item.name}</strong>
+                                      <span className="print-leader-dots" aria-hidden="true" />
+                                      <span className="print-item-price">{formatCop(item.price_cop)}</span>
+                                    </div>
+                                    {showDescriptions && item.description && (
+                                      <p className="print-item-desc">{item.description}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                        </section>
+                      ))}
+
+                      {unassignedItems.length > 0 && (
+                        <section className="print-category-block">
+                          <h2 className="print-category-title">
+                            <span className="print-cat-icon">✨</span>
+                            <span>Otras Delicias</span>
+                          </h2>
+
+                          <div className="print-items-list">
+                            {unassignedItems.map((item) => (
+                              <article key={item.id} className="print-menu-item">
+                                <div className="print-item-content">
+                                  {showPhotos && item.image_url && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={item.image_url}
+                                      alt={item.name}
+                                      className="print-item-thumb"
+                                    />
+                                  )}
+                                  <div style={{ flex: 1 }}>
+                                    <div className="print-item-header">
+                                      <strong className="print-item-name">{item.name}</strong>
+                                      <span className="print-leader-dots" aria-hidden="true" />
+                                      <span className="print-item-price">{formatCop(item.price_cop)}</span>
+                                    </div>
+                                    {showDescriptions && item.description && (
+                                      <p className="print-item-desc">{item.description}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                        </section>
+                      )}
+                    </main>
+
+                    {/* Pie de Página del Menú */}
+                    <footer className="print-sheet-footer">
+                      <div className="print-footer-info">
+                        <strong>Disfruta tu experiencia en mesa</strong>
+                        <span>
+                          Todos nuestros métodos y cafés son preparados al momento. Pregunta a tu barista por el café de temporada.
+                        </span>
+                      </div>
+
+                      {showQr && qrCodeUrl && (
+                        <div className="print-footer-qr">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={qrCodeUrl} alt="QR Menú Digital" className="print-qr-img" />
+                          <div className="print-qr-text">
+                            <small>Carta Digital con Fotos</small>
+                            <strong>{displayDomain}</strong>
                           </div>
                         </div>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              ))}
-
-              {unassignedItems.length > 0 && (
-                <section className="print-category-block">
-                  <h2 className="print-category-title">
-                    <span className="print-cat-icon">✨</span>
-                    <span>Otras Delicias</span>
-                  </h2>
-
-                  <div className="print-items-list">
-                    {unassignedItems.map((item) => (
-                      <article key={item.id} className="print-menu-item">
-                        <div className="print-item-content">
-                          {showPhotos && item.image_url && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={item.image_url}
-                              alt={item.name}
-                              className="print-item-thumb"
-                            />
-                          )}
-                          <div style={{ flex: 1 }}>
-                            <div className="print-item-header">
-                              <strong className="print-item-name">{item.name}</strong>
-                              <span className="print-leader-dots" aria-hidden="true" />
-                              <span className="print-item-price">{formatCop(item.price_cop)}</span>
-                            </div>
-                            {showDescriptions && item.description && (
-                              <p className="print-item-desc">{item.description}</p>
-                            )}
-                          </div>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              )}
-            </main>
-
-            {/* Pie de Página del Menú */}
-            <footer className="print-sheet-footer">
-              <div className="print-footer-info">
-                <strong>Disfruta tu experiencia en mesa</strong>
-                <span>
-                  Todos nuestros métodos y cafés son preparados al momento. Pregunta a tu barista por el café de temporada.
-                </span>
-              </div>
-
-              {showQr && qrCodeUrl && (
-                <div className="print-footer-qr">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={qrCodeUrl} alt="QR Menú Digital" className="print-qr-img" />
-                  <div className="print-qr-text">
-                    <small>Carta Digital con Fotos</small>
-                    <strong>{displayDomain}</strong>
-                  </div>
-                </div>
-              )}
-            </footer>
+                      )}
+                    </footer>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
