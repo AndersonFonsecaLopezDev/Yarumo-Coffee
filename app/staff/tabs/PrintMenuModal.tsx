@@ -376,7 +376,7 @@ export default function PrintMenuModal({
               <thead className="print-paged-thead">
                 <tr>
                   <th className="print-paged-th">
-                    {/* Encabezado Institucional: se repite automáticamente en TODAS las páginas impresas */}
+                    {/* Encabezado Institucional: se repite en TODAS las páginas impresas */}
                     <header className="print-sheet-header">
                       <div className="print-header-brand">
                         <div className="print-logo-wrap">
@@ -402,6 +402,33 @@ export default function PrintMenuModal({
                   </th>
                 </tr>
               </thead>
+
+              <tfoot className="print-paged-tfoot">
+                <tr>
+                  <td className="print-paged-td-footer">
+                    {/* Pie de Página Institucional con QR: se repite en TODAS las páginas impresas */}
+                    <footer className="print-sheet-footer">
+                      <div className="print-footer-info">
+                        <strong>Disfruta tu experiencia en mesa</strong>
+                        <span>
+                          Todos nuestros métodos y cafés son preparados al momento. Pregunta a tu barista por el café de temporada.
+                        </span>
+                      </div>
+
+                      {showQr && qrCodeUrl && (
+                        <div className="print-footer-qr">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={qrCodeUrl} alt="QR Menú Digital" className="print-qr-img" />
+                          <div className="print-qr-text">
+                            <small>Carta Digital con Fotos</small>
+                            <strong>{displayDomain}</strong>
+                          </div>
+                        </div>
+                      )}
+                    </footer>
+                  </td>
+                </tr>
+              </tfoot>
 
               <tbody className="print-paged-tbody">
                 <tr>
@@ -480,27 +507,6 @@ export default function PrintMenuModal({
                         </section>
                       )}
                     </main>
-
-                    {/* Pie de Página del Menú */}
-                    <footer className="print-sheet-footer">
-                      <div className="print-footer-info">
-                        <strong>Disfruta tu experiencia en mesa</strong>
-                        <span>
-                          Todos nuestros métodos y cafés son preparados al momento. Pregunta a tu barista por el café de temporada.
-                        </span>
-                      </div>
-
-                      {showQr && qrCodeUrl && (
-                        <div className="print-footer-qr">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={qrCodeUrl} alt="QR Menú Digital" className="print-qr-img" />
-                          <div className="print-qr-text">
-                            <small>Carta Digital con Fotos</small>
-                            <strong>{displayDomain}</strong>
-                          </div>
-                        </div>
-                      )}
-                    </footer>
                   </td>
                 </tr>
               </tbody>

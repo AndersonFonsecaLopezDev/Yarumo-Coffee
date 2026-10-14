@@ -2712,11 +2712,22 @@
   display: table-row-group;
 }
 
+.print-paged-tfoot {
+  display: table-footer-group;
+}
+
 .print-paged-td {
   padding: 0;
   margin: 0;
   border: none;
   vertical-align: top;
+}
+
+.print-paged-td-footer {
+  padding: 0;
+  margin: 0;
+  border: none;
+  vertical-align: bottom;
 }
 
 .print-sheet-header {
@@ -3067,6 +3078,7 @@
   }
 
   .printable-menu-sheet {
+    display: block !important;
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
@@ -3074,7 +3086,7 @@
     margin: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-    min-height: auto !important;
+    min-height: 0 !important;
     height: auto !important;
     background: #ffffff !important;
     color: #18362f !important;
@@ -3083,6 +3095,7 @@
 
   .print-paged-table {
     width: 100% !important;
+    table-layout: fixed !important;
     border-collapse: collapse !important;
     border-spacing: 0 !important;
     border: none !important;
@@ -3091,15 +3104,26 @@
   }
 
   .print-paged-thead {
-    display: table-header-group !important;
+    display: table-header-group !important; /* Encabezado repetido en TODAS las páginas */
+  }
+
+  .print-paged-tfoot {
+    display: table-footer-group !important; /* Footer con QR repetido en TODAS las páginas */
   }
 
   .print-paged-th {
-    padding: 0 0 10px 0 !important;
+    padding: 0 0 6px 0 !important;
     margin: 0 !important;
     border: none !important;
     font-weight: normal !important;
     text-align: left !important;
+  }
+
+  .print-paged-td-footer {
+    padding: 4px 0 0 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    vertical-align: bottom !important;
   }
 
   .print-paged-tbody {
@@ -3107,7 +3131,7 @@
   }
 
   .print-paged-td {
-    padding: 0 !important;
+    padding: 2px 0 !important;
     margin: 0 !important;
     border: none !important;
     vertical-align: top !important;
@@ -3115,7 +3139,7 @@
 
   .print-categories-grid {
     column-gap: 22px !important;
-    column-fill: auto !important;
+    column-fill: balance !important; /* balance evita generar columnas/páginas vacías al final */
     break-inside: auto !important;
     page-break-inside: auto !important;
   }
@@ -3123,13 +3147,13 @@
   .print-category-block {
     break-inside: auto !important;
     page-break-inside: auto !important;
-    margin-bottom: 11px !important;
+    margin-bottom: 9px !important;
   }
 
   .print-sheet-header {
     border-bottom: 2px solid #18362f !important;
-    margin-bottom: 10px !important;
-    padding-bottom: 8px !important;
+    margin-bottom: 8px !important;
+    padding-bottom: 6px !important;
     break-after: avoid !important;
     page-break-after: avoid !important;
   }
@@ -3142,7 +3166,7 @@
     break-inside: avoid !important;
     page-break-inside: avoid !important;
     margin-top: 0 !important;
-    margin-bottom: 5px !important;
+    margin-bottom: 4px !important;
     padding-bottom: 2px !important;
   }
 
@@ -3163,14 +3187,43 @@
 
   .print-item-desc {
     color: #374151 !important;
+    font-size: 10px !important;
+    line-height: 1.3 !important;
   }
 
   .print-sheet-footer {
-    border-top: 2px solid #18362f !important;
-    margin-top: 14px !important;
-    padding-top: 8px !important;
+    border-top: 1.5px solid #18362f !important;
+    margin-top: 4px !important;
+    padding-top: 5px !important;
+    padding-bottom: 2px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
+  }
+
+  .print-qr-img {
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  .print-footer-info strong {
+    font-size: 11px !important;
+  }
+
+  .print-footer-info span {
+    font-size: 9.5px !important;
+  }
+
+  /* Evitar saltos de página huérfanos o desbordes vacíos */
+  .print-paged-table,
+  .print-paged-tbody,
+  .print-paged-td,
+  .print-categories-grid {
+    break-after: auto !important;
+    page-break-after: auto !important;
   }
 }
 
