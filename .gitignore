@@ -9,3 +9,9 @@ out
 /blob-report/
 /playwright/.cache/
 *.tsbuildinfo
+
+# Copias de seguridad de base de datos
+/backups/
+*.sql
+*.sql.gz
+*.tar.gz

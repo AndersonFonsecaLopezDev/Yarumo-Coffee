@@ -1,0 +1,118 @@
+name: Supabase Database Backup
+
+on:
+  # Ejecución automática diaria a las 2:00 AM hora Colombia (07:00 UTC)
+  schedule:
+    - cron: '0 7 * * *'
+  # Ejecución manual bajo demanda desde la pestaña Actions en GitHub
+  workflow_dispatch:
+    inputs:
+      retention_days:
+        description: 'Días de retención del artefacto (máx 90)'
+        required: false
+        default: '30'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Backup Supabase Database
+    runs-on: ubuntu-latest
+    environment: Production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Obtener marca de tiempo (Colombia UTC-5)
+        id: timestamp
+        shell: bash
+        run: |
+          # Formato YYYY-MM-DD_HH-mm-ss en UTC
+          TS=$(date -u +"%Y-%m-%d_%H-%M-%S")
+          DATE_LABEL=$(date -u +"%Y-%m-%d")
+          echo "ts=$TS" >> $GITHUB_OUTPUT
+          echo "date=$DATE_LABEL" >> $GITHUB_OUTPUT
+
+      - name: Configurar Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validar secretos de Supabase
+        shell: bash
+        run: |
+          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "❌ Falta el secreto SUPABASE_ACCESS_TOKEN en GitHub Actions."; exit 1; }
+          test -n "$SUPABASE_PROJECT_ID" || { echo "❌ Falta el secreto SUPABASE_PROJECT_ID en GitHub Actions."; exit 1; }
+          test -n "$SUPABASE_DB_PASSWORD" || { echo "❌ Falta el secreto SUPABASE_DB_PASSWORD en GitHub Actions."; exit 1; }
+          echo "✅ Secretos de Supabase verificados correctamente."
+
+      - name: Vincular proyecto Supabase
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+
+      - name: Crear directorio de respaldos
+        run: mkdir -p backups
+
+      - name: Exportar Esquema DDL (Tablas, RLS, Roles, Triggers)
+        run: |
+          supabase db dump --project-ref "$SUPABASE_PROJECT_ID" -f "backups/yarumo_schema_${{ steps.timestamp.outputs.ts }}.sql"
+          ls -lh "backups/yarumo_schema_${{ steps.timestamp.outputs.ts }}.sql"
+
+      - name: Exportar Datos (Catálogo, Pedidos, Mesas, Reseñas)
+        run: |
+          supabase db dump --project-ref "$SUPABASE_PROJECT_ID" --data-only -f "backups/yarumo_data_${{ steps.timestamp.outputs.ts }}.sql"
+          ls -lh "backups/yarumo_data_${{ steps.timestamp.outputs.ts }}.sql"
+
+      - name: Comprimir respaldo en archivo tar.gz
+        run: |
+          cd backups
+          tar -czvf "yarumo_backup_${{ steps.timestamp.outputs.ts }}.tar.gz" \
+            "yarumo_schema_${{ steps.timestamp.outputs.ts }}.sql" \
+            "yarumo_data_${{ steps.timestamp.outputs.ts }}.sql"
+          SIZE=$(ls -lh "yarumo_backup_${{ steps.timestamp.outputs.ts }}.tar.gz" | awk '{print $5}')
+          echo "backup_size=$SIZE" >> $GITHUB_ENV
+          cd ..
+
+      - name: Subir artefacto de respaldo a GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: yarumo-db-backup-${{ steps.timestamp.outputs.ts }}
+          path: backups/yarumo_backup_${{ steps.timestamp.outputs.ts }}.tar.gz
+          retention-days: ${{ inputs.retention_days || 30 }}
+          if-no-files-found: error
+
+      - name: Publicar resumen en el Job Summary
+        shell: bash
+        run: |
+          cat << 'EOF' >> $GITHUB_STEP_SUMMARY
+          ## 📦 Respaldo de Base de Datos · Yarumo Coffee
+
+          | Parámetro | Detalle |
+          | :--- | :--- |
+          | **Fecha de ejecución** | ${{ steps.timestamp.outputs.ts }} UTC |
+          | **Proyecto Supabase** | `${{ secrets.SUPABASE_PROJECT_ID }}` |
+          | **Archivo generado** | `yarumo_backup_${{ steps.timestamp.outputs.ts }}.tar.gz` |
+          | **Tamaño comprimido** | `${{ env.backup_size }}` |
+          | **Retención** | ${{ inputs.retention_days || 30 }} días en GitHub Artifacts |
+
+          ### 📑 Contenido del Respaldo:
+          1. `yarumo_schema_*.sql`: Definiciones de tablas, tipos, índices, funciones y políticas de seguridad RLS.
+          2. `yarumo_data_*.sql`: Todos los registros de productos, categorías, opciones, promociones, comandas y opiniones.
+
+          ### 🔄 Instrucciones de Restauración de Emergencia:
+          ```bash
+          # 1. Descomprimir el archivo
+          tar -xzvf yarumo_backup_${{ steps.timestamp.outputs.ts }}.tar.gz
+
+          # 2. Restaurar en PostgreSQL / Supabase
+          psql "$DATABASE_URL" -f yarumo_schema_${{ steps.timestamp.outputs.ts }}.sql
+          psql "$DATABASE_URL" -f yarumo_data_${{ steps.timestamp.outputs.ts }}.sql
+          ```
+          EOF
