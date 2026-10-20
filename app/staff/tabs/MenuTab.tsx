@@ -17,6 +17,8 @@ import MenuBulkActions from './menu/MenuBulkActions'
 type MenuTabProps = {
   items: MenuItem[]
   categories: MenuCategory[]
+  siteName?: string
+  siteLogo?: string
   onRefresh: () => void
 }
 
@@ -49,6 +51,8 @@ const defaultFilters = {
 export default function MenuTab({
   items,
   categories,
+  siteName,
+  siteLogo,
   onRefresh,
 }: MenuTabProps) {
   const [supabase] = useState(() => createClient())
@@ -781,6 +785,8 @@ export default function MenuTab({
         <PrintMenuModal
           items={items}
           categories={categories}
+          siteName={siteName}
+          siteLogo={siteLogo}
           onClose={() => setShowPrintModal(false)}
         />
       )}

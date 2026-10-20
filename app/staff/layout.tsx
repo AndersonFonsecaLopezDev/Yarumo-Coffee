@@ -1,13 +1,19 @@
 import type { Metadata } from 'next'
 import '../staff.css'
 
-export const metadata: Metadata = {
-  title: 'Panel Staff · Yarumo Coffee',
-  description: 'Gestión de comandas, solicitudes, menú y mesas de Yarumo Coffee.',
-  robots: {
-    index: false,
-    follow: false,
-  },
+import { getSiteBranding } from '@/lib/home-data'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { siteName } = await getSiteBranding()
+  const cleanName = siteName || 'Yarumo Coffee'
+  return {
+    title: `Panel Staff · ${cleanName}`,
+    description: `Gestión de comandas, solicitudes, menú y mesas de ${cleanName}.`,
+    robots: {
+      index: false,
+      follow: false,
+    },
+  }
 }
 
 export default function StaffLayout({ children }: { children: React.ReactNode }) {

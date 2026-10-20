@@ -81,6 +81,7 @@ const esTranslations = {
   toast_service_error: 'No se pudo enviar la solicitud. Intenta nuevamente.',
   toast_waiter_sent: '🛎️ Solicitud enviada: el mesero viene en camino a tu mesa.',
   toast_bill_sent: '🧾 Solicitud enviada: la cuenta fue solicitada para tu mesa.',
+  service_estimated_wait: 'Tiempo de espera estimado',
 
   // Catalog
   catalog_eyebrow: 'Selección de la casa',
@@ -353,6 +354,7 @@ const enTranslations: Record<TranslationKey, string> = {
   toast_service_error: 'Could not send request. Please try again.',
   toast_waiter_sent: '🛎️ Request sent: your server is on their way.',
   toast_bill_sent: '🧾 Request sent: the bill has been requested for your table.',
+  service_estimated_wait: 'Estimated wait time',
 
   // Catalog
   catalog_eyebrow: 'House selection',

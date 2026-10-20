@@ -18,6 +18,7 @@ type OrderCartProps = {
   mesaToken: string | null
   tableOrders?: TableOrder[]
   whatsappNumber?: string
+  estimatedWaitTime?: string
   onOrdersRefresh?: () => void
   onUpdateQuantity: (indexOrId: number | string, delta: number) => void
   onUpdateItemNotes: (indexOrId: number | string, notes: string) => void
@@ -32,6 +33,7 @@ export default function OrderCart({
   mesaToken,
   tableOrders: propTableOrders,
   whatsappNumber = '573192208938',
+  estimatedWaitTime,
   onOrdersRefresh,
   onUpdateQuantity,
   onUpdateItemNotes,
@@ -419,6 +421,12 @@ export default function OrderCart({
             )}
 
             <div className="cart-modal-body">
+              {estimatedWaitTime && (
+                <div className="cart-wait-time-banner" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', margin: '0 0 12px', background: 'var(--surface-muted, rgba(0,0,0,0.03))', borderRadius: 8, fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  <span>⏱️</span>
+                  <span>{t('service_estimated_wait')}: <strong>{estimatedWaitTime}</strong></span>
+                </div>
+              )}
               {cart.length === 0 ? (
                 <div className="cart-empty-message">
                   <span className="cart-empty-icon">

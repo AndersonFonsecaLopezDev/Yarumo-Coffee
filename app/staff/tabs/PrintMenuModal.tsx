@@ -12,6 +12,8 @@ const emptySubscribe = () => () => {}
 type PrintMenuModalProps = {
   items: MenuItem[]
   categories: MenuCategory[]
+  siteName?: string
+  siteLogo?: string
   onClose: () => void
 }
 
@@ -68,6 +70,8 @@ function PrintCategorySection({
 export default function PrintMenuModal({
   items,
   categories,
+  siteName = 'Yarumo Coffee',
+  siteLogo = '/yarumo-logo.webp',
   onClose,
 }: PrintMenuModalProps) {
   const [columns, setColumns] = useState<'2' | '3' | '4'>('3')
@@ -435,15 +439,15 @@ export default function PrintMenuModal({
                       <div className="print-header-brand">
                         <div className="print-logo-wrap">
                           <Image
-                            src="/yarumo-logo.webp"
-                            alt="Yarumo Coffee"
+                            src={siteLogo}
+                            alt={siteName}
                             width={56}
                             height={56}
                             priority
                           />
                         </div>
                         <div>
-                          <h1 className="print-brand-title">YARUMO COFFEE</h1>
+                          <h1 className="print-brand-title">{(siteName || 'YARUMO COFFEE').toUpperCase()}</h1>
                           <p className="print-brand-tagline">CAFÉ ESPECIAL DE ORIGEN · ARMENIA, QUINDÍO</p>
                         </div>
                       </div>

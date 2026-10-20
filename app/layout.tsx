@@ -13,34 +13,42 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  alternates: {
-    canonical: '/',
-  },
-  title: 'Yarumo Coffee · Menú Digital y Atención en Mesa',
-  description: 'Menú digital y atención en mesa de Yarumo Coffee en Armenia, Quindío. Pide a tu mesa o a domicilio con café especial de origen.',
-  manifest: '/manifest.webmanifest',
-  icons: {
-    icon: [{ url: '/icon-32.png', sizes: '32x32', type: 'image/png' }],
-    shortcut: '/icon-32.png',
-    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
-  },
-  openGraph: {
-    title: 'Yarumo Coffee · Menú Digital y Atención en Mesa',
-    description: 'Menú digital y atención en mesa de Yarumo Coffee Armenia. Pide la cuenta o llama al mesero desde tu celular.',
-    url: SITE_URL,
-    siteName: 'Yarumo Coffee',
-    images: [{ url: '/yarumo-cover-cafe-og.webp', width: 1200, height: 630, alt: 'Café de Yarumo Coffee servido en mesa' }],
-    locale: 'es_CO',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Yarumo Coffee · Menú Digital y Atención en Mesa',
-    description: 'Menú digital y atención en mesa de Yarumo Coffee Armenia.',
-    images: ['/yarumo-cover-cafe-og.webp'],
-  },
+import { getSiteBranding } from '@/lib/home-data'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { siteName, siteIcon } = await getSiteBranding()
+  const pageTitle = `${siteName} · Menú Digital y Atención en Mesa`
+  const pageDescription = `Menú digital y atención en mesa de ${siteName} en Armenia, Quindío. Pide a tu mesa o a domicilio con café especial de origen.`
+
+  return {
+    metadataBase: new URL(SITE_URL),
+    alternates: {
+      canonical: '/',
+    },
+    title: pageTitle,
+    description: pageDescription,
+    manifest: '/manifest.webmanifest',
+    icons: {
+      icon: [{ url: siteIcon['32'] || '/icon-32.png', sizes: '32x32', type: 'image/png' }],
+      shortcut: siteIcon['32'] || '/icon-32.png',
+      apple: [{ url: siteIcon['180'] || '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+    },
+    openGraph: {
+      title: pageTitle,
+      description: `Menú digital y atención en mesa de ${siteName} Armenia. Pide la cuenta o llama al mesero desde tu celular.`,
+      url: SITE_URL,
+      siteName,
+      images: [{ url: '/yarumo-cover-cafe-og.webp', width: 1200, height: 630, alt: `Café de ${siteName} servido en mesa` }],
+      locale: 'es_CO',
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: pageTitle,
+      description: `Menú digital y atención en mesa de ${siteName} Armenia.`,
+      images: ['/yarumo-cover-cafe-og.webp'],
+    },
+  }
 }
 
 const themeScript = `(function() {

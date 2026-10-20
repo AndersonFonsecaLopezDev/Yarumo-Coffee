@@ -13,5 +13,6 @@ out
 # Copias de seguridad de base de datos
 /backups/
 *.sql
+!supabase/migrations/*.sql
 *.sql.gz
 *.tar.gz

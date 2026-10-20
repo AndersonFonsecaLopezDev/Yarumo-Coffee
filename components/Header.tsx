@@ -27,7 +27,12 @@ function getServerTableSnapshot() {
   return null
 }
 
-export default function Header() {
+type HeaderProps = {
+  siteName?: string
+  siteIconUrl?: string
+}
+
+export default function Header({ siteName = 'Yarumo Coffee', siteIconUrl = '/yarumo-logo.webp' }: HeaderProps) {
   const pathname = usePathname()
   const isHome = pathname === '/'
   const { language, setLanguage, t } = useI18n()
@@ -37,19 +42,23 @@ export default function Header() {
     getServerTableSnapshot,
   )
 
+  const nameParts = siteName.trim().split(/\s+/)
+  const brandFirst = nameParts[0] || siteName
+  const brandRest = nameParts.slice(1).join(' ').toUpperCase()
+
   return (
     <header className="header">
-      <Link className="brand" href="/" aria-label="Yarumo Coffee Inicio">
+      <Link className="brand" href="/" aria-label={`${siteName} Inicio`}>
         <Image
-          src="/yarumo-logo.webp"
-          alt="Yarumo Coffee"
+          src={siteIconUrl}
+          alt={siteName}
           width={44}
           height={44}
           priority
         />
         <span>
-          <strong>Yarumo</strong>
-          <small>COFFEE</small>
+          <strong>{brandFirst}</strong>
+          {brandRest ? <small>{brandRest}</small> : null}
         </span>
       </Link>
 

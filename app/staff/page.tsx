@@ -175,6 +175,14 @@ export default function StaffPage() {
   const [tables, setTables] = useState<CafeTable[]>([])
   const [heroImageUrl, setHeroImageUrl] = useState('/yarumo-cover-cafe.webp')
   const [whatsappDeliveryNumber, setWhatsappDeliveryNumber] = useState('573192208938')
+  const [siteName, setSiteName] = useState('Yarumo Coffee')
+  const [siteIcon, setSiteIcon] = useState({
+    '512': '/icon-512.png',
+    '192': '/icon-192.png',
+    '180': '/apple-touch-icon.png',
+    '32': '/icon-32.png',
+  })
+  const [estimatedWaitTime, setEstimatedWaitTime] = useState('15–20 min')
   const staffTabsRef = useRef<HTMLElement>(null)
   const [tabsCanScrollLeft, setTabsCanScrollLeft] = useState(false)
   const [tabsCanScrollRight, setTabsCanScrollRight] = useState(false)
@@ -323,6 +331,16 @@ export default function StaffPage() {
       const map = setRes.data.reduce((acc, row) => ({ ...acc, [row.key]: row.value }), {} as Record<string, string>)
       if (map['hero_image_url']) setHeroImageUrl(map['hero_image_url'])
       if (map['whatsapp_delivery_number']) setWhatsappDeliveryNumber(map['whatsapp_delivery_number'])
+      if (map['site_name']) setSiteName(map['site_name'])
+      if (map['site_icon']) {
+        try {
+          const parsed = JSON.parse(map['site_icon'])
+          if (parsed && typeof parsed === 'object') {
+            setSiteIcon((prev) => ({ ...prev, ...parsed }))
+          }
+        } catch {}
+      }
+      if (map['estimated_wait_time']) setEstimatedWaitTime(map['estimated_wait_time'])
     }
   }, [supabase])
 
@@ -631,8 +649,8 @@ export default function StaffPage() {
       <header className="staff-head">
         <div className="staff-brand-identity">
           <Image
-            src="/yarumo-logo.webp"
-            alt="Yarumo Coffee"
+            src={siteIcon['180'] || siteIcon['512'] || '/yarumo-logo.webp'}
+            alt={siteName}
             width={46}
             height={46}
             className="staff-logo-img"
@@ -646,7 +664,7 @@ export default function StaffPage() {
               </span>
               <span className="staff-city-badge">Armenia · Quindío</span>
             </div>
-            <h1 className="staff-brand-title">Yarumo Coffee</h1>
+            <h1 className="staff-brand-title">{siteName}</h1>
           </div>
         </div>
 
@@ -778,7 +796,7 @@ export default function StaffPage() {
           />
         )}
         {tab === 'menu' && (
-          <MenuTab items={items} categories={categories} onRefresh={load} />
+          <MenuTab items={items} categories={categories} siteName={siteName} siteLogo={siteIcon['512'] || siteIcon['180']} onRefresh={load} />
         )}
         {tab === 'categories' && (
           <CategoriesTab categories={categories} onRefresh={load} />
@@ -793,7 +811,14 @@ export default function StaffPage() {
           <RecommendationsTab recommendations={recommendations} onRefresh={load} />
         )}
         {tab === 'settings' && (
-          <SettingsTab heroImageUrl={heroImageUrl} whatsappDeliveryNumber={whatsappDeliveryNumber} onRefresh={load} />
+          <SettingsTab
+            heroImageUrl={heroImageUrl}
+            whatsappDeliveryNumber={whatsappDeliveryNumber}
+            initialSiteName={siteName}
+            initialSiteIcon={JSON.stringify(siteIcon)}
+            initialEstimatedWaitTime={estimatedWaitTime}
+            onRefresh={load}
+          />
         )}
         {tab === 'help' && (
           <HelpTab />

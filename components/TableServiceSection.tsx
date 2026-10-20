@@ -7,11 +7,13 @@ import { useI18n } from '@/lib/i18n'
 type TableServiceSectionProps = {
   onTableResolved?: (table: { id: string; label: string } | null, token: string | null) => void
   onToastNotice?: (message: string) => void
+  estimatedWaitTime?: string
 }
 
 export default function TableServiceSection({
   onTableResolved,
   onToastNotice,
+  estimatedWaitTime,
 }: TableServiceSectionProps) {
   const { t } = useI18n()
   const [supabase] = useState(() => createClient())
@@ -143,6 +145,11 @@ export default function TableServiceSection({
               ? t('service_desc_table')
               : t('service_desc_general')}
           </p>
+          {estimatedWaitTime && (
+            <div className="service-wait-time" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 8 }}>
+              <span>⏱️ {t('service_estimated_wait')}: <strong>{estimatedWaitTime}</strong></span>
+            </div>
+          )}
         </div>
 
         <div className="service-actions">

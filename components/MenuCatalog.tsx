@@ -30,6 +30,7 @@ type MenuCatalogProps = {
   mesaToken: string | null
   whatsappDeliveryNumber: string
   initialItemId?: string
+  estimatedWaitTime?: string
 }
 
 const CART_STORAGE_KEY_V1 = 'yarumo_customer_cart_v1'
@@ -81,6 +82,7 @@ export default function MenuCatalog({
   mesaToken,
   whatsappDeliveryNumber,
   initialItemId,
+  estimatedWaitTime,
 }: MenuCatalogProps) {
   const { t, language } = useI18n()
   const [supabase] = useState(() => createClient())
@@ -867,6 +869,7 @@ export default function MenuCatalog({
         mesaToken={mesaToken}
         tableOrders={tableOrders}
         whatsappNumber={whatsappDeliveryNumber}
+        estimatedWaitTime={estimatedWaitTime}
         onOrdersRefresh={() => {
           if (table && mesaToken) void fetchTableOrders(table.id, mesaToken)
         }}

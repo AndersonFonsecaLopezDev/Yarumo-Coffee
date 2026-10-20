@@ -11,6 +11,7 @@ type HomeClientSectionProps = {
   initialPromotions: Promotion[]
   whatsappDeliveryNumber: string
   initialItemId?: string
+  estimatedWaitTime?: string
 }
 
 export default function HomeClientSection({
@@ -19,6 +20,7 @@ export default function HomeClientSection({
   initialPromotions,
   whatsappDeliveryNumber,
   initialItemId,
+  estimatedWaitTime,
 }: HomeClientSectionProps) {
   const [table, setTable] = useState<{ id: string; label: string } | null>(null)
   const [mesaToken, setMesaToken] = useState<string | null>(null)
@@ -62,6 +64,7 @@ export default function HomeClientSection({
   return (
     <>
       <TableServiceSection
+        estimatedWaitTime={estimatedWaitTime}
         onTableResolved={(resolvedTable, token) => {
           setTable(resolvedTable)
           setMesaToken(token)
@@ -81,6 +84,7 @@ export default function HomeClientSection({
         mesaToken={mesaToken}
         whatsappDeliveryNumber={whatsappDeliveryNumber}
         initialItemId={initialItemId}
+        estimatedWaitTime={estimatedWaitTime}
       />
 
       {toastMessage && (

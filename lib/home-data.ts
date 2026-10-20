@@ -46,12 +46,69 @@ export const cafeJsonLd = {
   ],
 }
 
+export function getCafeJsonLd(siteName?: string) {
+  return {
+    ...cafeJsonLd,
+    name: siteName || SITE_CONFIG.name,
+  }
+}
+
+export type SiteIcons = {
+  '512': string
+  '192': string
+  '180': string
+  '32': string
+}
+
+export const DEFAULT_SITE_ICONS: SiteIcons = {
+  '512': '/icon-512.png',
+  '192': '/icon-192.png',
+  '180': '/apple-touch-icon.png',
+  '32': '/icon-32.png',
+}
+
+export function parseSiteIcon(raw?: string | null): SiteIcons {
+  if (!raw) return DEFAULT_SITE_ICONS
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object') {
+      return {
+        '512': parsed['512'] || DEFAULT_SITE_ICONS['512'],
+        '192': parsed['192'] || DEFAULT_SITE_ICONS['192'],
+        '180': parsed['180'] || DEFAULT_SITE_ICONS['180'],
+        '32': parsed['32'] || DEFAULT_SITE_ICONS['32'],
+      }
+    }
+  } catch {}
+  return DEFAULT_SITE_ICONS
+}
+
+export async function getSiteBranding() {
+  const supabase = createPublicClient()
+  const { data } = await supabase.from('site_settings').select('key, value')
+  const map = (data || []).reduce(
+    (acc, row) => ({ ...acc, [row.key]: row.value }),
+    {} as Record<string, string>,
+  )
+
+  const siteName = (map['site_name'] || SITE_CONFIG.name || 'Yarumo Coffee').trim()
+  const siteIcon = parseSiteIcon(map['site_icon'])
+  const estimatedWaitTime = map['estimated_wait_time'] || '15–20 min'
+  const heroImageUrl = map['hero_image_url'] || '/yarumo-cover-cafe.webp'
+  const whatsappDeliveryNumber = map['whatsapp_delivery_number'] || '573192208938'
+
+  return { siteName, siteIcon, estimatedWaitTime, heroImageUrl, whatsappDeliveryNumber }
+}
+
 export type HomeInitialData = {
   menu: MenuItem[]
   categories: MenuCategory[]
   promotions: Promotion[]
   heroImageUrl: string
   whatsappDeliveryNumber: string
+  siteName: string
+  siteIcon: SiteIcons
+  estimatedWaitTime: string
 }
 
 export async function getInitialData(): Promise<HomeInitialData> {
@@ -91,6 +148,9 @@ export async function getInitialData(): Promise<HomeInitialData> {
 
   const heroImageUrl = settingsMap['hero_image_url'] || '/yarumo-cover-cafe.webp'
   const whatsappDeliveryNumber = settingsMap['whatsapp_delivery_number'] || '573192208938'
+  const siteName = (settingsMap['site_name'] || SITE_CONFIG.name || 'Yarumo Coffee').trim()
+  const siteIcon = parseSiteIcon(settingsMap['site_icon'])
+  const estimatedWaitTime = settingsMap['estimated_wait_time'] || '15–20 min'
 
   const optionsMap = new Map<string, MenuItemOptionGroup[]>()
   if (Array.isArray(optionsRes?.data)) {
@@ -117,6 +177,9 @@ export async function getInitialData(): Promise<HomeInitialData> {
     promotions: (promoRes.data || []) as Promotion[],
     heroImageUrl,
     whatsappDeliveryNumber,
+    siteName,
+    siteIcon,
+    estimatedWaitTime,
   }
 }
 

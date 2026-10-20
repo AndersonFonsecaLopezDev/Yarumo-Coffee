@@ -3,21 +3,30 @@ import HeroSection from '@/components/HeroSection'
 import HomeClientSection from '@/components/HomeClientSection'
 import VisitStrip from '@/components/VisitStrip'
 import Footer from '@/components/Footer'
-import { getInitialData, cafeJsonLd } from '@/lib/home-data'
+import { getInitialData, getCafeJsonLd } from '@/lib/home-data'
 
 // Revalidación estática ISR cada 120 segundos
 export const revalidate = 120
 
 export default async function Home() {
-  const { menu, categories, promotions, heroImageUrl, whatsappDeliveryNumber } = await getInitialData()
+  const {
+    menu,
+    categories,
+    promotions,
+    heroImageUrl,
+    whatsappDeliveryNumber,
+    siteName,
+    siteIcon,
+    estimatedWaitTime,
+  } = await getInitialData()
 
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(cafeJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(getCafeJsonLd(siteName)) }}
       />
-      <Header />
+      <Header siteName={siteName} siteIconUrl={siteIcon?.['180'] || siteIcon?.['512']} />
       <main id="main-content">
         <HeroSection heroImageUrl={heroImageUrl} />
         <HomeClientSection
@@ -25,6 +34,7 @@ export default async function Home() {
           initialCategories={categories}
           initialPromotions={promotions}
           whatsappDeliveryNumber={whatsappDeliveryNumber}
+          estimatedWaitTime={estimatedWaitTime}
         />
         <VisitStrip />
       </main>
