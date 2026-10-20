@@ -105,6 +105,15 @@ export default function MenuCatalog({
   })
   const [tableOrders, setTableOrders] = useState<TableOrder[]>([])
   const [toastMessage, setToastMessage] = useState<string>('')
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current)
+      }
+    }
+  }, [])
 
   // Referencia a las pestañas para navegación por teclado ARIA
   const tabsContainerRef = useRef<HTMLDivElement>(null)
@@ -313,7 +322,7 @@ export default function MenuCatalog({
       choices: MenuItemOptionChoice[] = [],
     ) => {
       setCart((prev) => {
-        const targetNotes = customNotes.trim()
+        const targetNotes = customNotes.trim().slice(0, 200)
         const effectivePrice = item.price_cop + (extraPrice > 0 ? extraPrice : 0)
         const idx = prev.findIndex(
           (entry) =>
@@ -339,10 +348,16 @@ export default function MenuCatalog({
           },
         ]
       })
-      setToastMessage(`✓ ${item.name} agregado al pedido`)
-      setTimeout(() => setToastMessage(''), 2400)
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current)
+      }
+      setToastMessage(`✓ ${item.name} ${t('toast_item_added')}`)
+      toastTimeoutRef.current = setTimeout(() => {
+        setToastMessage('')
+        toastTimeoutRef.current = null
+      }, 2400)
     },
-    [],
+    [t],
   )
 
   // Stepper de la tarjeta de catálogo y del modal de detalle: opera sobre la línea más reciente
@@ -781,8 +796,14 @@ export default function MenuCatalog({
         onClearCart={clearCart}
         onOrderSuccess={(orderId) => {
           setCart([])
+          if (toastTimeoutRef.current) {
+            clearTimeout(toastTimeoutRef.current)
+          }
           setToastMessage(`${t('toast_order_success_prefix')} #${orderId.slice(0, 5)}`)
-          setTimeout(() => setToastMessage(''), 3000)
+          toastTimeoutRef.current = setTimeout(() => {
+            setToastMessage('')
+            toastTimeoutRef.current = null
+          }, 3000)
         }}
       />
 
@@ -792,7 +813,9 @@ export default function MenuCatalog({
           key={galleryItem.id}
           item={galleryItem}
           cartQty={cartQuantityMap.get(galleryItem.id) || 0}
-          onAddToCart={(it, notes, extra) => addToCart(it, notes, extra)}
+          onAddToCart={(it, notes, extra, choiceIds, choices) =>
+            addToCart(it, notes, extra, choiceIds, choices)
+          }
           onUpdateQuantity={(delta) => updateCartQuantityByProduct(galleryItem.id, delta)}
           onClose={() => setGalleryItem(null)}
         />

@@ -33,6 +33,17 @@ export default function GalleryModal({
   const { t, language } = useI18n()
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [baristaNotes, setBaristaNotes] = useState<string>('')
+  const [isAddedRecently, setIsAddedRecently] = useState(false)
+  const [noteSavedNotice, setNoteSavedNotice] = useState(false)
+  const addedTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const noteSavedTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (addedTimeoutRef.current) clearTimeout(addedTimeoutRef.current)
+      if (noteSavedTimeoutRef.current) clearTimeout(noteSavedTimeoutRef.current)
+    }
+  }, [])
   const [selectedChoicesByGroup, setSelectedChoicesByGroup] = useState<Record<string, string[]>>({})
   const [prevItemKey, setPrevItemKey] = useState<string | null>(null)
 
@@ -140,11 +151,39 @@ export default function GalleryModal({
     window.open(`https://api.whatsapp.com/send?text=${message}`, '_blank')
   }
 
+  const choiceLabels = selectedChoicesList.map((c) => c.label)
+  const choicePrefix = choiceLabels.join(' | ')
+  const maxBaristaLength = Math.max(0, 200 - (choicePrefix ? choicePrefix.length + 3 : 0))
+  const effectiveMaxNotesLength = Math.min(120, maxBaristaLength)
+
   function handleAddWithCustomization() {
     if (!item || !onAddToCart) return
-    const choiceLabels = selectedChoicesList.map((c) => c.label)
-    const combinedNotes = [...choiceLabels, baristaNotes.trim()].filter(Boolean).join(' | ')
+    const trimmedNotes = baristaNotes.trim()
+    const hadNotes = trimmedNotes.length > 0
+    let combinedNotes = [...choiceLabels, trimmedNotes].filter(Boolean).join(' | ')
+    if (combinedNotes.length > 200) {
+      combinedNotes = combinedNotes.slice(0, 200)
+    }
+
     onAddToCart(item, combinedNotes, extraDelta, selectedChoiceIds, selectedChoicesList)
+
+    setIsAddedRecently(true)
+    if (addedTimeoutRef.current) clearTimeout(addedTimeoutRef.current)
+    addedTimeoutRef.current = setTimeout(() => {
+      setIsAddedRecently(false)
+      addedTimeoutRef.current = null
+    }, 1500)
+
+    setBaristaNotes('')
+
+    if (hadNotes) {
+      setNoteSavedNotice(true)
+      if (noteSavedTimeoutRef.current) clearTimeout(noteSavedTimeoutRef.current)
+      noteSavedTimeoutRef.current = setTimeout(() => {
+        setNoteSavedNotice(false)
+        noteSavedTimeoutRef.current = null
+      }, 2500)
+    }
   }
 
   return (
@@ -157,7 +196,7 @@ export default function GalleryModal({
     >
       <div
         ref={dialogRef}
-        className="gallery-modal-card"
+        className="gallery-modal-card gallery-modal-dialog"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Visor de Imagen o Arte Vectorial de Marca */}
@@ -317,13 +356,19 @@ export default function GalleryModal({
               </label>
               <input
                 id="gallery-barista-notes"
+                name="modal-customer-notes"
                 type="text"
-                maxLength={120}
+                maxLength={effectiveMaxNotesLength}
                 placeholder={t('modal_notes_ph')}
                 value={baristaNotes}
                 onChange={(e) => setBaristaNotes(e.target.value)}
                 className="gallery-barista-input"
               />
+              {noteSavedNotice && (
+                <p className="gallery-barista-saved-notice" role="status" aria-live="polite">
+                  ✓ {t('modal_barista_saved')}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -339,12 +384,19 @@ export default function GalleryModal({
             {onAddToCart && (
               <button
                 type="button"
-                className="gallery-add-btn"
+                className={`gallery-add-btn ${isAddedRecently ? 'is-added' : ''}`}
                 onClick={handleAddWithCustomization}
                 id="btn-modal-add-to-cart"
+                aria-live="polite"
               >
-                <span>+</span>
-                <span>{cartQty > 0 ? t('modal_add_another') : t('modal_add_to_cart')}</span>
+                {isAddedRecently ? (
+                  <span>{t('modal_added_feedback')}</span>
+                ) : (
+                  <>
+                    <span>+</span>
+                    <span>{cartQty > 0 ? t('modal_add_another') : t('modal_add_to_cart')}</span>
+                  </>
+                )}
               </button>
             )}
 

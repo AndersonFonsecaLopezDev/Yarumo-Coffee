@@ -1,27 +1,41 @@
 'use client'
 
-import { useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import ThemeToggle from '@/components/ThemeToggle'
 import { useI18n } from '@/lib/i18n'
 
+function subscribeToLocation(callback: () => void) {
+  window.addEventListener('popstate', callback)
+  return () => window.removeEventListener('popstate', callback)
+}
+
+function getTableSnapshot() {
+  try {
+    const params = new URLSearchParams(window.location.search)
+    const mesaParam = params.get('mesa') || params.get('token')
+    if (mesaParam) {
+      return mesaParam.length <= 4 ? mesaParam : 'Activa'
+    }
+  } catch {}
+  return null
+}
+
+function getServerTableSnapshot() {
+  return null
+}
+
 export default function Header() {
   const pathname = usePathname()
   const isHome = pathname === '/'
   const { language, setLanguage, t } = useI18n()
-  const [tableLabel] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null
-    try {
-      const params = new URLSearchParams(window.location.search)
-      const mesaParam = params.get('mesa') || params.get('token')
-      if (mesaParam) {
-        return mesaParam.length <= 4 ? mesaParam : 'Activa'
-      }
-    } catch {}
-    return null
-  })
+  const tableLabel = useSyncExternalStore(
+    subscribeToLocation,
+    getTableSnapshot,
+    getServerTableSnapshot,
+  )
 
   return (
     <header className="header">

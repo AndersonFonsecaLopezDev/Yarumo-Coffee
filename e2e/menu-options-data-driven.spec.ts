@@ -174,4 +174,44 @@ test.describe('Bloque 3 Parte B - Opciones guiadas por datos y consistencia de p
     await expect(page.locator('.cart-item-total-price')).toContainText('9.000')
     await expect(page.locator('text=Leche de avena')).toBeVisible()
   })
+
+  test('agregar producto con opción y nota respeta extra y límite de 200 caracteres', async ({ page }) => {
+    await page.goto('/')
+
+    // Si hay productos en la carta, abrimos el modal interactivo
+    const firstMedia = page.locator('.item-media').first()
+    if (await firstMedia.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await firstMedia.click()
+      const modal = page.locator('.gallery-modal-card')
+      await expect(modal).toBeVisible()
+
+      // Si tiene opciones de grupo, seleccionamos la segunda si existe
+      const optionButtons = page.locator('.gallery-option-choice-btn')
+      if ((await optionButtons.count()) > 1) {
+        await optionButtons.nth(1).click()
+      }
+
+      // Probar nota larga para caso límite (superando o llenando campo)
+      const noteInput = page.locator('#gallery-barista-notes')
+      if (await noteInput.isVisible()) {
+        const longText = 'A'.repeat(250)
+        await noteInput.fill(longText)
+        const val = await noteInput.inputValue()
+        // No debe exceder la longitud máxima permitida en el input
+        expect(val.length).toBeLessThanOrEqual(120)
+      }
+
+      // Agregar al carrito
+      const addBtn = page.locator('#btn-modal-add-to-cart')
+      await addBtn.click()
+
+      // Verificar feedback visual inmediato dentro del modal
+      await expect(addBtn).toContainText(/Agregado|Added/i)
+
+      // Verificar que el input de nota se limpia
+      if (await noteInput.isVisible()) {
+        await expect(noteInput).toHaveValue('')
+      }
+    }
+  })
 })

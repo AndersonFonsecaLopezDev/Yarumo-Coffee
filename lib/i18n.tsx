@@ -109,6 +109,7 @@ const esTranslations = {
   stepper_minus_prefix: 'Quitar uno de',
   stepper_plus_prefix: 'Agregar otro',
   toast_order_success_prefix: '✓ Comanda enviada con éxito',
+  toast_item_added: 'agregado al pedido',
   item_unavailable: 'Este producto ya no está disponible.',
 
   // Variants & Details Modal
@@ -118,8 +119,10 @@ const esTranslations = {
   modal_variants: 'Personaliza tu preparación',
   modal_notes_label: 'Instrucciones especiales para el barista',
   modal_notes_ph: 'Ej: con hielo suave, servido bien caliente...',
+  modal_barista_saved: 'Instrucción guardada para el barista',
   modal_add_to_cart: 'Agregar al pedido',
   modal_add_another: 'Agregar otro',
+  modal_added_feedback: '✓ Agregado',
   modal_share: 'Compartir en WhatsApp',
   modal_close_aria: 'Cerrar modal',
   modal_prev_photo: 'Foto anterior',
@@ -378,6 +381,7 @@ const enTranslations: Record<TranslationKey, string> = {
   stepper_minus_prefix: 'Remove one of',
   stepper_plus_prefix: 'Add another',
   toast_order_success_prefix: '✓ Order sent successfully',
+  toast_item_added: 'added to order',
   item_unavailable: 'This product is no longer available.',
 
   // Variants & Details Modal
@@ -387,8 +391,10 @@ const enTranslations: Record<TranslationKey, string> = {
   modal_variants: 'Customize your drink',
   modal_notes_label: 'Special barista notes',
   modal_notes_ph: 'E.g., extra hot, light ice...',
+  modal_barista_saved: 'Instruction saved for the barista',
   modal_add_to_cart: 'Add to order',
   modal_add_another: 'Add another',
+  modal_added_feedback: '✓ Added',
   modal_share: 'Share on WhatsApp',
   modal_close_aria: 'Close modal',
   modal_prev_photo: 'Previous photo',
