@@ -117,6 +117,60 @@ export default function MenuCatalog({
 
   // Referencia a las pestañas para navegación por teclado ARIA
   const tabsContainerRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  const updateScrollState = useCallback(() => {
+    const el = tabsContainerRef.current
+    if (!el) return
+    const { scrollLeft, scrollWidth, clientWidth } = el
+    setCanScrollLeft(scrollLeft > 2)
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 2)
+  }, [])
+
+  useEffect(() => {
+    const el = tabsContainerRef.current
+    if (!el) return
+
+    updateScrollState()
+    el.addEventListener('scroll', updateScrollState, { passive: true })
+
+    const ro = new ResizeObserver(() => {
+      updateScrollState()
+    })
+    ro.observe(el)
+
+    const handleWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        const canScroll =
+          (e.deltaY > 0 && el.scrollLeft + el.clientWidth < el.scrollWidth - 1) ||
+          (e.deltaY < 0 && el.scrollLeft > 1)
+        if (canScroll) {
+          e.preventDefault()
+          el.scrollLeft += e.deltaY
+        }
+      }
+    }
+
+    el.addEventListener('wheel', handleWheel, { passive: false })
+
+    return () => {
+      el.removeEventListener('scroll', updateScrollState)
+      el.removeEventListener('wheel', handleWheel)
+      ro.disconnect()
+    }
+  }, [updateScrollState])
+
+  const scrollCategory = (direction: 'left' | 'right') => {
+    const el = tabsContainerRef.current
+    if (!el) return
+    const scrollAmount = Math.round(el.clientWidth * 0.8)
+    el.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth',
+    })
+  }
 
   // 1. Carrito con persistencia en localStorage (versión 2 con migración de v1 y caducidad de 24h)
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -546,7 +600,21 @@ export default function MenuCatalog({
               </div>
             </div>
 
-            <div className="category-scroll-container">
+            <div
+              className={`category-scroll-container ${canScrollLeft ? 'has-overflow-left' : ''} ${canScrollRight ? 'has-overflow-right' : ''}`}
+            >
+              {canScrollLeft && (
+                <button
+                  type="button"
+                  className="category-scroll-btn category-scroll-left"
+                  onClick={() => scrollCategory('left')}
+                  aria-hidden="true"
+                  tabIndex={-1}
+                >
+                  ‹
+                </button>
+              )}
+
               <div
                 className="category-tabs"
                 role="tablist"
@@ -599,6 +667,18 @@ export default function MenuCatalog({
                   </button>
                 ))}
               </div>
+
+              {canScrollRight && (
+                <button
+                  type="button"
+                  className="category-scroll-btn category-scroll-right"
+                  onClick={() => scrollCategory('right')}
+                  aria-hidden="true"
+                  tabIndex={-1}
+                >
+                  ›
+                </button>
+              )}
             </div>
           </div>
         </div>

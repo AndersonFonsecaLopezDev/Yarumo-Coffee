@@ -174,6 +174,29 @@ export default function StaffPage() {
   const [tables, setTables] = useState<CafeTable[]>([])
   const [heroImageUrl, setHeroImageUrl] = useState('/yarumo-cover-cafe.webp')
   const [whatsappDeliveryNumber, setWhatsappDeliveryNumber] = useState('573192208938')
+  const staffTabsRef = useRef<HTMLElement>(null)
+  const [tabsCanScrollLeft, setTabsCanScrollLeft] = useState(false)
+  const [tabsCanScrollRight, setTabsCanScrollRight] = useState(false)
+
+  const updateStaffTabsOverflow = useCallback(() => {
+    const el = staffTabsRef.current
+    if (!el) return
+    setTabsCanScrollLeft(el.scrollLeft > 2)
+    setTabsCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2)
+  }, [])
+
+  useEffect(() => {
+    const el = staffTabsRef.current
+    if (!el) return
+    updateStaffTabsOverflow()
+    el.addEventListener('scroll', updateStaffTabsOverflow, { passive: true })
+    const ro = new ResizeObserver(updateStaffTabsOverflow)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', updateStaffTabsOverflow)
+      ro.disconnect()
+    }
+  }, [updateStaffTabsOverflow])
 
   // Pestaña activa (inicializada desde URL sin efectos secundarios)
   const [tab, setTab] = useState<StaffTab>(() => {
@@ -697,37 +720,41 @@ export default function StaffPage() {
         </div>
       </header>
 
-      <nav className="staff-tabs" role="tablist">
-        <button type="button" role="tab" data-tab="activity" aria-selected={tab === 'activity'} className={tab === 'activity' ? 'active' : ''} onClick={() => handleSelectTab('activity')}>
-          Actividad ({orders.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').length})
-        </button>
-        <button type="button" role="tab" data-tab="menu" aria-selected={tab === 'menu'} className={tab === 'menu' ? 'active' : ''} onClick={() => handleSelectTab('menu')}>
-          Menú ({items.length})
-        </button>
-        <button type="button" role="tab" data-tab="categories" aria-selected={tab === 'categories'} className={tab === 'categories' ? 'active' : ''} onClick={() => handleSelectTab('categories')}>
-          Categorías ({categories.length})
-        </button>
-        <button type="button" role="tab" data-tab="promotions" aria-selected={tab === 'promotions'} className={tab === 'promotions' ? 'active' : ''} onClick={() => handleSelectTab('promotions')}>
-          Promociones ({promotions.length})
-        </button>
-        <button type="button" role="tab" data-tab="qr" aria-selected={tab === 'qr'} className={tab === 'qr' ? 'active' : ''} onClick={() => handleSelectTab('qr')}>
-          Mesas y QR ({tables.length})
-        </button>
-        <button type="button" role="tab" data-tab="recommendations" aria-selected={tab === 'recommendations'} className={tab === 'recommendations' ? 'active' : ''} onClick={() => handleSelectTab('recommendations')}>
-          Opiniones ({recommendations.length})
-        </button>
-        <button type="button" role="tab" data-tab="settings" aria-selected={tab === 'settings'} className={tab === 'settings' ? 'active' : ''} onClick={() => handleSelectTab('settings')}>
-          Ajustes
-        </button>
-        <button type="button" role="tab" data-tab="help" aria-selected={tab === 'help'} className={tab === 'help' ? 'active' : ''} onClick={() => handleSelectTab('help')}>
-          📖 Ayuda
-        </button>
-        {(role === 'owner' || role === 'manager') && (
-          <button type="button" role="tab" data-tab="users" aria-selected={tab === 'users'} className={tab === 'users' ? 'active' : ''} onClick={() => handleSelectTab('users')}>
-            Usuarios
+      <div
+        className={`staff-tabs-container ${tabsCanScrollLeft ? 'has-overflow-left' : ''} ${tabsCanScrollRight ? 'has-overflow-right' : ''}`}
+      >
+        <nav className="staff-tabs" role="tablist" ref={staffTabsRef}>
+          <button type="button" role="tab" data-tab="activity" aria-selected={tab === 'activity'} className={tab === 'activity' ? 'active' : ''} onClick={() => handleSelectTab('activity')}>
+            Actividad ({orders.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').length})
           </button>
-        )}
-      </nav>
+          <button type="button" role="tab" data-tab="menu" aria-selected={tab === 'menu'} className={tab === 'menu' ? 'active' : ''} onClick={() => handleSelectTab('menu')}>
+            Menú ({items.length})
+          </button>
+          <button type="button" role="tab" data-tab="categories" aria-selected={tab === 'categories'} className={tab === 'categories' ? 'active' : ''} onClick={() => handleSelectTab('categories')}>
+            Categorías ({categories.length})
+          </button>
+          <button type="button" role="tab" data-tab="promotions" aria-selected={tab === 'promotions'} className={tab === 'promotions' ? 'active' : ''} onClick={() => handleSelectTab('promotions')}>
+            Promociones ({promotions.length})
+          </button>
+          <button type="button" role="tab" data-tab="qr" aria-selected={tab === 'qr'} className={tab === 'qr' ? 'active' : ''} onClick={() => handleSelectTab('qr')}>
+            Mesas y QR ({tables.length})
+          </button>
+          <button type="button" role="tab" data-tab="recommendations" aria-selected={tab === 'recommendations'} className={tab === 'recommendations' ? 'active' : ''} onClick={() => handleSelectTab('recommendations')}>
+            Opiniones ({recommendations.length})
+          </button>
+          <button type="button" role="tab" data-tab="settings" aria-selected={tab === 'settings'} className={tab === 'settings' ? 'active' : ''} onClick={() => handleSelectTab('settings')}>
+            Ajustes
+          </button>
+          <button type="button" role="tab" data-tab="help" aria-selected={tab === 'help'} className={tab === 'help' ? 'active' : ''} onClick={() => handleSelectTab('help')}>
+            📖 Ayuda
+          </button>
+          {(role === 'owner' || role === 'manager') && (
+            <button type="button" role="tab" data-tab="users" aria-selected={tab === 'users'} className={tab === 'users' ? 'active' : ''} onClick={() => handleSelectTab('users')}>
+              Usuarios
+            </button>
+          )}
+        </nav>
+      </div>
 
       <main className="staff-main">
         {tab === 'activity' && (

@@ -927,6 +927,84 @@ h1 em, h2 em, h3 em {
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
+}
+
+.category-scroll-container::before,
+.category-scroll-container::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 36px;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.category-scroll-container::before {
+  left: 0;
+  background: linear-gradient(to right, var(--surface), transparent);
+}
+
+.category-scroll-container::after {
+  right: 0;
+  background: linear-gradient(to left, var(--surface), transparent);
+}
+
+.category-scroll-container.has-overflow-left::before {
+  opacity: 1;
+}
+
+.category-scroll-container.has-overflow-right::after {
+  opacity: 1;
+}
+
+.category-scroll-btn {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .category-scroll-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    cursor: pointer;
+    font-size: 22px;
+    line-height: 1;
+    transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+  }
+
+  .category-scroll-btn:hover {
+    background: var(--ink);
+    color: var(--cream);
+    transform: translateY(-50%) scale(1.08);
+  }
+
+  :root[data-theme="dark"] .category-scroll-btn:hover {
+    background: var(--lime);
+    color: var(--ink);
+  }
+
+  .category-scroll-left {
+    left: -12px;
+  }
+
+  .category-scroll-right {
+    right: -12px;
+  }
 }
 
 .category-tabs {
@@ -938,6 +1016,7 @@ h1 em, h2 em, h3 em {
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+  width: 100%;
 }
 
 .category-tabs::-webkit-scrollbar {
@@ -960,6 +1039,11 @@ h1 em, h2 em, h3 em {
   transition: transform var(--transition-fast), background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
   flex-shrink: 0;
   user-select: none;
+}
+
+.category-tab svg {
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
 }
 
 .category-tab:hover {
@@ -2417,6 +2501,96 @@ h1 em, h2 em, h3 em {
   }
 }
 
+@media (max-width: 640px) {
+  .header {
+    height: auto;
+    min-height: 64px;
+    padding: 10px 4vw;
+    gap: 12px;
+  }
+
+  .brand {
+    min-width: 0;
+    gap: 8px;
+  }
+
+  .brand img {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+  }
+
+  .brand strong {
+    font-size: 17px;
+  }
+
+  .brand small {
+    font-size: 8px;
+  }
+
+  .header-actions {
+    margin-left: auto;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 8px 3vw;
+    gap: 12px;
+  }
+
+  .brand {
+    gap: 6px;
+  }
+
+  .brand img {
+    width: 36px;
+    height: 36px;
+  }
+
+  .brand strong {
+    font-size: 16px;
+  }
+
+  .brand small {
+    display: none;
+  }
+
+  .header-actions {
+    gap: 6px;
+  }
+
+  .instagram-link-text {
+    display: none;
+  }
+
+  .theme-toggle-label {
+    display: none;
+  }
+
+  .instagram-link,
+  .theme-toggle-btn,
+  .lang-toggle-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .header-table-badge {
+    padding: 4px 8px;
+    font-size: 11px;
+    max-width: 85px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-height: 32px;
+  }
+}
+
 /* ==========================================================================
    PRODUCT PLACEHOLDER, CONFIRM MODAL & CATEGORY ICONS
    ========================================================================== */
@@ -2580,18 +2754,6 @@ h1 em, h2 em, h3 em {
     opacity: 1;
     transform: scale(1);
   }
-}
-
-/* Categorías con Iconos SVG */
-.category-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.category-tab svg {
-  flex-shrink: 0;
-  transition: transform var(--transition-fast);
 }
 
 /* ==========================================================================

@@ -950,6 +950,44 @@
 }
 
 /* Tabs Navigation */
+.staff-tabs-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.staff-tabs-container::before,
+.staff-tabs-container::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 32px;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.staff-tabs-container::before {
+  left: 0;
+  background: linear-gradient(to right, var(--bg, #fdfbf7), transparent);
+}
+
+.staff-tabs-container::after {
+  right: 0;
+  background: linear-gradient(to left, var(--bg, #fdfbf7), transparent);
+}
+
+.staff-tabs-container.has-overflow-left::before {
+  opacity: 1;
+}
+
+.staff-tabs-container.has-overflow-right::after {
+  opacity: 1;
+}
+
 .staff-tabs {
   display: flex;
   gap: 8px;
@@ -957,6 +995,7 @@
   overflow-x: auto;
   scrollbar-width: none;
   padding-bottom: 4px;
+  width: 100%;
 }
 
 .staff-tabs::-webkit-scrollbar { display: none; }
@@ -2665,6 +2704,7 @@
   overflow-x: auto;
   display: flex;
   justify-content: center;
+  align-items: flex-start;
   border-bottom-left-radius: 20px;
   border-bottom-right-radius: 20px;
 }
@@ -2684,6 +2724,8 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  flex-shrink: 0;
+  margin-bottom: 32px;
 }
 
 /* Tabla semántica de paginación para repetición de encabezado institucional */
