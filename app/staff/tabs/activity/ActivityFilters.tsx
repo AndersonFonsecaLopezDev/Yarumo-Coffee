@@ -60,14 +60,14 @@ export default function ActivityFilters({
             className={`segmented-btn ${filters.type === 'orders' ? 'active' : ''}`}
             onClick={() => setFilter('type', 'orders')}
           >
-            ☕ Comandas ({activeOrdersCount})
+            <span className="seg-emoji">☕ </span><span>Comandas ({activeOrdersCount})</span>
           </button>
           <button
             type="button"
             className={`segmented-btn ${filters.type === 'requests' ? 'active' : ''}`}
             onClick={() => setFilter('type', 'requests')}
           >
-            🛎️ Solicitudes ({pendingRequestsCount})
+            <span className="seg-emoji">🛎️ </span><span>Solicitudes ({pendingRequestsCount})</span>
           </button>
         </div>
 
