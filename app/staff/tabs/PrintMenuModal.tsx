@@ -15,6 +15,56 @@ type PrintMenuModalProps = {
   onClose: () => void
 }
 
+function PrintCategorySection({
+  title,
+  icon,
+  items,
+  showPhotos,
+  showDescriptions,
+}: {
+  title: string
+  icon: string
+  items: MenuItem[]
+  showPhotos: boolean
+  showDescriptions: boolean
+}) {
+  return (
+    <section className="print-category-block">
+      <h2 className="print-category-title">
+        <span className="print-cat-icon">{icon}</span>
+        <span>{title}</span>
+      </h2>
+
+      <div className="print-items-list">
+        {items.map((item) => (
+          <article key={item.id} className="print-menu-item">
+            <div className="print-item-content">
+              {showPhotos && item.image_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={item.image_url}
+                  alt={item.name}
+                  className="print-item-thumb"
+                />
+              )}
+              <div style={{ flex: 1 }}>
+                <div className="print-item-header">
+                  <strong className="print-item-name">{item.name}</strong>
+                  <span className="print-leader-dots" aria-hidden="true" />
+                  <span className="print-item-price">{formatCop(item.price_cop)}</span>
+                </div>
+                {showDescriptions && item.description && (
+                  <p className="print-item-desc">{item.description}</p>
+                )}
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export default function PrintMenuModal({
   items,
   categories,
@@ -368,6 +418,10 @@ export default function PrintMenuModal({
 
         {/* Hoja de menú (previsualización en pantalla y salida en @media print) */}
         <div className="print-modal-preview-wrapper">
+          <div className="print-pagination-notice" role="note">
+            <span>ℹ️ El PDF puede paginar distinto según el navegador y configuración de márgenes del sistema.</span>
+          </div>
+
           <div
             id="printable-menu"
             className={`printable-menu-sheet font-size-${fontSize} cols-${columns} orientation-${orientation} paper-${paperSize}`}
@@ -436,75 +490,24 @@ export default function PrintMenuModal({
                     {/* Cuadrícula de Categorías y Productos */}
                     <main className="print-categories-grid">
                       {categorizedItems.map(({ category, items: catItems }) => (
-                        <section key={category.id} className="print-category-block">
-                          <h2 className="print-category-title">
-                            <span className="print-cat-icon">{category.icon || '☕'}</span>
-                            <span>{category.name}</span>
-                          </h2>
-
-                          <div className="print-items-list">
-                            {catItems.map((item) => (
-                              <article key={item.id} className="print-menu-item">
-                                <div className="print-item-content">
-                                  {showPhotos && item.image_url && (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                      src={item.image_url}
-                                      alt={item.name}
-                                      className="print-item-thumb"
-                                    />
-                                  )}
-                                  <div style={{ flex: 1 }}>
-                                    <div className="print-item-header">
-                                      <strong className="print-item-name">{item.name}</strong>
-                                      <span className="print-leader-dots" aria-hidden="true" />
-                                      <span className="print-item-price">{formatCop(item.price_cop)}</span>
-                                    </div>
-                                    {showDescriptions && item.description && (
-                                      <p className="print-item-desc">{item.description}</p>
-                                    )}
-                                  </div>
-                                </div>
-                              </article>
-                            ))}
-                          </div>
-                        </section>
+                        <PrintCategorySection
+                          key={category.id}
+                          title={category.name}
+                          icon={category.icon || '☕'}
+                          items={catItems}
+                          showPhotos={showPhotos}
+                          showDescriptions={showDescriptions}
+                        />
                       ))}
 
                       {unassignedItems.length > 0 && (
-                        <section className="print-category-block">
-                          <h2 className="print-category-title">
-                            <span className="print-cat-icon">✨</span>
-                            <span>Otras Delicias</span>
-                          </h2>
-
-                          <div className="print-items-list">
-                            {unassignedItems.map((item) => (
-                              <article key={item.id} className="print-menu-item">
-                                <div className="print-item-content">
-                                  {showPhotos && item.image_url && (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                      src={item.image_url}
-                                      alt={item.name}
-                                      className="print-item-thumb"
-                                    />
-                                  )}
-                                  <div style={{ flex: 1 }}>
-                                    <div className="print-item-header">
-                                      <strong className="print-item-name">{item.name}</strong>
-                                      <span className="print-leader-dots" aria-hidden="true" />
-                                      <span className="print-item-price">{formatCop(item.price_cop)}</span>
-                                    </div>
-                                    {showDescriptions && item.description && (
-                                      <p className="print-item-desc">{item.description}</p>
-                                    )}
-                                  </div>
-                                </div>
-                              </article>
-                            ))}
-                          </div>
-                        </section>
+                        <PrintCategorySection
+                          title="Otras Delicias"
+                          icon="✨"
+                          items={unassignedItems}
+                          showPhotos={showPhotos}
+                          showDescriptions={showDescriptions}
+                        />
                       )}
                     </main>
                   </td>

@@ -181,7 +181,7 @@ export default function HelpTab() {
   return (
     <div className="tab-pane help-tab-pane">
       <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: '1.6rem', marginBottom: 6 }}>📖 Centro de Ayuda y Manuales de Operación</h2>
+        <h2 style={{ fontSize: '1.6rem', marginBottom: 6 }}>Centro de Ayuda y Manuales de Operación</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
           Guías paso a paso, procedimientos para baristas y administradores, y solución de incidencias en Yarumo Coffee.
         </p>

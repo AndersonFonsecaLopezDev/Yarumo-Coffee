@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import StaffAlerts, { type StaffAlert } from '@/components/StaffAlerts'
@@ -707,6 +708,15 @@ export default function StaffPage() {
 
           <ThemeToggle />
 
+          <Link
+            href="/"
+            className="staff-header-btn btn-view-menu"
+            title="Ir al menú principal de clientes"
+            aria-label="Ver menú"
+          >
+            <span>← Ver menú</span>
+          </Link>
+
           <button
             type="button"
             className="staff-header-btn button-logout"
@@ -746,7 +756,7 @@ export default function StaffPage() {
             Ajustes
           </button>
           <button type="button" role="tab" data-tab="help" aria-selected={tab === 'help'} className={tab === 'help' ? 'active' : ''} onClick={() => handleSelectTab('help')}>
-            📖 Ayuda
+            Ayuda
           </button>
           {(role === 'owner' || role === 'manager') && (
             <button type="button" role="tab" data-tab="users" aria-selected={tab === 'users'} className={tab === 'users' ? 'active' : ''} onClick={() => handleSelectTab('users')}>

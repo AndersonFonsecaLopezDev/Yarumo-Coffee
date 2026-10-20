@@ -71,37 +71,36 @@ export default function ActivityFilters({
           </button>
         </div>
 
-        {/* Selector de Estado */}
-        <select
-          id="activity-status-select"
-          value={filters.status}
-          onChange={(e) => setFilter('status', e.target.value)}
-          className="filter-control-select"
-          style={{ minWidth: 165 }}
-        >
-          <option value="active">Activos en cocina</option>
-          <option value="pending">Solo pendientes</option>
-          <option value="preparing">En preparación</option>
-          <option value="delivered">Entregados (Historial)</option>
-          <option value="cancelled">Cancelados (Historial)</option>
-          <option value="all">Todos los estados</option>
-        </select>
+        {/* Selectores de Estado y Mesa agrupados para rejilla responsiva */}
+        <div className="filter-selects-grid">
+          <select
+            id="activity-status-select"
+            value={filters.status}
+            onChange={(e) => setFilter('status', e.target.value)}
+            className="filter-control-select"
+          >
+            <option value="active">Activos en cocina</option>
+            <option value="pending">Solo pendientes</option>
+            <option value="preparing">En preparación</option>
+            <option value="delivered">Entregados (Historial)</option>
+            <option value="cancelled">Cancelados (Historial)</option>
+            <option value="all">Todos los estados</option>
+          </select>
 
-        {/* Selector de Mesa */}
-        <select
-          id="activity-table-select"
-          value={filters.table}
-          onChange={(e) => setFilter('table', e.target.value)}
-          className="filter-control-select"
-          style={{ minWidth: 140 }}
-        >
-          <option value="all">Todas las mesas</option>
-          {tables.map((t) => (
-            <option key={t.id} value={t.id}>
-              Mesa {t.label || t.id}
-            </option>
-          ))}
-        </select>
+          <select
+            id="activity-table-select"
+            value={filters.table}
+            onChange={(e) => setFilter('table', e.target.value)}
+            className="filter-control-select"
+          >
+            <option value="all">Todas las mesas</option>
+            {tables.map((t) => (
+              <option key={t.id} value={t.id}>
+                Mesa {t.label || t.id}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Fila de Chips y Contador */}
