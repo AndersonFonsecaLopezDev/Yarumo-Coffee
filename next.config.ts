@@ -3,15 +3,13 @@ import { withSentryConfig } from '@sentry/nextjs/config'
 
 const isDev = process.env.NODE_ENV !== 'production'
 
-// TODO(security): migrate script-src from 'unsafe-inline' to a per-request nonce.
-// This requires generating a nonce in `middleware.ts` (crypto.randomUUID() or similar),
-// forwarding it via a request header, reading it in `app/layout.tsx` with `headers()`,
-// and passing it to every <script> tag Next.js renders (Next has native support for this
-// via the `nonce` returned by `headers()` in the CSP header, see
-// https://nextjs.org/docs/app/building-your-application/configuring/content-security-policy).
-// Left as 'unsafe-inline' for now: Next.js injects small inline bootstrap scripts and
-// wiring a nonce through the App Router correctly (including error/loading boundaries)
-// is a non-trivial change that deserves its own PR + manual QA pass.
+// TODO(security): Plan de migración de CSP para script-src de 'unsafe-inline' a nonces criptográficos por solicitud:
+// 1. Generar un nonce criptográfico único por petición en `middleware.ts` usando `crypto.randomUUID()` en base64.
+// 2. Adjuntar el nonce a los headers de solicitud entrantes (`x-nonce`) y a la cabecera `Content-Security-Policy` enviada al cliente:
+//    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://va.vercel-scripts.com;`
+// 3. En `app/layout.tsx`, leer el nonce vía `const nonce = (await headers()).get('x-nonce')`.
+// 4. Inyectar el atributo `nonce={nonce}` en el script en línea `themeScript` y asegurar compatibilidad con scripts inyectados por Next.js.
+// 5. Consideración de arquitectura: Invocar `headers()` en RootLayout desactiva la caché estática (ISR) convirtiendo las rutas en puramente dinámicas en tiempo de ejecución. Se deja anotado sin implementar hasta definir la estrategia con Partial Prerendering (PPR) de Next.js.
 const scriptSrc = isDev
   ? // 'unsafe-eval' is required in development because Next.js Fast Refresh / HMR
     // evaluates updated modules via eval(). It is not required in a production build.

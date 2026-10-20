@@ -1,7 +1,8 @@
 // Service Worker para Yarumo Coffee
-// Versión 4: Network-First para navegación pública con respaldo en caché offline.
+// Versión 5: Network-First para navegación pública con respaldo en caché offline.
 // Excluye expresamente /staff, APIs, Auth y llamadas REST autenticadas.
-const CACHE_NAME = 'yarumo-cache-v4'
+const CACHE_NAME = 'yarumo-cache-v5'
+const MAX_IMAGE_ENTRIES = 80
 
 const PRECACHE_ASSETS = [
   '/',
@@ -14,11 +15,48 @@ const PRECACHE_ASSETS = [
   '/icon-512.png',
 ]
 
+// Poda LRU/FIFO para mantener las imágenes cacheadas bajo el límite de entradas
+async function pruneCacheEntries(cacheName, maxEntries) {
+  try {
+    const cache = await caches.open(cacheName)
+    const keys = await cache.keys()
+    const imageKeys = keys.filter((req) => {
+      const u = new URL(req.url)
+      return (
+        u.pathname.endsWith('.webp') ||
+        u.pathname.endsWith('.avif') ||
+        u.pathname.endsWith('.png') ||
+        u.pathname.endsWith('.jpg') ||
+        u.pathname.endsWith('.jpeg') ||
+        u.pathname.includes('/storage/v1/object/public/')
+      )
+    })
+
+    if (imageKeys.length > maxEntries) {
+      const countToDelete = imageKeys.length - maxEntries
+      for (let i = 0; i < countToDelete; i++) {
+        await cache.delete(imageKeys[i])
+      }
+    }
+  } catch {}
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE_ASSETS))
+      .then(async (cache) => {
+        await Promise.allSettled(
+          PRECACHE_ASSETS.map(async (asset) => {
+            try {
+              const res = await fetch(asset)
+              if (res && res.status === 200) {
+                await cache.put(asset, res)
+              }
+            } catch {}
+          }),
+        )
+      })
       .then(() => self.skipWaiting()),
   )
 })
@@ -96,6 +134,7 @@ self.addEventListener('fetch', (event) => {
           const networkRes = await fetch(request)
           if (networkRes && networkRes.status === 200) {
             cache.put(request, networkRes.clone())
+            void pruneCacheEntries(CACHE_NAME, MAX_IMAGE_ENTRIES)
           }
           return networkRes
         } catch {

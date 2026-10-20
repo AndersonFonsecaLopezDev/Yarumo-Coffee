@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { checkPersistentRateLimit, extractClientIp } from '@/lib/rate-limit'
@@ -14,13 +15,20 @@ export async function GET() {
       .limit(50)
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('Error al consultar recomendaciones:', error)
+      Sentry.captureException(error)
+      return NextResponse.json(
+        { error: 'No se pudieron obtener las recomendaciones en este momento.' },
+        { status: 500 },
+      )
     }
 
     return NextResponse.json(data || [])
   } catch (error) {
+    console.error('Excepción no controlada en GET /api/recommendations:', error)
+    Sentry.captureException(error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error al obtener recomendaciones' },
+      { error: 'Error interno del servidor al procesar las recomendaciones.' },
       { status: 500 },
     )
   }
@@ -114,8 +122,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true }, { status: 201 })
   } catch (error) {
     console.error('Excepción en POST /api/recommendations:', error)
+    Sentry.captureException(error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error interno al procesar la recomendación' },
+      { error: 'Error interno del servidor al procesar la recomendación.' },
       { status: 500 },
     )
   }
